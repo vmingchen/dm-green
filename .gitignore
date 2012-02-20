@@ -4,3 +4,5 @@ Module.*
 *.o
 *.mod.c
 \.*
+modules.order
+dm-energy.ko.unsigned
