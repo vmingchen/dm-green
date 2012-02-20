@@ -13,6 +13,7 @@
 #include <linux/bio.h>
 #include <linux/log2.h>
 #include <linux/dm-io.h>
+#include <linux/bitmap.h>
 
 #include <linux/device-mapper.h>
 
@@ -64,6 +65,7 @@ struct energy_extent {
 struct mapped_disk {
     struct dm_dev *dev;
     uint64_t ext_count;         /* number of extents */
+    uint64_t ext_free;          /* number of free extents */
     atomic_t err_count;         /* number of errors */
 };
 
@@ -76,6 +78,7 @@ struct energy_c {
 
     struct mapped_disk *disks;
     struct energy_extent *table;
+    unsigned long *bitmap;      /* bitmap of extent, '0' for free extent */
 
     struct dm_io_request io_req;
 
@@ -97,8 +100,10 @@ static struct energy_c *alloc_context(uint32_t ndisk)
         kfree(ec);
         return NULL;
     }
-    
-    ec->table = NULL;       /* table not allocated yet */
+
+    /* table and extent bitmap not allocated yet */
+    ec->table = NULL;       
+    ec->bitmap = NULL;      
 
     return ec;
 }
@@ -109,6 +114,9 @@ static void free_context(struct energy_c *ec)
 
     if (ec->table) {
         kfree(ec->table);
+    }
+    if (ec->bitmap) {
+        kfree(ec->bitmap);
     }
 
     kfree(ec->disks);
@@ -242,7 +250,7 @@ static void energy_dtr(struct dm_target *ti)
     for (i = 0; i < ec->ndisk; ++i)
         dm_put_device(ti, ec->disks[i].dev);
 
-    kfree(ec);
+    free_context(ec);
 }
 
 static int energy_map(struct dm_target *ti, struct bio *bio,
