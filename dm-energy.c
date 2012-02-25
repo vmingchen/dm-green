@@ -14,6 +14,7 @@
 #include <linux/log2.h>
 #include <linux/dm-io.h>
 #include <linux/bitmap.h>
+#include <linux/jiffies.h>
 
 #include <linux/device-mapper.h>
 
@@ -81,6 +82,8 @@ struct energy_c {
     unsigned long *bitmap;      /* bitmap of extent, '0' for free extent */
 
     struct dm_io_request io_req;
+    struct dm_io_client *io_client;
+    struct dm_kcopyd_client *kcp_client;
 
     uint64_t migration_ext;     /* logical extent id under migration */
     uint64_t migration_src;     /* source physical extent id */
@@ -105,6 +108,9 @@ static struct energy_c *alloc_context(uint32_t ndisk)
     ec->table = NULL;       
     ec->bitmap = NULL;      
 
+    ec->io_client = NULL;
+    ec->kcp_client = NULL;
+
     return ec;
 }
 
@@ -126,13 +132,13 @@ static void free_context(struct energy_c *ec)
 static void header_to_disk(struct energy_header_core *core, 
         struct energy_header_disk *disk)
 {   /* TODO */
-    return NULL;
+    return ;
 }
 
 static void header_from_disk(struct energy_header_core *core,
         struct energy_header_disk *disk)
 {   /* TODO */
-    return NULL;
+    return ;
 }
 
 /*
@@ -142,23 +148,51 @@ static int get_mdisk(struct dm_target *ti, struct energy_c *ec,
         unsigned idisk, char **argv)
 {
     char *end;
-    sector_t start, len;
 
-    start = simple_strtoull(argv[1], &end, 10);
-    if (*end) 
-        return -EINVAL;
-    ec->disks[idisk].start = start;
-
-    ec->disks[idisk].ext_count = simple_strtoull(argv[2], &end, 10);
+    ec->disks[idisk].ext_count = simple_strtoull(argv[1], &end, 10);
     if (*end)
         return -EINVAL;
-    len = ec->disks[idisk].ext_count << ec->ext_shift;
 
+#ifdef DME_OLD_KERNEL
+    if (dm_get_device(ti, argv[0], dm_table_get_mode(ti->table), 0, 
+                (ec->disks[idisk].ext_count << ec->ext_shift), 
+                &ec->disks[idisk].dev))
+#else
     if (dm_get_device(ti, argv[0], dm_table_get_mode(ti->table), 
-                start, len, &ec->disks[idisk].dev))
+                &ec->disks[idisk].dev))
+#endif
         return -ENXIO;
 
     return 0;
+}
+
+/*
+ * Get all disk devices
+ */
+static int get_disks(struct energy_c *ec, char **argv)
+{
+    int i, r;
+
+    for (i = 0; i < ec->header.ndisk; ++i, argv += 2) {
+        r = get_mdisk(ec->ti, ec, i, argv);
+        if (r < 0) {
+            put_disks(ec, i);
+            break;
+        }
+    }
+    return r;
+}
+
+/*
+ * Put all disk devices
+ */
+static void put_disks(struct energy_c *ec, int ndisk)
+{
+    int i;
+
+    for (i = 0; i < ndisk; ++i) {
+        dm_put_device(ec->ti, ec->disks[i].dev);
+    }
 }
 
 /*
@@ -210,10 +244,18 @@ static int energy_ctr(struct dm_target *ti, unsigned int argc, char **argv)
         return -ENOMEM;
     }
 
-    ec->ndisk = ndisk;
-    ec->ext_size = ext_size;
-    ec->ext_count = 0;
+    ec->ti = ti;
+    ec->header.ndisk = ndisk;
+    ec->header.ext_size = ext_size;
+    ec->header.ext_count = 0;
     ec->ext_shift = ffs(ext_size) - 1;
+
+    r = get_disks(ec, argv+2);
+    if (r < 0) {
+        ti->error = "Fail to get mapped disks";
+        kfree(ec);
+        return r;
+    }
 
     for (i = 0, argv += 2; i < ndisk; ++i, argv += 2) {
         r = get_mdisk(ti, ec, i, argv);
@@ -225,15 +267,20 @@ static int energy_ctr(struct dm_target *ti, unsigned int argc, char **argv)
             return r;
         }
         atomic_set(&(ec->disks[i].err_count), 0);
-        ec->ext_count += ec->disks[i].ext_count;
+        ec->header.ext_count += ec->disks[i].ext_count;
     }
 
-    if (ti->len != (ec->ext_count << ec->ext_shift)) {
+    if (ti->len != (ec->header.ext_count << ec->ext_shift)) {
         for (i = 0; i < ndisk; ++i)
             dm_put_device(ti, ec->disks[i].dev);
         kfree(ec);
         ti->error = "Disk length mismatch";
         return -EINVAL;
+    }
+
+    ec->io_client = dm_io_client_create();
+    if (IS_ERR(ec->io_client)) {
+        ti->error = "Failed to create dm_io_client";
     }
 
     ti->private = ec;
@@ -247,8 +294,7 @@ static void energy_dtr(struct dm_target *ti)
     struct energy_c *ec = (struct energy_c*)ti->private;
 
     DMERR("energy_dtr\n");
-    for (i = 0; i < ec->ndisk; ++i)
-        dm_put_device(ti, ec->disks[i].dev);
+    put_disks(ec, ec->header.ndisk);
 
     free_context(ec);
 }
@@ -256,7 +302,10 @@ static void energy_dtr(struct dm_target *ti)
 static int energy_map(struct dm_target *ti, struct bio *bio,
         union map_info *map_context)
 {
-    DMDEBUG("energy_map\n");
+    struct energy_c *ec = (struct energy_c*)ti->private;
+
+    DMDEBUG("%lu: energy_map", jiffies);
+    bio->bi_bdev = ec->disks[0].dev->bdev;
     return DM_MAPIO_REMAPPED;
 }
 
