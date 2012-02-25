@@ -13,6 +13,7 @@
 #include <linux/bio.h>
 #include <linux/log2.h>
 #include <linux/dm-io.h>
+#include <linux/dm-kcopyd.h>
 #include <linux/bitmap.h>
 #include <linux/jiffies.h>
 
@@ -25,6 +26,8 @@
  */
 #define ENERGE_MAGIC 0x45614567
 #define ENERGE_VERSION 1
+
+#define SECTOR_SIZE (1 << SECTOR_SHIFT)
 
 #define array_too_big(fixed, obj, num) \
 	((num) > (UINT_MAX - (fixed)) / (obj))
@@ -81,7 +84,6 @@ struct energy_c {
     struct energy_extent *table;
     unsigned long *bitmap;      /* bitmap of extent, '0' for free extent */
 
-    struct dm_io_request io_req;
     struct dm_io_client *io_client;
     struct dm_kcopyd_client *kcp_client;
 
@@ -129,58 +131,67 @@ static void free_context(struct energy_c *ec)
     kfree(ec);
 }
 
+/*
+ * Return size of on-disk metadata in sector
+ */
+static inline sector_t metadata_size(struct energy_c *ec) 
+{
+    uint64_t blk_count = sizeof(struct energy_header_core) 
+            + ec->header.ext_count * sizeof(struct energy_map_entry);
+
+    return (blk_count + (SECTOR_SIZE - 1)) >> SECTOR_SHIFT;
+}
+
 static void header_to_disk(struct energy_header_core *core, 
         struct energy_header_disk *disk)
-{   /* TODO */
-    return ;
+{   
+    disk->magic = cpu_to_le32(core->magic);
+    disk->version = cpu_to_le32(core->version);
+    disk->ndisk = cpu_to_le32(core->ndisk);
+    disk->ext_size = cpu_to_le32(core->ext_size);
+    disk->ext_count = cpu_to_le64(core->ext_count);
 }
 
 static void header_from_disk(struct energy_header_core *core,
         struct energy_header_disk *disk)
-{   /* TODO */
-    return ;
+{   
+    core->magic = le32_to_cpu(disk->magic);
+    core->version = le32_to_cpu(disk->version);
+    core->ndisk = le32_to_cpu(disk->ndisk);
+    core->ext_size = le32_to_cpu(disk->ext_size);
+    core->ext_count = le64_to_cpu(disk->ext_count);
 }
 
 /*
- * Get a mapped disk
+ * Get a mapped disk and check if it is sufficiently large.
  */
 static int get_mdisk(struct dm_target *ti, struct energy_c *ec, 
         unsigned idisk, char **argv)
 {
+	sector_t dev_size;
+    sector_t len;
     char *end;
 
     ec->disks[idisk].ext_count = simple_strtoull(argv[1], &end, 10);
     if (*end)
         return -EINVAL;
 
+    len = ec->disks[idisk].ext_count << ec->ext_shift; 
 #ifdef DME_OLD_KERNEL
     if (dm_get_device(ti, argv[0], dm_table_get_mode(ti->table), 0, 
-                (ec->disks[idisk].ext_count << ec->ext_shift), 
-                &ec->disks[idisk].dev))
+                len, &ec->disks[idisk].dev))
 #else
     if (dm_get_device(ti, argv[0], dm_table_get_mode(ti->table), 
                 &ec->disks[idisk].dev))
 #endif
         return -ENXIO;
 
+    /* device capacity should be large enough for extents and metadata */
+    dev_size = ec->disks[idisk].dev->bdev->bd_inode->i_size >> SECTOR_SHIFT;
+    if (dev_size < len + metadata_size(ec)) 
+        return -ENOSPC;
+
     return 0;
-}
-
-/*
- * Get all disk devices
- */
-static int get_disks(struct energy_c *ec, char **argv)
-{
-    int i, r;
-
-    for (i = 0; i < ec->header.ndisk; ++i, argv += 2) {
-        r = get_mdisk(ec->ti, ec, i, argv);
-        if (r < 0) {
-            put_disks(ec, i);
-            break;
-        }
-    }
-    return r;
 }
 
 /*
@@ -196,6 +207,82 @@ static void put_disks(struct energy_c *ec, int ndisk)
 }
 
 /*
+ * Get all disk devices
+ */
+static int get_disks(struct energy_c *ec, char **argv)
+{
+    int i, r;
+
+    ec->header.ext_count = 0;
+    for (i = 0; i < ec->header.ndisk; ++i, argv += 2) {
+        r = get_mdisk(ec->ti, ec, i, argv);
+        if (r < 0) {
+            put_disks(ec, i);
+            break;
+        }
+        atomic_set(&(ec->disks[i].err_count), 0);
+        ec->header.ext_count += ec->disks[i].ext_count;
+    }
+
+    return r;
+}
+
+/*
+ * Wrapper function for new dm_io API
+ */
+static int dm_io_sync_vm(unsigned num_regions, struct dm_io_region *where,
+        int rw, void *data, unsigned long *error_bits, struct energy_c *ec)
+{
+	struct dm_io_request iorq;
+
+	iorq.bi_rw= rw;
+	iorq.mem.type = DM_IO_VMA;
+	iorq.mem.ptr.vma = data;
+	iorq.notify.fn = NULL;
+	iorq.client = ec->io_client;
+
+	return dm_io(&iorq, num_regions, where, error_bits);
+}
+
+/*
+ * Load metadata, which is saved in each disk right after extents data. 
+ * Metadata format: <header> [<energy_map_entry>]+
+ */
+static int load_metadata(struct energy_c *ec)
+{
+    int r = 0;
+    unsigned long bits;
+	struct dm_io_region where;
+    struct energy_header_disk *header_disk;
+
+    header_disk = (struct energy_header_disk*)vmalloc(SECTOR_SIZE);
+    if (!header_disk) {
+		DMERR("load_metadata: Unable to allocate memory");
+        return -ENOMEM;
+    }
+
+    /* Read metadata from 1-st disk, which is taken as prime disk. */
+    where.bdev = ec->disks[0].dev->bdev;
+    // where.sector = ec->disks[0].ext_count << ec->ext_shift;
+    where.sector = 0;
+    where.count = 1;
+    dm_io_sync_vm(1, &where, READ, header_disk, &bits, ec);
+
+    /* Check */
+    if (le32_to_cpu(header_disk->magic) != ENERGE_MAGIC) {
+        DMDEBUG("Metadata dismatch, rewriting...");
+        header_to_disk(&(ec->header), header_disk);
+        dm_io_sync_vm(1, &where, WRITE, header_disk, &bits, ec);
+        DMDEBUG("New metadata written");
+    } else {
+        DMDEBUG("Metadata match!");
+    }
+
+    vfree(header_disk);
+    return r;
+}
+
+/*
  * Construct an energy mapping.
  *  <extent size> <number of disks> [<dev> <number-of-extent>]+
  */
@@ -205,10 +292,9 @@ static int energy_ctr(struct dm_target *ti, unsigned int argc, char **argv)
     uint32_t ext_size;
 	char *end;
     struct energy_c *ec;
-    unsigned i;
     int r;
 
-    DMERR("energy_ctr (argc: %d)\n", argc);
+    DMDEBUG("energy_ctr (argc: %d)", argc);
 
     if (argc < 4) {
         ti->error = "Not enough arguments";
@@ -247,55 +333,57 @@ static int energy_ctr(struct dm_target *ti, unsigned int argc, char **argv)
     ec->ti = ti;
     ec->header.ndisk = ndisk;
     ec->header.ext_size = ext_size;
-    ec->header.ext_count = 0;
     ec->ext_shift = ffs(ext_size) - 1;
+    ti->private = ec;
 
     r = get_disks(ec, argv+2);
     if (r < 0) {
         ti->error = "Fail to get mapped disks";
-        kfree(ec);
-        return r;
-    }
-
-    for (i = 0, argv += 2; i < ndisk; ++i, argv += 2) {
-        r = get_mdisk(ti, ec, i, argv);
-        if (r < 0) {
-            ti->error = "Cannot parse mapped disk";
-            while (i--)
-                dm_put_device(ti, ec->disks[i].dev);
-            kfree(ec);
-            return r;
-        }
-        atomic_set(&(ec->disks[i].err_count), 0);
-        ec->header.ext_count += ec->disks[i].ext_count;
+        goto bad_disks;
     }
 
     if (ti->len != (ec->header.ext_count << ec->ext_shift)) {
-        for (i = 0; i < ndisk; ++i)
-            dm_put_device(ti, ec->disks[i].dev);
-        kfree(ec);
         ti->error = "Disk length mismatch";
-        return -EINVAL;
+        r = -EINVAL;
+        goto bad_io_client;
     }
 
     ec->io_client = dm_io_client_create();
     if (IS_ERR(ec->io_client)) {
+		r = PTR_ERR(ec->io_client);
         ti->error = "Failed to create dm_io_client";
+        goto bad_io_client;
     }
 
-    ti->private = ec;
+    ec->kcp_client = dm_kcopyd_client_create();
+    if (IS_ERR(ec->kcp_client)) {
+		r = PTR_ERR(ec->io_client);
+        ti->error = "Failed to create dm_io_client";
+        goto bad_kcp_client;
+    }
+
+    load_metadata(ec);
 
     return 0;
+
+bad_kcp_client:
+    dm_io_client_destroy(ec->io_client);
+bad_io_client:
+    put_disks(ec, ndisk);
+bad_disks:
+    free_context(ec);
+
+    return r;
 }
 
 static void energy_dtr(struct dm_target *ti)
 {
-    int i;
     struct energy_c *ec = (struct energy_c*)ti->private;
 
-    DMERR("energy_dtr\n");
+    DMDEBUG("energy_dtr\n");
+    dm_kcopyd_client_destroy(ec->kcp_client);
+    dm_io_client_destroy(ec->io_client);
     put_disks(ec, ec->header.ndisk);
-
     free_context(ec);
 }
 
@@ -312,7 +400,7 @@ static int energy_map(struct dm_target *ti, struct bio *bio,
 static int energy_status(struct dm_target *ti, status_type_t type,
 			 char *result, unsigned int maxlen)
 {
-    DMDEBUG("energy_status\n");
+    DMDEBUG("energy_status");
     return 0;
 }
 
@@ -330,10 +418,10 @@ static int __init energy_init(void)
 {
     int r;
 
-    DMERR("energy initied\n");
+    DMDEBUG("energy initied\n");
 	r = dm_register_target(&energy_target);
     if (r < 0) {
-        DMERR("energy register failed %d\n", r);
+        DMDEBUG("energy register failed %d\n", r);
     }
 
     return r;
