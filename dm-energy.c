@@ -270,10 +270,12 @@ static int load_metadata(struct energy_c *ec)
 
     /* Check */
     if (le32_to_cpu(header_disk->magic) != ENERGE_MAGIC) {
-        DMDEBUG("Metadata dismatch, rewriting...");
+        DMDEBUG("Metadata dismatch (%u, %u), rewriting...", 
+                header_disk->magic, le32_to_cpu(header_disk->magic));
         header_to_disk(&(ec->header), header_disk);
         dm_io_sync_vm(1, &where, WRITE, header_disk, &bits, ec);
-        DMDEBUG("New metadata written");
+        DMDEBUG("New metadata (%u) written", 
+                le32_to_cpu(header_disk->magic));
     } else {
         DMDEBUG("Metadata match!");
     }
@@ -331,6 +333,8 @@ static int energy_ctr(struct dm_target *ti, unsigned int argc, char **argv)
     }
 
     ec->ti = ti;
+    ec->header.magic = ENERGE_MAGIC;
+    ec->header.version = ENERGE_VERSION;
     ec->header.ndisk = ndisk;
     ec->header.ext_size = ext_size;
     ec->ext_shift = ffs(ext_size) - 1;
