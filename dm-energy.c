@@ -14,6 +14,7 @@
 #include <linux/log2.h>
 #include <linux/dm-io.h>
 #include <linux/dm-kcopyd.h>
+#include <linux/vmalloc.h>
 #include <linux/bitmap.h>
 #include <linux/jiffies.h>
 
@@ -29,11 +30,34 @@
 
 #define SECTOR_SIZE (1 << SECTOR_SHIFT)
 
+#define count_sector(x) (((x) + SECTOR_SIZE - 1) >> SECTOR_SHIFT)
+
+/* Return size in sector */
+#define header_size() \
+    count_sector(sizeof(struct energy_header_core))
+#define table_size(ec) \
+    count_sector(ec->header.ext_count * sizeof(struct mapping_entry))
+
+/* Return size of bitmap array */
+#define bitmap_size(len) \
+    ((len + sizeof(unsigned long) - 1)/sizeof(unsigned long))
+
+#define ES_PRESENT 0x01
+
+/* 
+ * When requesting a new bio, the number of requested bvecs has to be
+ * less than BIO_MAX_PAGES. Otherwise, null is returned. In dm-io.c,
+ * this return value is not checked and kernel Oops may happen. We set
+ * the limit here to avoid such situations. (2 additional bvecs are
+ * required by dm-io for bookeeping.) (From dm-cache)
+ */
+#define MAX_SECTORS ((BIO_MAX_PAGES - 2) * (PAGE_SIZE >> SECTOR_SHIFT))
+
 #define array_too_big(fixed, obj, num) \
 	((num) > (UINT_MAX - (fixed)) / (obj))
 
 /*
- * Header on disk, followed by metadata for mapped_disk and energy_map_entry.
+ * Header on disk, followed by metadata for mapped_disk and mapping_entry.
  */
 struct energy_header_disk {
     __le32 magic;
@@ -54,16 +78,11 @@ struct energy_header_core {
     uint64_t ext_count;
 };
 
-struct energy_map_entry {
+struct mapping_entry {
     uint64_t mapped_id;
+    uint64_t tick;              /* timestamp of latest access */
     uint32_t flags;
     uint32_t freq;              /* how many times are accessed */
-};
-
-struct energy_extent {
-    struct energy_map_entry entry;
-    uint64_t tick;              /* timestamp of latest access */
-    atomic_t ref_count;
 };
 
 struct mapped_disk {
@@ -81,7 +100,7 @@ struct energy_c {
     uint32_t ext_shift;
 
     struct mapped_disk *disks;
-    struct energy_extent *table;
+    struct mapping_entry *table;
     unsigned long *bitmap;      /* bitmap of extent, '0' for free extent */
 
     struct dm_io_client *io_client;
@@ -131,17 +150,6 @@ static void free_context(struct energy_c *ec)
     kfree(ec);
 }
 
-/*
- * Return size of on-disk metadata in sector
- */
-static inline sector_t metadata_size(struct energy_c *ec) 
-{
-    uint64_t blk_count = sizeof(struct energy_header_core) 
-            + ec->header.ext_count * sizeof(struct energy_map_entry);
-
-    return (blk_count + (SECTOR_SIZE - 1)) >> SECTOR_SHIFT;
-}
-
 static void header_to_disk(struct energy_header_core *core, 
         struct energy_header_disk *disk)
 {   
@@ -188,7 +196,7 @@ static int get_mdisk(struct dm_target *ti, struct energy_c *ec,
 
     /* device capacity should be large enough for extents and metadata */
     dev_size = ec->disks[idisk].dev->bdev->bd_inode->i_size >> SECTOR_SHIFT;
-    if (dev_size < len + metadata_size(ec)) 
+    if (dev_size < len + header_size() + table_size(ec)) 
         return -ENOSPC;
 
     return 0;
@@ -207,13 +215,13 @@ static void put_disks(struct energy_c *ec, int ndisk)
 }
 
 /*
- * Get all disk devices
+ * Get all disk devices and check if disk size matches.
  */
 static int get_disks(struct energy_c *ec, char **argv)
 {
     int i, r;
+    uint64_t ext_count = 0;
 
-    ec->header.ext_count = 0;
     for (i = 0; i < ec->header.ndisk; ++i, argv += 2) {
         r = get_mdisk(ec->ti, ec, i, argv);
         if (r < 0) {
@@ -221,7 +229,13 @@ static int get_disks(struct energy_c *ec, char **argv)
             break;
         }
         atomic_set(&(ec->disks[i].err_count), 0);
-        ec->header.ext_count += ec->disks[i].ext_count;
+        ext_count += ec->disks[i].ext_count;
+    }
+
+    /* Logical disk size should match sum of physical disks' size */
+    if (ec->header.ext_count != ext_count) {
+        DMERR("Disk length dismatch");
+        r = -EINVAL;
     }
 
     return r;
@@ -244,43 +258,190 @@ static int dm_io_sync_vm(unsigned num_regions, struct dm_io_region *where,
 	return dm_io(&iorq, num_regions, where, error_bits);
 }
 
+static inline void locate_table(struct dm_io_region *where,
+        struct energy_c *ec, unsigned idisk)
+{
+    where->bdev = ec->disks[idisk].dev->bdev;
+    where->sector = (ec->disks[idisk].ext_count << ec->ext_shift) 
+            + count_sector(sizeof(struct energy_header_core));
+    where->count = count_sector(ec->header.ext_count 
+            * sizeof(struct mapping_entry));
+}
+
+static inline void locate_header(struct dm_io_region *where, 
+        struct energy_c *ec, unsigned idisk)
+{
+    where->bdev = ec->disks[idisk].dev->bdev;
+    where->sector = ec->disks[idisk].ext_count << ec->ext_shift;
+    where->count = header_size();
+    BUG_ON(where->count > MAX_SECTORS);
+}
+
 /*
- * Load metadata, which is saved in each disk right after extents data. 
- * Metadata format: <header> [<energy_map_entry>]+
+ * Dump metadata header to a disk.
  */
-static int load_metadata(struct energy_c *ec)
+static int dump_header(struct energy_c *ec, unsigned idisk)
 {
     int r = 0;
     unsigned long bits;
+    struct energy_header_disk *header;
 	struct dm_io_region where;
-    struct energy_header_disk *header_disk;
 
-    header_disk = (struct energy_header_disk*)vmalloc(SECTOR_SIZE);
-    if (!header_disk) {
-		DMERR("load_metadata: Unable to allocate memory");
+    locate_header(&where, ec, idisk);
+    header = (struct energy_header_disk*)vmalloc(where.count << SECTOR_SHIFT);
+    if (!header) {
+        DMERR("dump_header: Unable to allocate memory");
         return -ENOMEM;
     }
 
-    /* Read metadata from 1-st disk, which is taken as prime disk. */
-    where.bdev = ec->disks[0].dev->bdev;
-    // where.sector = ec->disks[0].ext_count << ec->ext_shift;
-    where.sector = 0;
-    where.count = 1;
-    dm_io_sync_vm(1, &where, READ, header_disk, &bits, ec);
-
-    /* Check */
-    if (le32_to_cpu(header_disk->magic) != ENERGE_MAGIC) {
-        DMDEBUG("Metadata dismatch (%u, %u), rewriting...", 
-                header_disk->magic, le32_to_cpu(header_disk->magic));
-        header_to_disk(&(ec->header), header_disk);
-        dm_io_sync_vm(1, &where, WRITE, header_disk, &bits, ec);
-        DMDEBUG("New metadata (%u) written", 
-                le32_to_cpu(header_disk->magic));
-    } else {
-        DMDEBUG("Metadata match!");
+    header_to_disk(ec->header, header);
+    r = dm_io_sync_vm(1, &where, WRITE, header, &bits, ec);
+    if (r < 0) {
+        DMERR("dump_header: Fail to write metadata header");
     }
 
-    vfree(header_disk);
+    vfree(header);
+    return r;
+}
+
+/*
+ * Dump metadata to all disks.
+ */
+static int dump_metadata(struct energy_c *ec)
+{
+    unsigned i;
+    int r;
+
+    for (i = 0; i < ec->header.ndisk; ++i) {
+        r = dump_header(ec, i);
+        if (r < 0) {
+            DMERR("dump_metadata: Fail to dump header to disk %u", i);
+            return r;
+        }
+        r = sync_table(ec, i, WRITE);
+        if (r < 0) {
+            DMERR("dump_metadata: Fail to dump table to disk %u", i);
+            return r;
+        }
+    }
+
+    return 0;
+}
+
+/*
+ * Check metadata header from a disk.
+ */
+static int check_header(struct energy_c *ec, unsigned idisk)
+{
+    int r = 0;
+    unsigned long bits;
+    struct energy_header_disk *header;
+	struct dm_io_region where;
+
+    locate_header(&where, ec, idisk);
+    header = (struct energy_header_disk*)vmalloc(where.count << SECTOR_SHIFT);
+    if (!header) {
+		DMERR("check_header: Unable to allocate memory");
+        return -ENOMEM;
+    }
+
+    r = dm_io_sync_vm(1, &where, READ, header, &bits, ec);
+    if (r < 0) {
+        DMERR("check_header: dm_io failed when reading metadata");
+        goto exit_check;
+    }
+
+    if (le32_to_cpu(header->magic) != ENERGE_MAGIC) {
+        DMERR("check_header: Metadata header dismatch");
+        r = -EINVAL;
+        goto exit_check;
+    }
+
+exit_check:
+    vfree(header);
+    return r;
+}
+
+static int sync_table(struct energy_c *ec, unsigned idisk, int rw)
+{
+    int r;
+    unsigned long bits;
+	struct dm_io_region where;
+    sector_t index, offset, tbl_size = table_size(ec);
+    void *data = ec->table;
+
+    where.bdev = ec->disks[idisk]->dev->bdev;
+    offset = (ec->disks[idisk].ext_count << ec->ext_shift) + header_size();
+    for (index = 0; index < tbl_size; index += where.count) {
+        where.sector = offset + index;
+        where.count = min(tbl_size, MAX_SECTORS);
+        r = dm_io_sync_vm(1, &where, rw, data, &bits, ec); 
+        if (r < 0) {
+            DMERR("sync_table: Unable to sync table");
+            return r;
+        }
+        data += (where.count << SECTOR_SHIFT);
+    }
+
+    return 0;
+}
+
+static int alloc_table(struct energy_c *ec, bool zero)
+{
+    ec->table = (struct mapping_entry*)vmalloc(table_size() << SECTOR_SHIFT);
+    if (!(ec->table)) {
+        DMERR("alloc_table: Unable to allocate memory");
+        return -ENOMEM;
+    }
+    if (zero) {
+        memset(ec->table, 0, table_size());
+    }
+
+    return 0;
+}
+
+static int build_bitmap(struct energy_c *ec, bool zero)
+{
+    size_t i, bmp_size = bitmap_size(ec->header.ext_count);
+
+    ec->bitmap = (unsigned long *)vmalloc(bmp_size);
+    if (!ec->bitmap) {
+        DMERR("build_bitmap: Unable to allocate memory");
+        return -ENOMEM;
+    }
+
+    memset(ec->bitmap, 0, bmp_size);
+    if (!zero) {
+        for (i = 0; i < ec->header.ext_count; ++i) 
+            if (ec->table[i] & ES_PRESENT) 
+                bitmap_set(ec->bitmap, i, 1);
+    }
+
+    return 0;
+}
+
+/*
+ * Load metadata, which is saved in each disk right after extents data. 
+ * Metadata format: <header> [<mapping_entry>]+
+ */
+static int load_metadata(struct energy_c *ec)
+{
+    int r;
+
+    r = alloc_table(ec, false);
+    if (r < 0)
+        return r;
+
+    /* Load table from 1st disk, which is considered as prime disk */
+    r = sync_table(ec, 0, READ);
+    if (r < 0) 
+        goto bad_metadata;
+
+    return 0;
+
+bad_metadata:
+    vfree(ec->table);
+    ec->table = NULL;
     return r;
 }
 
@@ -338,18 +499,13 @@ static int energy_ctr(struct dm_target *ti, unsigned int argc, char **argv)
     ec->header.ndisk = ndisk;
     ec->header.ext_size = ext_size;
     ec->ext_shift = ffs(ext_size) - 1;
+    ec->header.ext_count = (ti->len >> ec->ext_shift);
     ti->private = ec;
 
     r = get_disks(ec, argv+2);
     if (r < 0) {
         ti->error = "Fail to get mapped disks";
         goto bad_disks;
-    }
-
-    if (ti->len != (ec->header.ext_count << ec->ext_shift)) {
-        ti->error = "Disk length mismatch";
-        r = -EINVAL;
-        goto bad_io_client;
     }
 
     ec->io_client = dm_io_client_create();
@@ -366,10 +522,46 @@ static int energy_ctr(struct dm_target *ti, unsigned int argc, char **argv)
         goto bad_kcp_client;
     }
 
-    load_metadata(ec);
+    r = load_metadata(ec);
+    if (r < 0) {
+        ti->error = "Failed to initialize metadata";
+        goto bad_metadata;
+    }
+    
+    r = check_header(ec, 0);
+    if (r) {
+        DMDEBUG("no useable metadata on disk");
+        r = alloc_table(ec, true);
+        if (r < 0) {
+            ti->error = "Fail to alloc table";
+            goto bad_metadata;
+        }
+        r = build_bitmap(ec, true);
+        if (r < 0) {
+            ti->error = "Failed to build bitmap";
+            goto bad_bitmap;
+        }
+    } else {
+        DMDEBUG("loading metadata from disk");
+        r = load_metadata(ec);
+        if (r < 0) {
+            ti->error = "Failed to load metadata";
+            goto bad_metadata;
+        }
+        r = build_bitmap(ec, false);
+        if (r < 0) {
+            ti->error = "Failed to build bitmap";
+            goto bad_bitmap;
+        }
+    }
 
     return 0;
 
+bad_bitmap:
+    vfree(ec->table);
+    ec->table = NULL;
+bad_metadata:
+    dm_kcopyd_client_destroy(ec->kcp_client);
 bad_kcp_client:
     dm_io_client_destroy(ec->io_client);
 bad_io_client:
@@ -385,6 +577,9 @@ static void energy_dtr(struct dm_target *ti)
     struct energy_c *ec = (struct energy_c*)ti->private;
 
     DMDEBUG("energy_dtr\n");
+    if (dump_metadata(ec) < 0) 
+        DMERR("Fail to dump metadata");
+
     dm_kcopyd_client_destroy(ec->kcp_client);
     dm_io_client_destroy(ec->io_client);
     put_disks(ec, ec->header.ndisk);
