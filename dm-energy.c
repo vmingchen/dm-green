@@ -141,11 +141,11 @@ static void free_context(struct energy_c *ec)
     BUG_ON(!ec || !(ec->disks));
 
     if (ec->table) {
-        kfree(ec->table);
+        vfree(ec->table);
         ec->table = NULL;
     }
     if (ec->bitmap) {
-        kfree(ec->bitmap);
+        vfree(ec->bitmap);
         ec->bitmap = NULL;
     }
 
@@ -393,6 +393,7 @@ static int alloc_table(struct energy_c *ec, bool zero)
     if (zero) {
         memset(ec->table, 0, size);
     }
+    DMDEBUG("alloc_table: table created");
 
     return 0;
 }
@@ -470,7 +471,7 @@ static int energy_ctr(struct dm_target *ti, unsigned int argc, char **argv)
     struct energy_c *ec;
     int r;
 
-    DMWARN("energy_ctr (argc: %d)", argc);
+    DMDEBUG("energy_ctr (argc: %d)", argc);
 
     if (argc < 4) {
         ti->error = "Not enough arguments";
@@ -514,6 +515,7 @@ static int energy_ctr(struct dm_target *ti, unsigned int argc, char **argv)
     ec->ext_shift = ffs(ext_size) - 1;
     ec->header.ext_count = (ti->len >> ec->ext_shift);
     ti->private = ec;
+    DMDEBUG("extent size: %u;  extent shift: %u", ext_size, ec->ext_shift);
 
     r = get_disks(ec, argv+2);
     if (r < 0) {
@@ -597,10 +599,13 @@ static int energy_map(struct dm_target *ti, struct bio *bio,
         union map_info *map_context)
 {
     struct energy_c *ec = (struct energy_c*)ti->private;
+    uint64_t ext = ((bio->bi_sector) >> ec->ext_shift);
 
-    DMDEBUG("%lu: energy_map", jiffies);
+    DMDEBUG("%lu: map(sector %llu -> extent %llu)%u", jiffies, 
+            bio->bi_sector, ext, ec->ext_shift);
     bio->bi_bdev = ec->disks[0].dev->bdev;
-    bitmap_set(ec->bitmap, (bio->bi_sector >> ec->ext_shift), 1);
+    ec->table[ext].flags |= ES_PRESENT;
+    bitmap_set(ec->bitmap, ext, 1);
     return DM_MAPIO_REMAPPED;
 }
 
@@ -625,7 +630,7 @@ static int __init energy_init(void)
 {
     int r;
 
-    DMDEBUG("energy initied\n");
+    DMDEBUG("energy initied");
 	r = dm_register_target(&energy_target);
     if (r < 0) {
         DMDEBUG("energy register failed %d\n", r);
