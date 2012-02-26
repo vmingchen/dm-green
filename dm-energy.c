@@ -35,12 +35,13 @@
 /* Return size in sector */
 #define header_size() \
     count_sector(sizeof(struct energy_header_core))
+
 #define table_size(ec) \
     count_sector(ec->header.ext_count * sizeof(struct mapping_entry))
 
 /* Return size of bitmap array */
 #define bitmap_size(len) \
-    ((len + sizeof(unsigned long) - 1)/sizeof(unsigned long))
+    (dm_div_up(len, sizeof(unsigned long)) * sizeof(unsigned long))
 
 #define ES_PRESENT 0x01
 
@@ -141,9 +142,11 @@ static void free_context(struct energy_c *ec)
 
     if (ec->table) {
         kfree(ec->table);
+        ec->table = NULL;
     }
     if (ec->bitmap) {
         kfree(ec->bitmap);
+        ec->bitmap = NULL;
     }
 
     kfree(ec->disks);
@@ -203,7 +206,7 @@ static int get_mdisk(struct dm_target *ti, struct energy_c *ec,
 }
 
 /*
- * Put all disk devices
+ * Put disk devices.
  */
 static void put_disks(struct energy_c *ec, int ndisk)
 {
@@ -219,7 +222,8 @@ static void put_disks(struct energy_c *ec, int ndisk)
  */
 static int get_disks(struct energy_c *ec, char **argv)
 {
-    int i, r;
+    int r;
+    unsigned i;
     uint64_t ext_count = 0;
 
     for (i = 0; i < ec->header.ndisk; ++i, argv += 2) {
@@ -258,16 +262,6 @@ static int dm_io_sync_vm(unsigned num_regions, struct dm_io_region *where,
 	return dm_io(&iorq, num_regions, where, error_bits);
 }
 
-static inline void locate_table(struct dm_io_region *where,
-        struct energy_c *ec, unsigned idisk)
-{
-    where->bdev = ec->disks[idisk].dev->bdev;
-    where->sector = (ec->disks[idisk].ext_count << ec->ext_shift) 
-            + count_sector(sizeof(struct energy_header_core));
-    where->count = count_sector(ec->header.ext_count 
-            * sizeof(struct mapping_entry));
-}
-
 static inline void locate_header(struct dm_io_region *where, 
         struct energy_c *ec, unsigned idisk)
 {
@@ -294,7 +288,7 @@ static int dump_header(struct energy_c *ec, unsigned idisk)
         return -ENOMEM;
     }
 
-    header_to_disk(ec->header, header);
+    header_to_disk(&(ec->header), header);
     r = dm_io_sync_vm(1, &where, WRITE, header, &bits, ec);
     if (r < 0) {
         DMERR("dump_header: Fail to write metadata header");
@@ -302,6 +296,31 @@ static int dump_header(struct energy_c *ec, unsigned idisk)
 
     vfree(header);
     return r;
+}
+
+static int sync_table(struct energy_c *ec, unsigned idisk, int rw)
+{
+    int r;
+    unsigned long bits;
+	struct dm_io_region where;
+    sector_t index, offset, size = table_size(ec);
+    void *data = ec->table;
+
+    where.bdev = ec->disks[idisk].dev->bdev;
+    offset = (ec->disks[idisk].ext_count << ec->ext_shift) + header_size();
+    for (index = 0; index < size; index += where.count) {
+        where.sector = offset + index;
+        where.count = (size - index) < MAX_SECTORS 
+            ? (size - index) : MAX_SECTORS;
+        r = dm_io_sync_vm(1, &where, rw, data, &bits, ec); 
+        if (r < 0) {
+            DMERR("sync_table: Unable to sync table");
+            return r;
+        }
+        data += (where.count << SECTOR_SHIFT);
+    }
+
+    return 0;
 }
 
 /*
@@ -362,39 +381,17 @@ exit_check:
     return r;
 }
 
-static int sync_table(struct energy_c *ec, unsigned idisk, int rw)
-{
-    int r;
-    unsigned long bits;
-	struct dm_io_region where;
-    sector_t index, offset, tbl_size = table_size(ec);
-    void *data = ec->table;
-
-    where.bdev = ec->disks[idisk]->dev->bdev;
-    offset = (ec->disks[idisk].ext_count << ec->ext_shift) + header_size();
-    for (index = 0; index < tbl_size; index += where.count) {
-        where.sector = offset + index;
-        where.count = min(tbl_size, MAX_SECTORS);
-        r = dm_io_sync_vm(1, &where, rw, data, &bits, ec); 
-        if (r < 0) {
-            DMERR("sync_table: Unable to sync table");
-            return r;
-        }
-        data += (where.count << SECTOR_SHIFT);
-    }
-
-    return 0;
-}
-
 static int alloc_table(struct energy_c *ec, bool zero)
 {
-    ec->table = (struct mapping_entry*)vmalloc(table_size() << SECTOR_SHIFT);
+    uint64_t size = (table_size(ec) << SECTOR_SHIFT);
+
+    ec->table = (struct mapping_entry*)vmalloc(size);
     if (!(ec->table)) {
         DMERR("alloc_table: Unable to allocate memory");
         return -ENOMEM;
     }
     if (zero) {
-        memset(ec->table, 0, table_size());
+        memset(ec->table, 0, size);
     }
 
     return 0;
@@ -402,19 +399,35 @@ static int alloc_table(struct energy_c *ec, bool zero)
 
 static int build_bitmap(struct energy_c *ec, bool zero)
 {
-    size_t i, bmp_size = bitmap_size(ec->header.ext_count);
+    size_t i, j, k, size = bitmap_size(ec->header.ext_count);
 
-    ec->bitmap = (unsigned long *)vmalloc(bmp_size);
+    ec->bitmap = (unsigned long *)vmalloc(size);
     if (!ec->bitmap) {
         DMERR("build_bitmap: Unable to allocate memory");
         return -ENOMEM;
     }
 
-    memset(ec->bitmap, 0, bmp_size);
-    if (!zero) {
-        for (i = 0; i < ec->header.ext_count; ++i) 
-            if (ec->table[i] & ES_PRESENT) 
+    memset(ec->bitmap, 0, size);
+    if (zero) {
+        for (j = 0; j < ec->header.ndisk; ++j)
+            ec->disks[j].ext_free = ec->disks[j].ext_count;
+    } else {
+        j = 0;
+        k = ec->disks[j].ext_count;
+        ec->disks[j].ext_free = k;
+        for (i = 0; i < ec->header.ext_count; ++i) {
+            if (k == 0) { 
+                k = ec->disks[++j].ext_count;
+                ec->disks[j].ext_free = k;
+            }
+            if (ec->table[i].flags & ES_PRESENT) {
                 bitmap_set(ec->bitmap, i, 1);
+                ec->disks[j].ext_free--;
+                DMDEBUG("extent %d is present", i);
+            }
+            --k;
+        }
+        BUG_ON(k != 0 || j != (ec->header.ndisk - 1));
     }
 
     return 0;
@@ -457,7 +470,7 @@ static int energy_ctr(struct dm_target *ti, unsigned int argc, char **argv)
     struct energy_c *ec;
     int r;
 
-    DMDEBUG("energy_ctr (argc: %d)", argc);
+    DMWARN("energy_ctr (argc: %d)", argc);
 
     if (argc < 4) {
         ti->error = "Not enough arguments";
@@ -489,7 +502,7 @@ static int energy_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
     ec = alloc_context(ndisk);
     if (!ec) {
-        ti->error = "Memory allocation for energy context failed";
+        ti->error = "Fail to allocate memory for energy context";
         return -ENOMEM;
     }
 
@@ -511,23 +524,17 @@ static int energy_ctr(struct dm_target *ti, unsigned int argc, char **argv)
     ec->io_client = dm_io_client_create();
     if (IS_ERR(ec->io_client)) {
 		r = PTR_ERR(ec->io_client);
-        ti->error = "Failed to create dm_io_client";
+        ti->error = "Fail to create dm_io_client";
         goto bad_io_client;
     }
 
     ec->kcp_client = dm_kcopyd_client_create();
     if (IS_ERR(ec->kcp_client)) {
 		r = PTR_ERR(ec->io_client);
-        ti->error = "Failed to create dm_io_client";
+        ti->error = "Fail to create dm_io_client";
         goto bad_kcp_client;
     }
 
-    r = load_metadata(ec);
-    if (r < 0) {
-        ti->error = "Failed to initialize metadata";
-        goto bad_metadata;
-    }
-    
     r = check_header(ec, 0);
     if (r) {
         DMDEBUG("no useable metadata on disk");
@@ -538,19 +545,19 @@ static int energy_ctr(struct dm_target *ti, unsigned int argc, char **argv)
         }
         r = build_bitmap(ec, true);
         if (r < 0) {
-            ti->error = "Failed to build bitmap";
+            ti->error = "Fail to build bitmap";
             goto bad_bitmap;
         }
     } else {
         DMDEBUG("loading metadata from disk");
         r = load_metadata(ec);
         if (r < 0) {
-            ti->error = "Failed to load metadata";
+            ti->error = "Fail to load metadata";
             goto bad_metadata;
         }
         r = build_bitmap(ec, false);
         if (r < 0) {
-            ti->error = "Failed to build bitmap";
+            ti->error = "Fail to build bitmap";
             goto bad_bitmap;
         }
     }
@@ -576,7 +583,7 @@ static void energy_dtr(struct dm_target *ti)
 {
     struct energy_c *ec = (struct energy_c*)ti->private;
 
-    DMDEBUG("energy_dtr\n");
+    DMDEBUG("energy_dtr");
     if (dump_metadata(ec) < 0) 
         DMERR("Fail to dump metadata");
 
@@ -593,6 +600,7 @@ static int energy_map(struct dm_target *ti, struct bio *bio,
 
     DMDEBUG("%lu: energy_map", jiffies);
     bio->bi_bdev = ec->disks[0].dev->bdev;
+    bitmap_set(ec->bitmap, (bio->bi_sector >> ec->ext_shift), 1);
     return DM_MAPIO_REMAPPED;
 }
 
