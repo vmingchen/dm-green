@@ -57,6 +57,8 @@
 #define array_too_big(fixed, obj, num) \
 	((num) > (UINT_MAX - (fixed)) / (obj))
 
+typedef extent_t uint64_t;
+
 /*
  * Header on disk, followed by metadata for mapped_disk and mapping_entry.
  */
@@ -76,11 +78,11 @@ struct energy_header_core {
     uint32_t version;
     uint32_t ndisk;
     uint32_t ext_size;
-    uint64_t ext_count;
+    extent_t ext_count;
 };
 
 struct mapping_entry {
-    uint64_t mapped_id;
+    extent_t mapped_id;
     uint64_t tick;              /* timestamp of latest access */
     uint32_t flags;
     uint32_t freq;              /* how many times are accessed */
@@ -88,8 +90,8 @@ struct mapping_entry {
 
 struct mapped_disk {
     struct dm_dev *dev;
-    uint64_t ext_count;         /* number of extents */
-    uint64_t ext_free;          /* number of free extents */
+    extent_t ext_count;         /* number of extents */
+    extent_t ext_free;          /* number of free extents */
     atomic_t err_count;         /* number of errors */
 };
 
@@ -107,9 +109,9 @@ struct energy_c {
     struct dm_io_client *io_client;
     struct dm_kcopyd_client *kcp_client;
 
-    uint64_t migration_ext;     /* logical extent id under migration */
-    uint64_t migration_src;     /* source physical extent id */
-    uint64_t migration_dst;     /* dest physical extent id */
+    extent_t migration_ext;     /* logical extent id under migration */
+    extent_t migration_src;     /* source physical extent id */
+    extent_t migration_dst;     /* dest physical extent id */
 };
 
 static struct energy_c *alloc_context(uint32_t ndisk)
@@ -224,7 +226,7 @@ static int get_disks(struct energy_c *ec, char **argv)
 {
     int r;
     unsigned i;
-    uint64_t ext_count = 0;
+    extent_t ext_count = 0;
 
     for (i = 0; i < ec->header.ndisk; ++i, argv += 2) {
         r = get_mdisk(ec->ti, ec, i, argv);
@@ -383,7 +385,7 @@ exit_check:
 
 static int alloc_table(struct energy_c *ec, bool zero)
 {
-    uint64_t size = (table_size(ec) << SECTOR_SHIFT);
+    extent_t size = (table_size(ec) << SECTOR_SHIFT);
 
     ec->table = (struct mapping_entry*)vmalloc(size);
     if (!(ec->table)) {
@@ -457,6 +459,17 @@ bad_metadata:
     vfree(ec->table);
     ec->table = NULL;
     return r;
+}
+
+/*
+ * Return physical disk id and offset of physical extent.
+ */
+static inline void extent_to_disk(struct energy_c *ec, extent_t *index,
+        unsigned *i)
+{
+    for (*i = 0; *i < ec->ndisk && *index >= ec->disks[i].ext_count; ++*i) {
+        *index -= ec->disks[i].ext_count;
+    }
 }
 
 /*
