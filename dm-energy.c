@@ -336,18 +336,18 @@ static int sync_table(struct energy_c *ec, unsigned idisk, int rw)
     void *data;
     struct extent_disk *extents;
 
-    data = vmalloc(size);
-    if (!data) {
+    extents = (struct extent_disk*)vmalloc(size);
+    if (!extents) {
         DMERR("sync_table: Unable to allocate memory");
         return -ENOMEM;
     }
 
-    extents = (struct extent_disk*)data;
     if (rw == WRITE) {
         for (i = 0; i < ec->header.capacity; ++i)
             extent_to_disk(ec->table + i, extents + i);
     } 
 
+    data = (void*)extents;
     where.bdev = ec->disks[idisk].dev->bdev;
     offset = (ec->disks[idisk].capacity << ec->ext_shift) + header_size();
     for (index = 0; index < size; index += where.count) {
@@ -357,7 +357,7 @@ static int sync_table(struct energy_c *ec, unsigned idisk, int rw)
         r = dm_io_sync_vm(1, &where, rw, data, &bits, ec); 
         if (r < 0) {
             DMERR("sync_table: Unable to sync table");
-            vfree(data);
+            vfree(extents);
             return r;
         }
         data += (where.count << SECTOR_SHIFT);
@@ -368,7 +368,7 @@ static int sync_table(struct energy_c *ec, unsigned idisk, int rw)
             extent_from_disk(ec->table + i, extents + i);
     }
 
-    vfree(data);
+    vfree(extents);
     return 0;
 }
 
@@ -449,7 +449,7 @@ static int alloc_table(struct energy_c *ec, bool zero)
     if (zero) {
         memset(ec->table, 0, size);
     }
-    for (i = 0; i < size; ++i) { 
+    for (i = 0; i < ec->header.capacity; ++i) { 
         spin_lock_init(&(ec->table[i].lock));
     }
     DMDEBUG("alloc_table: table created");
