@@ -27,8 +27,9 @@
 /*
  * Magic for persistent energy header: "EnEg"
  */
-#define ENERGE_MAGIC 0x45614567
-#define ENERGE_VERSION 2
+#define ENERGY_MAGIC 0x45614567
+#define ENERGY_VERSION 2
+#define ENERGY_DAEMON "kenergyd"
 
 /* The first disk is prime disk. */
 #define PRIME_DISK 0
@@ -160,11 +161,15 @@ struct energy_c {
     struct dm_io_client *io_client;
     struct dm_kcopyd_client *kcp_client;
 
-    struct work_struct migration_work;
+    struct work_struct eviction_work    /* work of evicting prime extent */
+    struct work_struct migration_work;  /* work of loading extent */
+
     extent_t migration_ext;     /* virtual extent id under migration */
     extent_t migration_src;     /* source physical extent id */
     extent_t migration_dst;     /* dest physical extent id */
 };
+
+static struct workqueue_struct *kenergyd_wq;
 
 static inline unsigned wrap(unsigned i, unsigned limit)
 {
@@ -216,8 +221,8 @@ static struct energy_c *alloc_context(struct dm_target *ti,
     ti->private = ec;
 
     ec->ext_shift = ffs(ext_size) - 1;
-    ec->header.magic = ENERGE_MAGIC;
-    ec->header.version = ENERGE_VERSION;
+    ec->header.magic = ENERGY_MAGIC;
+    ec->header.version = ENERGY_VERSION;
     ec->header.ndisk = ndisk;
     ec->header.ext_size = ext_size;
     ec->header.capacity = (ti->len >> ec->ext_shift);
@@ -738,6 +743,13 @@ static void migration_work(struct work_struct *work)
     migrate_extents(ec);
 }
 
+static void eviction_work(struct work_struct *work)
+{
+    struct energy_c *ec;
+
+    ec = container_of(work, struct energy_c, eviction_work);
+}
+
 /*
  * Construct an energy mapping.
  *  <extent size> <number of disks> [<dev> <number-of-extent>]+
@@ -869,6 +881,7 @@ static void energy_dtr(struct dm_target *ti)
     struct energy_c *ec = (struct energy_c*)ti->private;
 
     DMDEBUG("energy_dtr");
+    flush_workqueue(kenergyd_wq);
     if (dump_metadata(ec) < 0) 
         DMERR("Fail to dump metadata");
 
@@ -884,7 +897,7 @@ static int energy_map(struct dm_target *ti, struct bio *bio,
     struct energy_c *ec = (struct energy_c*)ti->private;
     unsigned idisk;
     extent_t ext, vext = ((bio->bi_sector) >> ec->ext_shift);
-    bool run_low = false;
+    bool run_low, is_prime;
     sector_t offset;          /* sector offset within extent */
 
     DMDEBUG("%lu: map(sector %llu -> extent %llu)%u", jiffies, 
@@ -893,17 +906,15 @@ static int energy_map(struct dm_target *ti, struct bio *bio,
     spin_lock(&ec->lock);
     if (ec->table[vext].state & VES_PRESENT) {
         ext = ec->table[vext].eid;
-        if (!on_prime(ec, ext)) { /* schedule extent migration */
-        }
     } else {
-        BUG_ON(get_extent(ec, &ext) < 0);
+        BUG_ON(get_extent(ec, &ext) < 0);   /* out of extent */
         ec->table[vext].eid = ext;
-        ec->table[vext].state = VES_PRESENT;
-        ec->table[vext].counter = 1;
+        ec->table[vext].counter = 0;
     }
-    ec->table[vext].state |= VES_ACCESS;
+    ec->table[vext].state |= (VES_ACCESS | VES_PRESENT);
     ec->table[vext].counter++;
     run_low = (ec->free.count < EXTENT_LOW);
+    is_prime = on_prime(ec, ext);
     spin_unlock(&ec->lock);
 
     offset = (bio->bi_sector & (extent_size(ec) - 1));
@@ -913,9 +924,14 @@ static int energy_map(struct dm_target *ti, struct bio *bio,
     /* Limit IO within an extent as it is fine to get less than wanted. */
     bio->bi_size = min(bio->bi_size, to_bytes(extent_size(ec) - offset));
 
+    /* schedule extent eviction */
     if (run_low) {
-        /* TODO: schedule migrate */
     }
+
+    /* schedule extent migration */
+    if (!is_prime) { 
+    }
+
     return DM_MAPIO_REMAPPED;
 }
 
@@ -940,18 +956,31 @@ static int __init energy_init(void)
 {
     int r;
 
-    DMDEBUG("energy initialized");
-	r = dm_register_target(&energy_target);
-    if (r < 0) {
-        DMDEBUG("energy register failed %d\n", r);
+    kenergyd_wq = alloc_workqueue(ENERGY_DAEMON, WQ_MEM_RECLAIM, 0);
+    if (!kenergyd_wq) {
+        DMERR("Couldn't start " ENERGY_DAEMON);
+        goto bad_workqueue;
     }
 
+	r = dm_register_target(&energy_target);
+    if (r < 0) {
+        DMERR("energy register failed %d\n", r);
+        goto bad_register;
+    }
+
+    DMDEBUG("energy initialized");
+    return r;
+
+bad_register:
+    destroy_workqueue(kenergyd_wq);
+bad_workqueue:
     return r;
 }
 
 static void __exit energy_exit(void)
 {
 	dm_unregister_target(&energy_target);
+    destroy_workqueue(kenergyd_wq);
 }
 
 module_init(energy_init);
