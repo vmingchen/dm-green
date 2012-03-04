@@ -44,8 +44,7 @@
     count_sector(ec->header.capacity * sizeof(struct extent_disk))
 
 /* Return size of bitmap array */
-#define bitmap_size(len) \
-    (dm_div_up(len, sizeof(unsigned long)) * sizeof(unsigned long))
+#define bitmap_size(len) dm_round_up(len, sizeof(unsigned long))
 
 /* 
  * When requesting a new bio, the number of requested bvecs has to be
@@ -99,7 +98,6 @@ struct extent {
     uint32_t state;             
     uint32_t counter;           /* how many times are accessed */
     uint64_t tick;              /* timestamp of latest access */
-    spinlock_t lock;
 };
 
 /*
@@ -140,7 +138,7 @@ struct energy_c {
     struct extent *table;       /* mapping table */
     struct extent_buffer free;  /* free extents on prime disk */
     unsigned long *bitmap;      /* bitmap of extent, '0' for free extent */
-    spinlock_t lock;            /* protect free list and bitmap */
+    spinlock_t lock;            /* protect table, free and bitmap */
 
     struct dm_io_client *io_client;
     struct dm_kcopyd_client *kcp_client;
@@ -523,9 +521,10 @@ static int alloc_table(struct energy_c *ec, bool zero)
     if (zero) {
         memset(ec->table, 0, size);
     }
+    /* 
     for (i = 0; i < ec->header.capacity; ++i) { 
         spin_lock_init(&(ec->table[i].lock));
-    }
+    } */
     DMDEBUG("alloc_table: table created");
 
     return 0;
@@ -584,22 +583,6 @@ static inline void extent_on_disk(struct energy_c *ec, extent_t *eid,
     }
 }
 
-static void build_free_list(struct energy_c *ec)
-{
-    unsigned long i = 0;
-
-    while (!buffer_full(&ec->free)) {
-        i = find_next_zero_bit(ec->bitmap, ec->header.capacity, i);
-        DMDEBUG("free extent: %lu", i);
-        if (i >= ec->disks[0].capacity)
-            break;
-        produce_buffer(&ec->free, i);
-        ++i;
-    }
-
-    /* TODO: if free_list is too small, schedule migration */
-}
-
 static int build_bitmap(struct energy_c *ec, bool zero)
 {
     size_t i, j, k, size = bitmap_size(ec->header.capacity);
@@ -634,6 +617,30 @@ static int build_bitmap(struct energy_c *ec, bool zero)
     }
 
     return 0;
+}
+
+static void build_free_list(struct energy_c *ec)
+{
+    unsigned long i = 0;
+
+    while (!buffer_full(&ec->free)) {
+        i = find_next_zero_bit(ec->bitmap, ec->header.capacity, i);
+        DMDEBUG("free extent: %lu", i);
+        if (i >= ec->disks[0].capacity)
+            break;
+        produce_buffer(&ec->free, i);
+        ++i;
+    }
+
+    /* TODO: if free_list is too small, schedule migration */
+}
+
+static void clear_table(struct energy_c *ec)
+{
+    unsigned i;
+
+    for (i = 0; i < ec->header.capacity; ++i) 
+        ec->table[i].state &= ~ES_ACCESS;
 }
 
 /*
@@ -733,6 +740,7 @@ static int energy_ctr(struct dm_target *ti, unsigned int argc, char **argv)
     }
 
     build_free_list(ec);
+    clear_table(ec);
 
     return 0;
 
@@ -769,12 +777,18 @@ static int energy_map(struct dm_target *ti, struct bio *bio,
         union map_info *map_context)
 {
     struct energy_c *ec = (struct energy_c*)ti->private;
+    unsigned limit;
     uint64_t ext = ((bio->bi_sector) >> ec->ext_shift);
 
     DMDEBUG("%lu: map(sector %llu -> extent %llu)%u", jiffies, 
             bio->bi_sector, ext, ec->ext_shift);
+
     bio->bi_bdev = ec->disks[0].dev->bdev;
     ec->table[ext].state |= ES_PRESENT;
+
+    /* Limit IO within an extent as it is fine to get less than wanted. */
+    limit = ec->header.ext_size - (bio->bi_sector & (ec->header.ext_size - 1));
+    bio->bi_size = min(bio->bi_size, to_bytes(limit));
     return DM_MAPIO_REMAPPED;
 }
 
@@ -799,7 +813,7 @@ static int __init energy_init(void)
 {
     int r;
 
-    DMDEBUG("energy initied");
+    DMDEBUG("energy initialized");
 	r = dm_register_target(&energy_target);
     if (r < 0) {
         DMDEBUG("energy register failed %d\n", r);
