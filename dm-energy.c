@@ -55,8 +55,9 @@
  */
 #define MAX_SECTORS ((BIO_MAX_PAGES - 2) * (PAGE_SIZE >> SECTOR_SHIFT))
 
-/* size of reserved free extent on prime disk */
+/* Size of reserved free extent on prime disk */
 #define EXTENT_FREE 64      
+#define EXTENT_LOW 16
 
 #define array_too_big(fixed, obj, num) \
 	((num) > (UINT_MAX - (fixed)) / (obj))
@@ -163,7 +164,7 @@ static inline bool buffer_empty(struct extent_buffer *buf)
     return buf->count == 0;
 }
 
-static extent_t consume_buffer(struct extent_buffer *buf)
+static inline extent_t consume_buffer(struct extent_buffer *buf)
 {
     extent_t out = buf->data[buf->cursor];
 
@@ -173,7 +174,7 @@ static extent_t consume_buffer(struct extent_buffer *buf)
     return out;
 }
 
-static void produce_buffer(struct extent_buffer *buf, extent_t in)
+static inline void produce_buffer(struct extent_buffer *buf, extent_t in)
 {
     buf->data[wrap(buf->cursor + buf->count, buf->capacity)] = in;
     ++(buf->count);
@@ -343,14 +344,30 @@ static int get_disks(struct energy_c *ec, char **argv)
 /*
  * Get a physical extent from given disk.
  */
-static int get_extent(struct energy_c *ec, unsigned idisk)
+static int get_extent(struct energy_c *ec, extent_t *ext)
 {
-    if (idisk == PRIME_DISK) {
+    unsigned i;
+
+    if (!buffer_empty(&ec->free)) {
+        *ext = consume_buffer(&ec->free);
+        i = PRIME_DISK;
+    } else { 
+        for (i = 1; i < ec->header.ndisk; ++i) {
+            if (ec->disks[i].free_nr > 0) {
+                *ext = find_next_zero_bit(ec->bitmap, ec->header.capacity, 
+                        ec->disks[i].offset);
+                break;
+            }
+        }
     }
 
-    spin_lock(&ec->lock);
-    spin_unlock(&ec->lock);
-    return 0;
+    if (i < ec->header.ndisk) { 
+        ec->disks[i].free_nr--;
+        bitmap_set(ec->bitmap, *ext, 1);
+        return 0;
+    }
+
+    return -ENOSPC;
 }
 
 /*
@@ -777,18 +794,38 @@ static int energy_map(struct dm_target *ti, struct bio *bio,
         union map_info *map_context)
 {
     struct energy_c *ec = (struct energy_c*)ti->private;
-    unsigned limit;
-    uint64_t ext = ((bio->bi_sector) >> ec->ext_shift);
+    unsigned idisk;
+    extent_t ext, vext = ((bio->bi_sector) >> ec->ext_shift);
+    bool run_low = false;
+    sector_t offset;          /* sector offset within extent */
 
     DMDEBUG("%lu: map(sector %llu -> extent %llu)%u", jiffies, 
-            bio->bi_sector, ext, ec->ext_shift);
+            bio->bi_sector, vext, ec->ext_shift);
 
-    bio->bi_bdev = ec->disks[0].dev->bdev;
-    ec->table[ext].state |= ES_PRESENT;
+    spin_lock(&ec->lock);
+    if (ec->table[vext].state & ES_PRESENT) {
+        ext = ec->table[vext].eid;
+        ec->table[vext].state |= ES_ACCESS;
+        ec->table[vext].counter++;
+    } else {
+        BUG_ON(get_extent(ec, &ext) < 0);
+        ec->table[vext].eid = ext;
+        ec->table[vext].state = (ES_PRESENT | ES_ACCESS);
+        ec->table[vext].counter = 1;
+        run_low = (ec->free.count < EXTENT_LOW);
+    }
+    spin_unlock(&ec->lock);
 
+    offset = (bio->bi_sector & (ec->header.ext_size - 1));
+    extent_on_disk(ec, &ext, &idisk);
+    bio->bi_bdev = ec->disks[idisk].dev->bdev;
+    bio->bi_sector = (ext << ec->ext_shift) + offset;
     /* Limit IO within an extent as it is fine to get less than wanted. */
-    limit = ec->header.ext_size - (bio->bi_sector & (ec->header.ext_size - 1));
-    bio->bi_size = min(bio->bi_size, to_bytes(limit));
+    bio->bi_size = min(bio->bi_size, to_bytes(ec->header.ext_size - offset));
+
+    if (run_low) {
+        /* TODO: schedule migrate */
+    }
     return DM_MAPIO_REMAPPED;
 }
 
