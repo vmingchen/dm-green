@@ -363,6 +363,14 @@ static int get_disks(struct energy_c *ec, char **argv)
     return r;
 }
 
+/*
+ * Check if physical extent 'ext' is on prime disk.
+ */
+static inline bool on_prime(struct energy_c *ec, extent_t ext)
+{
+    return ext < ec->disks[0].capacity;
+}
+
 static inline extent_t ext2id(struct energy_c *ec, struct extent *ext)
 {
     return (ext - ec->prime_extents)/sizeof(struct extent);
@@ -885,15 +893,17 @@ static int energy_map(struct dm_target *ti, struct bio *bio,
     spin_lock(&ec->lock);
     if (ec->table[vext].state & VES_PRESENT) {
         ext = ec->table[vext].eid;
-        ec->table[vext].state |= VES_ACCESS;
-        ec->table[vext].counter++;
+        if (!on_prime(ec, ext)) { /* schedule extent migration */
+        }
     } else {
         BUG_ON(get_extent(ec, &ext) < 0);
         ec->table[vext].eid = ext;
-        ec->table[vext].state = (VES_PRESENT | VES_ACCESS);
+        ec->table[vext].state = VES_PRESENT;
         ec->table[vext].counter = 1;
-        run_low = (ec->free.count < EXTENT_LOW);
     }
+    ec->table[vext].state |= VES_ACCESS;
+    ec->table[vext].counter++;
+    run_low = (ec->free.count < EXTENT_LOW);
     spin_unlock(&ec->lock);
 
     offset = (bio->bi_sector & (extent_size(ec) - 1));
