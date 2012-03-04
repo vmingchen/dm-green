@@ -17,6 +17,7 @@
 #include <linux/vmalloc.h>
 #include <linux/jiffies.h>
 #include <linux/bitmap.h>
+#include <linux/list.h>
 #include <linux/spinlock.h>
 
 #include <linux/device-mapper.h>
@@ -41,10 +42,14 @@
     count_sector(sizeof(struct energy_header_disk))
 
 #define table_size(ec) \
-    count_sector(ec->header.capacity * sizeof(struct extent_disk))
+    count_sector(ec->header.capacity * sizeof(struct vextent_disk))
 
 /* Return size of bitmap array */
 #define bitmap_size(len) dm_round_up(len, sizeof(unsigned long))
+
+#define extent_size(ec) (ec->header.ext_size)
+#define vdisk_size(ec) (ec->header.capacity)
+#define fdisk_nr(ec) (ec->header.ndisk)
 
 /* 
  * When requesting a new bio, the number of requested bvecs has to be
@@ -86,15 +91,15 @@ struct energy_header_disk {
     __le64 capacity;
 } __packed;
 
-/* Extent states */
-#define ES_PRESENT  0x01
-#define ES_ACCESS   0x02
-#define ES_MIGRATE  0x04
+/* Virtual extent states */
+#define VES_PRESENT 0x01
+#define VES_ACCESS  0x02
+#define VES_MIGRATE 0x04
 
 /*
- * Logical extent in memory.
+ * Virtual extent in memory.
  */
-struct extent {
+struct vextent {
     extent_t eid;               /* physical extent id */
     uint32_t state;             
     uint32_t counter;           /* how many times are accessed */
@@ -104,11 +109,16 @@ struct extent {
 /*
  * Extent metadata on disk.
  */
-struct extent_disk {
+struct vextent_disk {
     __le64 eid;
     __le32 state;
     __le32 counter;
 } __packed;
+
+struct extent {
+    struct vextent *vext;       /* virtual extent */
+    struct list_head list;
+};
 
 /*
  * Ring buffer of physical extent.
@@ -124,7 +134,7 @@ struct mapped_disk {
     struct dm_dev *dev;
     extent_t capacity;          /* capacity in extent */
     extent_t free_nr;           /* number of free extents */
-    extent_t offset;            /* offset within logical disk in extent */
+    extent_t offset;            /* offset within virtual disk in extent */
 };
 
 struct energy_c {
@@ -136,15 +146,22 @@ struct energy_c {
 
     struct mapped_disk *disks;
 
-    struct extent *table;       /* mapping table */
-    struct extent_buffer free;  /* free extents on prime disk */
+    struct vextent *table;       /* mapping table */
+
+    /*
+    struct extent_buffer free;  */
+    struct extent   *prime_extents; /* physical extents on prime disk */
+    struct list_head prime_free;    /* free extents on prime disk */
+    struct list_head prime_use;     /* in-use extents on prime disk */
+
     unsigned long *bitmap;      /* bitmap of extent, '0' for free extent */
     spinlock_t lock;            /* protect table, free and bitmap */
 
     struct dm_io_client *io_client;
     struct dm_kcopyd_client *kcp_client;
 
-    extent_t migration_ext;     /* logical extent id under migration */
+    struct work_struct migration_work;
+    extent_t migration_ext;     /* virtual extent id under migration */
     extent_t migration_src;     /* source physical extent id */
     extent_t migration_dst;     /* dest physical extent id */
 };
@@ -212,6 +229,7 @@ static struct energy_c *alloc_context(struct dm_target *ti,
     ec->table = NULL;           /* table not allocated yet */
     ec->io_client = NULL;
     ec->kcp_client = NULL;
+    ec->prime_extents = NULL;
 
     return ec;
 }
@@ -227,6 +245,10 @@ static void free_context(struct energy_c *ec)
     if (ec->bitmap) {
         vfree(ec->bitmap);
         ec->bitmap = NULL;
+    }
+    if (ec->prime_extents) {
+        vfree(ec->prime_extents);
+        ec->prime_extents = NULL;
     }
 
     kfree(ec->disks);
@@ -253,16 +275,16 @@ static inline void header_from_disk(struct energy_header *core,
     core->capacity = le64_to_cpu(disk->capacity);
 }
 
-static inline void extent_to_disk(struct extent *core, 
-        struct extent_disk *disk)
+static inline void extent_to_disk(struct vextent *core, 
+        struct vextent_disk *disk)
 {
     disk->eid = cpu_to_le64(core->eid);
     disk->state = cpu_to_le32(core->state);
     disk->counter = cpu_to_le32(core->counter);
 }
 
-static inline void extent_from_disk(struct extent *core,
-        struct extent_disk *disk)
+static inline void extent_from_disk(struct vextent *core,
+        struct vextent_disk *disk)
 {
     core->eid = le64_to_cpu(disk->eid);
     core->state = le32_to_cpu(disk->state);
@@ -322,7 +344,7 @@ static int get_disks(struct energy_c *ec, char **argv)
     unsigned i;
     extent_t ext_count = 0;
 
-    for (i = 0; i < ec->header.ndisk; ++i, argv += 2) {
+    for (i = 0; i < fdisk_nr(ec); ++i, argv += 2) {
         r = get_mdisk(ec->ti, ec, i, argv);
         if (r < 0) {
             put_disks(ec, i);
@@ -332,8 +354,8 @@ static int get_disks(struct energy_c *ec, char **argv)
         ext_count += ec->disks[i].capacity;
     }
 
-    /* Logical disk size should match sum of physical disks' size */
-    if (ec->header.capacity != ext_count) {
+    /* Virtual disk size should match sum of physical disks' size */
+    if (vdisk_size(ec) != ext_count) {
         DMERR("Disk length dismatch");
         r = -EINVAL;
     }
@@ -341,27 +363,39 @@ static int get_disks(struct energy_c *ec, char **argv)
     return r;
 }
 
+static inline extent_t ext2id(struct energy_c *ec, struct extent *ext)
+{
+    return (ext - ec->prime_extents)/sizeof(struct extent);
+}
+
 /*
- * Get a physical extent from given disk.
+ * Get a physical extent from given disk. 
  */
 static int get_extent(struct energy_c *ec, extent_t *ext)
 {
     unsigned i;
+    struct list_head *first;
 
+    /*
     if (!buffer_empty(&ec->free)) {
-        *ext = consume_buffer(&ec->free);
+         *ext = consume_buffer(&ec->free); */
+    if (list_empty(&ec->prime_free)) { 
+        first = ec->prime_free.next;
+        list_del(first);
+        list_add(ec->prime_use);
+        *ext = ext2id(container_of(first, struct extent, list));
         i = PRIME_DISK;
     } else { 
-        for (i = 1; i < ec->header.ndisk; ++i) {
+        for (i = 1; i < fdisk_nr(ec); ++i) {
             if (ec->disks[i].free_nr > 0) {
-                *ext = find_next_zero_bit(ec->bitmap, ec->header.capacity, 
+                *ext = find_next_zero_bit(ec->bitmap, vdisk_size(ec), 
                         ec->disks[i].offset);
                 break;
             }
         }
     }
 
-    if (i < ec->header.ndisk) { 
+    if (i < fdisk_nr(ec)) { 
         ec->disks[i].free_nr--;
         bitmap_set(ec->bitmap, *ext, 1);
         return 0;
@@ -423,7 +457,7 @@ static int dump_header(struct energy_c *ec, unsigned idisk)
     return r;
 }
 
-static int sync_table(struct energy_c *ec, struct extent_disk *extents, 
+static int sync_table(struct energy_c *ec, struct vextent_disk *extents, 
         unsigned idisk, int rw)
 {
     int r;
@@ -457,18 +491,18 @@ static int dump_metadata(struct energy_c *ec)
 {
     int r;
     unsigned i;
-    struct extent_disk *extents;
+    struct vextent_disk *extents;
 
-    extents = (struct extent_disk*)vmalloc(table_size(ec));
+    extents = (struct vextent_disk*)vmalloc(table_size(ec));
     if (!extents) {
         DMERR("dump_metadata: Unable to allocate memory");
         return -ENOMEM;
     }
 
-    for (i = 0; i < ec->header.capacity; ++i)
+    for (i = 0; i < vdisk_size(ec); ++i)
         extent_to_disk(ec->table + i, extents + i);
 
-    for (i = 0; i < ec->header.ndisk; ++i) {
+    for (i = 0; i < fdisk_nr(ec); ++i) {
         r = dump_header(ec, i);
         if (r < 0) {
             DMERR("dump_metadata: Fail to dump header to disk %u", i);
@@ -528,9 +562,9 @@ exit_check:
 static int alloc_table(struct energy_c *ec, bool zero)
 {
     unsigned i;
-    size_t size = ec->header.capacity * sizeof(struct extent);
+    size_t size = vdisk_size(ec) * sizeof(struct vextent);
 
-    ec->table = (struct extent*)vmalloc(size);
+    ec->table = (struct vextent*)vmalloc(size);
     if (!(ec->table)) {
         DMERR("alloc_table: Unable to allocate memory");
         return -ENOMEM;
@@ -539,7 +573,7 @@ static int alloc_table(struct energy_c *ec, bool zero)
         memset(ec->table, 0, size);
     }
     /* 
-    for (i = 0; i < ec->header.capacity; ++i) { 
+    for (i = 0; i < vdisk_size(ec); ++i) { 
         spin_lock_init(&(ec->table[i].lock));
     } */
     DMDEBUG("alloc_table: table created");
@@ -555,13 +589,13 @@ static int load_metadata(struct energy_c *ec)
 {
     int r;
     unsigned i;
-    struct extent_disk *extents;
+    struct vextent_disk *extents;
 
     r = alloc_table(ec, false);
     if (r < 0)
         return r;
 
-    extents = (struct extent_disk*)vmalloc(table_size(ec));
+    extents = (struct vextent_disk*)vmalloc(table_size(ec));
     if (!extents) {
         DMERR("load_metadata: Unable to allocate memory");
         r = -ENOMEM;
@@ -573,7 +607,7 @@ static int load_metadata(struct energy_c *ec)
     if (r < 0) 
         goto bad_sync;
 
-    for (i = 0; i < ec->header.capacity; ++i) 
+    for (i = 0; i < vdisk_size(ec); ++i) 
         extent_from_disk(ec->table + i, extents + i);
 
     vfree(extents);
@@ -593,16 +627,16 @@ bad_extents:
 static inline void extent_on_disk(struct energy_c *ec, extent_t *eid,
         unsigned *i)
 {
-    BUG_ON(*eid >= ec->header.capacity);
+    BUG_ON(*eid >= vdisk_size(ec));
     *i = 0;
-    while (*i < ec->header.ndisk && *eid >= ec->disks[*i].capacity) {
+    while (*i < fdisk_nr(ec) && *eid >= ec->disks[*i].capacity) {
         *eid -= ec->disks[(*i)++].capacity;
     }
 }
 
 static int build_bitmap(struct energy_c *ec, bool zero)
 {
-    size_t i, j, k, size = bitmap_size(ec->header.capacity);
+    size_t i, j, k, size = bitmap_size(vdisk_size(ec));
     
     ec->bitmap = (unsigned long *)vmalloc(size);
     if (!ec->bitmap) {
@@ -612,52 +646,88 @@ static int build_bitmap(struct energy_c *ec, bool zero)
 
     memset(ec->bitmap, 0, size);
     if (zero) {
-        for (j = 0; j < ec->header.ndisk; ++j)
+        for (j = 0; j < fdisk_nr(ec); ++j)
             ec->disks[j].free_nr = ec->disks[j].capacity;
     } else {
         j = 0;
         k = ec->disks[j].capacity;
         ec->disks[j].free_nr = k;
-        for (i = 0; i < ec->header.capacity; ++i) {
+        for (i = 0; i < vdisk_size(ec); ++i) {
             if (k == 0) { 
                 k = ec->disks[++j].capacity;
                 ec->disks[j].free_nr = k;
             }
-            if (ec->table[i].state & ES_PRESENT) {
+            if (ec->table[i].state & VES_PRESENT) {
                 bitmap_set(ec->bitmap, i, 1);
                 ec->disks[j].free_nr--;
                 DMDEBUG("extent %d is present", i);
             }
             --k;
         }
-        BUG_ON(k != 0 || j != (ec->header.ndisk - 1));
+        BUG_ON(k != 0 || j != (fdisk_nr(ec) - 1));
     }
 
     return 0;
 }
 
-static void build_free_list(struct energy_c *ec)
+/*
+ * Build LRU list and free list of extents on prime disk.
+ */
+static int build_prime(struct energy_c *ec)
 {
-    unsigned long i = 0;
+    extent_t i = 0;
 
+    ec->prime_extents = (struct extent*)vmalloc(
+            sizeof(struct extent) * ec->disks[0].capacity);
+    if (!ec->prime_extents) {
+        DMERR("build_prime: Unable to allocate memory");
+        return -ENOMEM;
+    }
+
+    INIT_LIST_HEAD(&ec->prime_free);
+    INIT_LIST_HEAD(&ec->prime_use);
+    for (i = 0; i < ec->disks[0].capacity; ++i) {
+        if (ec->table[i] & VES_PRESENT) {
+            list_add(&(ec->prime_extents[i].list), &ec->prime_use);
+        } else {
+            list_add(&(ec->prime_extents[i].list), &ec->prime_free);
+        }
+    }
+
+    /*
     while (!buffer_full(&ec->free)) {
-        i = find_next_zero_bit(ec->bitmap, ec->header.capacity, i);
+        i = find_next_zero_bit(ec->bitmap, vdisk_size(ec), i);
         DMDEBUG("free extent: %lu", i);
         if (i >= ec->disks[0].capacity)
             break;
         produce_buffer(&ec->free, i);
         ++i;
     }
+     */
 
     /* TODO: if free_list is too small, schedule migration */
+    return 0;
 }
 
 static void clear_table(struct energy_c *ec)
 {
     unsigned i;
 
-    for (i = 0; i < ec->header.capacity; ++i) 
-        ec->table[i].state &= ~ES_ACCESS;
+    for (i = 0; i < vdisk_size(ec); ++i) 
+        ec->table[i].state &= ~VES_ACCESS;
+}
+
+static void migrate_extents(struct energy_c *ec)
+{
+    /* Find eviction extent, set call back and schedule kcopyd */
+}
+
+static void migration_work(struct work_struct *work)
+{
+    struct energy_c *ec;
+
+    ec = container_of(work, struct energy_c, migration_work);
+    migrate_extents(ec);
 }
 
 /*
@@ -730,7 +800,7 @@ static int energy_ctr(struct dm_target *ti, unsigned int argc, char **argv)
     }
 
     r = check_header(ec, 0);
-    if (r) {
+    if (r < 0) {
         DMDEBUG("no useable metadata on disk");
         r = alloc_table(ec, true);
         if (r < 0) {
@@ -756,11 +826,21 @@ static int energy_ctr(struct dm_target *ti, unsigned int argc, char **argv)
         }
     }
 
-    build_free_list(ec);
+    r = build_prime(ec);
+    if (r < 0) {
+        DMDEBUG("building prime extents");
+        ti->error = "Fail to build prime extents";
+        goto bad_prime;
+    }
+
+    INIT_WORK(&ec->migration_work, migration_work);
     clear_table(ec);
 
     return 0;
 
+bad_prime:
+    vfree(ec->bitmap);
+    ec->bitmap = NULL;
 bad_bitmap:
     vfree(ec->table);
     ec->table = NULL;
@@ -786,7 +866,7 @@ static void energy_dtr(struct dm_target *ti)
 
     dm_kcopyd_client_destroy(ec->kcp_client);
     dm_io_client_destroy(ec->io_client);
-    put_disks(ec, ec->header.ndisk);
+    put_disks(ec, fdisk_nr(ec));
     free_context(ec);
 }
 
@@ -803,25 +883,25 @@ static int energy_map(struct dm_target *ti, struct bio *bio,
             bio->bi_sector, vext, ec->ext_shift);
 
     spin_lock(&ec->lock);
-    if (ec->table[vext].state & ES_PRESENT) {
+    if (ec->table[vext].state & VES_PRESENT) {
         ext = ec->table[vext].eid;
-        ec->table[vext].state |= ES_ACCESS;
+        ec->table[vext].state |= VES_ACCESS;
         ec->table[vext].counter++;
     } else {
         BUG_ON(get_extent(ec, &ext) < 0);
         ec->table[vext].eid = ext;
-        ec->table[vext].state = (ES_PRESENT | ES_ACCESS);
+        ec->table[vext].state = (VES_PRESENT | VES_ACCESS);
         ec->table[vext].counter = 1;
         run_low = (ec->free.count < EXTENT_LOW);
     }
     spin_unlock(&ec->lock);
 
-    offset = (bio->bi_sector & (ec->header.ext_size - 1));
+    offset = (bio->bi_sector & (extent_size(ec) - 1));
     extent_on_disk(ec, &ext, &idisk);
     bio->bi_bdev = ec->disks[idisk].dev->bdev;
     bio->bi_sector = (ext << ec->ext_shift) + offset;
     /* Limit IO within an extent as it is fine to get less than wanted. */
-    bio->bi_size = min(bio->bi_size, to_bytes(ec->header.ext_size - offset));
+    bio->bi_size = min(bio->bi_size, to_bytes(extent_size(ec) - offset));
 
     if (run_low) {
         /* TODO: schedule migrate */
