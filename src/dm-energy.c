@@ -28,7 +28,7 @@
  * Magic for persistent energy header: "EnEg"
  */
 #define ENERGY_MAGIC 0x45614567
-#define ENERGY_VERSION 2
+#define ENERGY_VERSION 3
 #define ENERGY_DAEMON "kenergyd"
 
 /* The first disk is prime disk. */
@@ -153,8 +153,6 @@ struct energy_c {
 
     struct vextent *table;       /* mapping table */
 
-    /*
-    struct extent_buffer free;  */
     struct extent   *prime_extents; /* physical extents on prime disk */
     struct list_head prime_free;    /* free extents on prime disk */
     struct list_head prime_use;     /* in-use extents on prime disk */
@@ -166,6 +164,7 @@ struct energy_c {
     struct dm_kcopyd_client *kcp_client;
 
     struct work_struct eviction_work;   /* work of evicting prime extent */
+    struct extent *eviction_cursor;
 };
 
 static struct workqueue_struct *kenergyd_wq;
@@ -391,6 +390,11 @@ static inline void extent_on_disk(struct energy_c *ec, extent_t *eid,
     }
 }
 
+static inline struct extent *next_extent(struct extent *ext)
+{
+    return list_entry(&(ext->list.next), struct extent, list);
+}
+
 /*
  * Get a prime extent.
  */
@@ -408,6 +412,7 @@ static inline int get_prime(struct energy_c *ec, extent_t *eid)
 
     ec->disks[PRIME_DISK].free_nr--;
     bitmap_set(ec->bitmap, *eid, 1);
+    DMDEBUG("get_prime: %u extents left", ec->disks[PRIME_DISK].free_nr);
 
     return 0;
 }
@@ -421,20 +426,22 @@ static inline void put_prime(struct energy_c *ec, extent_t eid)
 
     BUG_ON(eid >= prime_size(ec));
     ext = ec->prime_extents + eid;
+    ext->vext = NULL;
     list_del(&ext->list);
     list_add(&ext->list, &(ec->prime_free));
     ec->disks[PRIME_DISK].free_nr++;
     bitmap_clear(ec->bitmap, eid, 1);
+    DMDEBUG("put_prime: %llu extents left", ec->disks[PRIME_DISK].free_nr);
 }
 
 /*
  * Get a physical extent. 
  */
-static int get_extent(struct energy_c *ec, extent_t *eid)
+static int get_extent(struct energy_c *ec, extent_t *eid, bool prime)
 {
     unsigned i;
 
-    if (get_prime(ec, eid) == 0) 
+    if (prime && get_prime(ec, eid) == 0) 
         return 0;
 
     for (i = PRIME_DISK+1; i < fdisk_nr(ec); ++i) {
@@ -722,14 +729,16 @@ static int build_bitmap(struct energy_c *ec, bool zero)
  */
 static int build_prime(struct energy_c *ec)
 {
+    size_t size; 
     extent_t eid, veid;
 
-    ec->prime_extents = (struct extent*)vmalloc(
-            sizeof(struct extent) * prime_size(ec));
+    size = sizeof(struct extent) * prime_size(ec);
+    ec->prime_extents = (struct extent *)vmalloc(size)
     if (!ec->prime_extents) {
         DMERR("build_prime: Unable to allocate memory");
         return -ENOMEM;
     }
+    memset(ec->prime_extents, 0, size);
 
     INIT_LIST_HEAD(&ec->prime_free);
     for (eid = 0; eid < prime_size(ec); ++eid) {
@@ -742,10 +751,14 @@ static int build_prime(struct energy_c *ec)
             continue;
         eid = ec->table[veid].eid;
         if (on_prime(ec, eid)) { 
+            ec->prime_extents[eid].vext = ec->table + veid;
             list_del(&(ec->prime_extents[eid].list));
             list_add(&(ec->prime_extents[eid].list), &ec->prime_use);
         }
     }
+
+    eviction_cursor = list_empty(&ec->prime_use) ? NULL 
+            : list_first_entry(&ec->prime_use, struct extent, list);
 
     /* TODO: if free_list is too small, schedule migration */
     return 0;
@@ -760,9 +773,21 @@ static void clear_table(struct energy_c *ec)
 }
 
 /*
+ * Map virtual extent 'veid' to physcial extent 'eid'.
+ */
+static void map_extent(struct energy_c *ec, extent_t veid, extent_t eid)
+{
+    ec->table[veid].eid = eid;
+    ec->table[veid].state |= VES_PRESENT;
+    if (on_prime(ec, eid)) {
+        ec->prime_extents[eid].vext = ec->table + veid;
+    }
+}
+
+/*
  * Map bio's request onto physcial extent eid.
  */
-static void do_map(struct energy_c *ec, struct bio *bio, extent_t eid)
+static void map_bio(struct energy_c *ec, struct bio *bio, extent_t eid)
 {
     unsigned idisk;
     sector_t offset;          /* sector offset within extent */
@@ -807,7 +832,7 @@ static void promote_callback(int read_err, unsigned long write_err,
         pinfo->ec->table[pinfo->veid].eid = pinfo->peid;
         spin_unlock(&(pinfo->ec->lock));
         /* resubmit bio */
-        do_map(pinfo->ec, pinfo->bio, pinfo->peid);
+        map_bio(pinfo->ec, pinfo->bio, pinfo->peid);
 		generic_make_request(pinfo->bio);
     }
 
@@ -859,11 +884,119 @@ static bool promote_extent(struct energy_c *ec, struct bio *bio)
     return true;
 }
 
+struct demote_info {
+    struct energy_c *ec;
+    struct extent   *pext;
+    extent_t        seid;
+    extent_t        deid;
+};
+
+static void demote_callback(int read_err, unsigned long write_err, 
+        void *context)
+{
+    struct demote_info *dinfo = (struct demote_info *)context;
+    struct energy_c *ec;
+    struct extent *ext;
+    extent_t seid, deid;
+    bool run_low;
+
+    ec = dinfo->ec;
+    ext = dinfo->pext;
+    seid = dinfo->seid;
+    deid = dinfo->deid;
+    if (read_err || write_err) {
+		if (read_err)
+			DMERR("promote_callback: Read error.");
+		else
+			DMERR("promote_callback: Write error.");
+        /* undo demote */
+        spin_lock(&dinfo->ec->lock);
+        ext->vext->state &= ~VES_MIGRATE;
+        list_add(&ext->list, &ec->prime_use);
+        put_extent(ec, deid);
+        spin_unlock(&dinfo->ec->lock);
+    } else {
+        spin_lock(&dinfo->ec->lock);
+        ext->vext->state &= ~VES_MIGRATE;
+        ext->vext->eid = deid;
+        ext->vext = NULL;
+        put_extent(ec, seid);
+        run_low = (ec->disks[PRIME_DISK].free_nr < EXTENT_FREE);
+        spin_unlock(&dinfo->ec->lock);
+    }
+    kfree(dinfo);
+
+    /* schedule more eviction */
+    if (run_low) 
+        queue_work(kenergyd_wq, &ec->eviction_work);
+}
+
+/*
+ * Demote extents using WSClock-LRU algorithm.
+ */
+static void demote_extent(struct energy_c *ec)
+{
+    struct dm_io_region src, dst;
+    struct extent *next, *ext = ec->eviction_cursor;
+    extent_t seid, deid;
+    unsigned idisk;
+    struct demote_info *dinfo;
+
+    if (!ext) { 
+        DMDEBUG("demote_extent: Nothing to demote");
+        return ;
+    }
+
+    dinfo = kmalloc(sizeof(struct demote_info), GFP_KERNEL);
+    if (!dinfo) {
+        DMDEBUG("demote_extent: Could not allocate memory");
+        return ;
+    }
+
+    spin_lock(&ec->lock);
+    while (ext->vext->state & VES_ACCESS) { 
+        ext->vext->state &= ~VES_ACCESS;
+        ext = next_extent(ext);
+        if (ext == ec->eviction_cursor) {   /* nothing to do */ 
+            spin_unlock(&ec->lock);
+            return ;
+        }
+    }
+    if (get_extent(ec, &deid, false) < 0) { /* no space */
+        spin_unlock(&ec->lock);
+        return ;
+    }
+    seid = ext->vext->eid;
+    ext->vext->state |= VES_MIGRATE;
+    next = next_extent(ext);
+    list_del(&ext->list);
+    ec->eviction_cursor = (ext == next) ? NULL : next;
+    spin_unlock(&ec->lock);
+
+    BUG_ON(!on_prime(ec, seid) || on_prime(ec, deid));
+    src.bdev = ec->disks[PRIME_DISK].dev->bdev;
+    src.sector = seid << ec->ext_shift;
+    src.count = extent_size(ec);
+
+    extent_on_disk(ec, &deid, &idisk);
+    dst.bdev = ec->disks[idisk].dev->bdev;
+    dst.sector = deid << ec->ext_shift;
+    dst.count = extent_size(ec);
+
+    dinfo->ec = ec;
+    dinfo->pext = ext;
+    dinfo->seid = seid;
+    dinfo->deid = deid;
+    dm_kcopyd_copy(ec->kcp_client, &src, 1, &dst, 0,
+            (dm_kcopyd_notify_fn)demote_callback, dinfo);
+}
+
 static void eviction_work(struct work_struct *work)
 {
     struct energy_c *ec;
 
     ec = container_of(work, struct energy_c, eviction_work);
+    demote_extent(ec);
 }
 
 /*
@@ -970,6 +1103,7 @@ static int energy_ctr(struct dm_target *ti, unsigned int argc, char **argv)
     }
 
     clear_table(ec);
+    INIT_WORK(&ec->eviction_work, eviction_work);
 
     return 0;
 
@@ -1026,26 +1160,43 @@ static int energy_map(struct dm_target *ti, struct bio *bio,
             return DM_MAPIO_SUBMITTED;      /* submit it after promote */
         }
     } else {
-        BUG_ON(get_extent(ec, &eid) < 0);   /* out of space */
-        ec->table[veid].eid = eid;
-        ec->table[veid].state |= VES_PRESENT;
+        BUG_ON(get_extent(ec, &eid, true) < 0);   /* out of space */
+        map_extent(ec, veid, eid);
     }
     run_low = (ec->disks[PRIME_DISK].free_nr < EXTENT_LOW);
     spin_unlock(&ec->lock);
 
-    do_map(ec, bio, eid);
+    map_bio(ec, bio, eid);
 
-    if (run_low) {
-        /* schedule extent eviction */
+    if (run_low) {              /* schedule extent eviction */
+        queue_work(kenergyd_wq, &ec->eviction_work);
     }
 
     return DM_MAPIO_REMAPPED;
 }
 
 static int energy_status(struct dm_target *ti, status_type_t type,
-			 char *result, unsigned int maxlen)
+        char *result, unsigned int maxlen)
 {
+    unsigned i;
+    extent_t free = 0;
+    struct energy_c *ec = (struct energy_c *)ti->private;
+
     DMDEBUG("energy_status");
+    switch(type) {
+        case STATUSTYPE_INFO:
+            result[0] = '\0';
+            break;
+
+        case STATUSTYPE_TABLE:
+            for (i = 0; i < fdisk_nr(ec); ++i) 
+                free += ec->disks[i].free_nr;
+            snprintf(result, maxlen, "extent size: %llu, capacity: %llu \
+                    free prime extents: %llu, free extents: %llu",
+                    extent_size(ec), vdisk_size(ec), 
+                    ec->disks[PRIME_DISK].free_nr, free);
+            break;
+    }
     return 0;
 }
 
