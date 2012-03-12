@@ -28,7 +28,7 @@
  * Magic for persistent energy header: "EnEg"
  */
 #define ENERGY_MAGIC 0x45614567
-#define ENERGY_VERSION 7
+#define ENERGY_VERSION 13
 #define ENERGY_DAEMON "kenergyd"
 
 /* The first disk is prime disk. */
@@ -375,7 +375,8 @@ static inline bool on_prime(struct energy_c *ec, extent_t eid)
 
 static inline extent_t ext2id(struct energy_c *ec, struct extent *ext)
 {
-    return (ext - ec->prime_extents)/sizeof(struct extent);
+    DMDEBUG("%d, %d", (ec->prime_extents - ext), ext - ec->prime_extents);
+    return (ext - ec->prime_extents);
 }
 
 /*
@@ -410,6 +411,8 @@ static inline int get_prime(struct energy_c *ec, extent_t *eid)
     list_del(&first->list);
     list_add(&first->list, &ec->prime_use);
     *eid = ext2id(ec, first);
+    DMDEBUG("get_prime: prime extent %llu (%lx) used", *eid, 
+            (unsigned long)first);
 
     ec->disks[PRIME_DISK].free_nr--;
     bitmap_set(ec->bitmap, *eid, 1);
@@ -564,16 +567,22 @@ static int dump_metadata(struct energy_c *ec)
 {
     int r;
     unsigned i;
+    extent_t veid;
     struct vextent_disk *extents;
 
-    extents = (struct vextent_disk*)vmalloc(table_size(ec));
+    extents = (struct vextent_disk *)vmalloc(table_size(ec));
     if (!extents) {
         DMERR("dump_metadata: Unable to allocate memory");
         return -ENOMEM;
     }
 
-    for (i = 0; i < vdisk_size(ec); ++i)
-        extent_to_disk(ec->table + i, extents + i);
+    for (veid = 0; veid < vdisk_size(ec); ++veid) { 
+        extent_to_disk(ec->table + veid, extents + veid);
+        if (ec->table[veid].state & VES_PRESENT) { 
+            DMDEBUG("dump_metadata: %llu -> %llu (%llu)", veid, 
+                    le64_to_cpu(extents[veid].eid), ec->table[veid].eid);
+        }
+    }
 
     for (i = 0; i < fdisk_nr(ec); ++i) {
         r = dump_header(ec, i);
