@@ -28,7 +28,7 @@
  * Magic for persistent energy header: "EnEg"
  */
 #define ENERGY_MAGIC 0x45614567
-#define ENERGY_VERSION 24
+#define ENERGY_VERSION 34
 #define ENERGY_DAEMON "kenergyd"
 
 /* The first disk is prime disk. */
@@ -63,8 +63,8 @@
 #define MAX_SECTORS ((BIO_MAX_PAGES - 2) * (PAGE_SIZE >> SECTOR_SHIFT))
 
 /* Size of reserved free extent on prime disk */
-#define EXTENT_FREE 2
-#define EXTENT_LOW 1
+#define EXTENT_FREE 8
+#define EXTENT_LOW 4
 
 #define array_too_big(fixed, obj, num) \
 	((num) > (UINT_MAX - (fixed)) / (obj))
@@ -342,7 +342,7 @@ static void put_disks(struct energy_c *ec, int ndisk)
  */
 static int get_disks(struct energy_c *ec, char **argv)
 {
-    int r;
+    int r = 0;
     unsigned i;
     extent_t ext_count = 0;
 
@@ -457,6 +457,7 @@ static int get_extent(struct energy_c *ec, extent_t *eid, bool prime)
         if (ec->disks[i].free_nr > 0) {
             *eid = find_next_zero_bit(ec->bitmap, vdisk_size(ec), 
                     ec->disks[i].offset);
+            DMDEBUG("get_extent: %llu obtained", *eid);
             ec->disks[i].free_nr--;
             bitmap_set(ec->bitmap, *eid, 1);
             return 0;
@@ -853,6 +854,7 @@ static bool promote_extent(struct energy_c *ec, struct bio *bio)
     unsigned idisk;
     struct promote_info *pinfo;
 
+    DMDEBUG("promote_extent: promoting");
     if (get_prime(ec, &peid) < 0) { 
         DMDEBUG("promote_extent: no extent on prime disk");
         return false;        /* no free prime extent */
@@ -911,6 +913,15 @@ static void demote_callback(int read_err, unsigned long write_err,
 
     DMDEBUG("demote_callback: remap %u from %llu to %llu",
             (ext->vext - ec->table), seid, deid);
+    DMDEBUG("demote_callback: ext (%lx), next (%lx), prev (%lx)",
+            (unsigned long)ext, (unsigned long)ext->list.next, 
+            (unsigned long)ext->list.prev);
+    spin_lock(&ec->lock);
+    put_extent(ec, deid);
+    // list_add_tail(&ext->list, &ec->prime_use);
+    ext->vext->state ^= VES_MIGRATE;
+    spin_unlock(&ec->lock);
+    kfree(dinfo);
     return ;
 
     if (read_err || write_err) {
@@ -920,15 +931,15 @@ static void demote_callback(int read_err, unsigned long write_err,
 			DMERR("promote_callback: Write error.");
         /* undo demote */
         spin_lock(&ec->lock);
-        ext->vext->state &= ~VES_MIGRATE;
-        list_add(&ext->list, &ec->prime_use);
+        ext->vext->state ^= VES_MIGRATE;
+        list_add_tail(&ext->list, &ec->prime_use);
         put_extent(ec, deid);
         spin_unlock(&ec->lock);
     } else {
         DMDEBUG("demote: extent %u is remapped to extent %llu", 
                 (ext->vext - ec->table)/sizeof(struct vextent), deid);
         spin_lock(&ec->lock);
-        ext->vext->state &= ~VES_MIGRATE;
+        ext->vext->state ^= VES_MIGRATE;
         ext->vext->eid = deid;
         ext->vext = NULL;
         put_extent(ec, seid);
@@ -950,7 +961,7 @@ static void demote_extent(struct energy_c *ec)
 {
     struct dm_io_region src, dst;
     struct extent *next, *ext;
-    extent_t seid, deid;
+    extent_t seid, deid, tmp;
     unsigned idisk;
     struct demote_info *dinfo;
 
@@ -971,7 +982,6 @@ static void demote_extent(struct energy_c *ec)
                 struct extent, list);
     }
     ext = ec->eviction_cursor;
-    // while (ext->vext->state & (VES_ACCESS | VES_MIGRATE)) { 
     while (ext->vext->state & VES_ACCESS) { 
         DMDEBUG("demote_extent: extent %llu accessed", ext2id(ec, ext));
         ext->vext->state ^= VES_ACCESS;     /* clear access bit */
@@ -981,50 +991,50 @@ static void demote_extent(struct energy_c *ec)
             goto quit_demote;
         }
     }
-    ec->eviction_cursor = ext;
     DMDEBUG("demote_extent: extent %llu not accessed", ext2id(ec, ext));
     if (get_extent(ec, &deid, false) < 0) { /* no space on disk */
         DMDEBUG("demote_extent: No space on disk");
+        ec->eviction_cursor = ext;
         goto quit_demote;
     }
     seid = ext2id(ec, ext);
-    BUG_ON(seid != ext->vext->eid);
+    if (seid != ext->vext->eid) { 
+        DMDEBUG("error state: ext2id (%llu) vs eid (%llu)", 
+                seid, ext->vext->eid);
+        put_extent(ec, deid);
+        goto quit_demote;
+    }
     ext->vext->state |= VES_MIGRATE;
     next = next_extent(&ec->prime_use, ext);
     DMDEBUG("demote_extent: Next extent %llu", next->vext->eid);
-    list_del(&ext->list);       /* remove ext from prime_use list */
+    // list_del(&ext->list);       /* remove ext from prime_use list */
     ec->eviction_cursor = next == ext ? NULL : next;
     spin_unlock(&ec->lock);
 
     BUG_ON(!on_prime(ec, seid) || on_prime(ec, deid));
-    src.bdev = ec->disks[PRIME_DISK].dev->bdev;
-    src.sector = seid << ec->ext_shift;
-    src.count = extent_size(ec);
-
-    extent_on_disk(ec, &deid, &idisk);
-    dst.bdev = ec->disks[idisk].dev->bdev;
-    dst.sector = deid << ec->ext_shift;
-    dst.count = extent_size(ec);
-
     dinfo->ec = ec;
     dinfo->pext = ext;
     dinfo->seid = seid;
     dinfo->deid = deid;
-    DMDEBUG("demote_extent: schedule callback");
+    DMDEBUG("demote_extent: demoting extent %llu (%d) to %llu (%d)", 
+            seid, on_prime(ec, seid), deid, on_prime(ec, deid));
 
-    // demote_callback(1, 0, dinfo);
-    spin_lock(&ec->lock);
-    put_extent(ec, deid);
-    list_add(&ext->list, &ec->prime_use);
-    ext->vext->state &= ~VES_MIGRATE;
-    spin_unlock(&ec->lock);
-    return ;
+    src.bdev = ec->disks[PRIME_DISK].dev->bdev;
+    src.sector = seid << ec->ext_shift;
+    src.count = extent_size(ec);
+
+    tmp = deid;
+    extent_on_disk(ec, &tmp, &idisk);
+    dst.bdev = ec->disks[idisk].dev->bdev;
+    dst.sector = tmp << ec->ext_shift;
+    dst.count = extent_size(ec);
 
     dm_kcopyd_copy(ec->kcp_client, &src, 1, &dst, 0,
             (dm_kcopyd_notify_fn)demote_callback, dinfo);
 
 quit_demote:
     spin_unlock(&ec->lock);
+    kfree(dinfo);
 }
 
 static void eviction_work(struct work_struct *work)
@@ -1228,10 +1238,10 @@ static int energy_map(struct dm_target *ti, struct bio *bio,
     if (ec->table[veid].state & VES_PRESENT) {
         eid = ec->table[veid].eid;
         DMDEBUG("map: virtual %llu -> physical %llu", veid, eid);
-        if (!on_prime(ec, eid) && promote_extent(ec, bio)) {
-            spin_unlock(&ec->lock);
-            return DM_MAPIO_SUBMITTED;      /* submit it after promote */
-        }
+//        if (!on_prime(ec, eid) && promote_extent(ec, bio)) {
+//            spin_unlock(&ec->lock);
+//            return DM_MAPIO_SUBMITTED;      /* submit it after promote */
+//        }
     } else {
         BUG_ON(get_extent(ec, &eid, true) < 0);   /* out of space */
         map_extent(ec, veid, eid);
