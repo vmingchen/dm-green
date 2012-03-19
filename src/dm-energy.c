@@ -98,6 +98,12 @@ struct energy_header_disk {
 #define VES_ACCESS  0x02
 #define VES_MIGRATE 0x04
 
+/* Extent flags */
+#define EF_active	1
+#define EF_referenced	2
+#define EF_inevictable	3
+#define EF_free		4
+
 /*
  * Virtual extent in memory.
  */
@@ -106,8 +112,23 @@ struct vextent {
     uint32_t state;             
     uint32_t counter;           /* how many times are accessed */
     uint64_t tick;              /* timestamp of latest access */
+    uint32_t exflags; 
 };
 
+#define SetExtActive(ext)     	(1 << EF_active |(((struct extent*)ext)->vext->exflags))
+#define SetExtReferenced(ext)	(1 << EF_referenced |(((struct extent*)ext)->vext->exflags))
+#define SetExtInevictable(ext)  (1 << EF_inevictable |(((struct extent *)ext)->vext->exflags))
+#define SetExtFree(ext)     	(1 << EF_free |(((struct  extent *)ext)->vext->exflags))
+
+#define ClearExtActive(ext)	(~(1 << EF_active) &(((struct extent*)ext)->vext->exflags))
+#define ClearExtReferenced(ext)	(~(1 << EF_referenced) &(((struct extent*)ext)->vext->exflags))
+#define ClearExtInevictable(ext)	(~(1 << EF_inevictable) &(((struct extent*)ext)->vext->exflags))
+#define ClearExtFree(ext)	(~(1 << EF_free) &(((struct extent*)ext)->vext->exflags))
+
+#define ExtActive(ext)     	((1 << EF_active & (((struct extent*)ext)->vext->exflags)) ? 1 :0)
+#define ExtReferenced(ext) 	((1 << EF_referenced & (((struct extent*)ext)->vext->exflags)) ? 1 : 0)
+#define ExtInevictable(ext)  	((1 << EF_inevictable & (((struct extent*)ext)->vext->exflags)) ? 1 : 0)
+#define ExtFree(ext)     	((1 << EF_free & (((struct extent *)ext)->vext->exflags)) ? 1 : 0)
 /*
  * Extent metadata on disk.
  */
@@ -156,6 +177,9 @@ struct energy_c {
     struct extent   *prime_extents; /* physical extents on prime disk */
     struct list_head prime_free;    /* free extents on prime disk */
     struct list_head prime_use;     /* in-use extents on prime disk */
+
+    struct list_head prime_active;  	/* active extents on prime disk */	
+    struct list_head prime_inactive;	/* inactive extents on prime disk */
 
     unsigned long *bitmap;      /* bitmap of extent, '0' for free extent */
     spinlock_t lock;            /* protect table, free and bitmap */
@@ -413,6 +437,146 @@ static inline struct extent *prev_extent(struct list_head *head,
     return (ext->list.prev != head)
         ? list_entry(ext->list.prev, struct extent, list)
         : list_entry(head->prev, struct extent, list);
+}
+
+/**
+ * adds an extent to inactive list 
+ *
+ */
+static inline void add_extent_to_inactive_list(struct energy_c *ec, struct extent *ext)
+{
+    list_add(&ext->list, &ec->prime_inactive);
+    return;
+}
+
+/**
+ * adds an extent to active list
+ *
+ */
+static inline void add_extent_to_active_list(struct energy_c *ec, struct extent *ext)
+{
+    list_add(&ext->list, &ec->prime_active);
+    return;
+}
+/**
+ * deletes an extent from active list
+ *
+ */
+static inline void del_extent_from_active_list(struct extent *ext)
+{
+    list_del(&ext->list);
+    return;
+}
+
+/**
+ * deletes an extent from inactive list
+ *
+ */
+static inline void del_extent_from_inactive_list(struct extent *ext)
+{
+    list_del(&ext->list);
+    return;
+}
+
+/**
+ * removes page from inactive list and
+ * adds to active list and sets EF_active flag
+ */ 
+static inline void activate_extent(struct energy_c *ec, struct extent *ext)
+{
+	/* Rajesh: Fixme, lock needed? */
+	spin_lock(&ec->lock);	
+	if (!ExtFree(ext) && !ExtActive(ext)) {
+		del_extent_from_inactive_list(ext);
+		add_extent_to_active_list(ec, ext);
+		SetExtActive(ext);
+	} 
+	spin_unlock(&ec->lock);	
+}
+
+/**
+ * removes page from active list and
+ * adds to inactive list and clears EF_active flag
+ */ 
+static inline void inactivate_extent(struct energy_c *ec, struct extent *ext)
+{
+	/* Rajesh: Fixme, lock needed? */
+	spin_lock(&ec->lock);	
+	if (!ExtFree(ext) && ExtActive(ext)) {
+		del_extent_from_active_list(ext);
+		add_extent_to_inactive_list(ec, ext);
+		ClearExtActive(ext);
+	} 
+	spin_unlock(&ec->lock);	
+}
+
+/**
+ * Mark an extent as having seen accessed
+ */
+static inline void mark_extent(struct energy_c *ec, struct extent *ext)
+{
+	if (!ExtActive(ext) && !ExtReferenced(ext)) {
+		activate_extent(ec, ext);
+		ClearExtReferenced(ext);	
+	}
+	else if (!ExtReferenced(ext))
+		SetExtReferenced(ext); 
+}
+
+/**
+ * adds to inactive list and clears EF_referenced and 
+ * EF_active flags 
+ */ 
+static inline int lru_add_extent(struct energy_c *ec, extent_t *eid)
+{
+    struct extent *ext;
+
+    if (list_empty(&ec->prime_free)) 
+        return -ENOSPC;
+
+    ext = list_first_entry(&(ec->prime_free), struct extent, list);
+    list_del(&ext->list);
+
+    add_extent_to_inactive_list(ec,ext);
+    ClearExtActive(ext);
+    ClearExtReferenced(ext);
+    ClearExtInevictable(ext);
+
+    *eid = ext2id(ec, ext);
+    ec->disks[PRIME_DISK].free_nr--;
+    bitmap_set(ec->bitmap, *eid, 1);
+    DMDEBUG("lru_add_extent: %llu extents left", ec->disks[PRIME_DISK].free_nr);
+
+    return 0;
+
+}
+
+/**
+ * moves extent to free list 
+ * EF_free flag is set  
+ */ 
+static inline int lru_del_extent(struct energy_c *ec, extent_t *eid)
+{
+    struct extent *ext;
+
+    if (list_empty(&ec->prime_free)) 
+        return -ENOSPC;
+
+    ext = list_first_entry(&(ec->prime_free), struct extent, list);
+    list_del(&ext->list);
+
+    add_extent_to_inactive_list(ec,ext);
+    ClearExtActive(ext);
+    ClearExtReferenced(ext);
+    ClearExtInevictable(ext);
+
+    *eid = ext2id(ec, ext);
+    ec->disks[PRIME_DISK].free_nr--;
+    bitmap_set(ec->bitmap, *eid, 1);
+    DMDEBUG("lru_add_extent: %llu extents left", ec->disks[PRIME_DISK].free_nr);
+
+    return 0;
+
 }
 
 /*
