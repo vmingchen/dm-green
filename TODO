@@ -1,0 +1,11 @@
+1. Deploy linux kernel 3.0 (or above) on gr3. 
+2. Code review for GreenDM. 
+3. Documentation for software stack. 
+4. Trace analysis and preparation (online vs. offline)
+5. Review on the cache design and implementation. 
+6. Evaluation of different workloads (web server, file server,
+   database server, email server, etc) with three different approaches
+	- Naive sectors mapping without knowledge about workload
+	- Offline trace analysis based 
+	- Online trace analysis based
+7. Optimization. 
