@@ -24,6 +24,9 @@
 
 #define DM_MSG_PREFIX "energy"
 
+/* Define this macro if compile before Linux 3.0 */
+#define DME_OLD_KERNEL
+
 /*
  * Magic for persistent energy header: "EnEg"
  */
@@ -435,7 +438,13 @@ static inline int get_prime(struct energy_c *ec, extent_t *eid)
     *eid = ext2id(ec, first);
 
     ec->disks[PRIME_DISK].free_nr--;
+
+#ifdef DME_OLD_KERNEL
+    *ec->bitmap = *ec->bitmap | (unsigned long)(1<<*eid); 
+#else
     bitmap_set(ec->bitmap, *eid, 1);
+#endif
+
     DMDEBUG("get_prime: get %llu (%llu extents left)", 
             *eid, ec->disks[PRIME_DISK].free_nr);
 
@@ -455,7 +464,13 @@ static inline void put_prime(struct energy_c *ec, extent_t eid)
     list_del(&ext->list);
     list_add(&ext->list, &(ec->prime_free));
     ec->disks[PRIME_DISK].free_nr++;
+
+#ifdef DME_OLD_KERNEL
+    *ec->bitmap = *ec->bitmap & (unsigned long)(~(1<<eid)); 
+#else
     bitmap_clear(ec->bitmap, eid, 1);
+#endif
+
     DMDEBUG("put_prime: %llu prime extents left", ec->disks[PRIME_DISK].free_nr);
 }
 
@@ -475,7 +490,11 @@ static int get_extent(struct energy_c *ec, extent_t *eid, bool prime)
                     ec->disks[i].offset);
             DMDEBUG("get_extent: %llu obtained", *eid);
             ec->disks[i].free_nr--;
+#ifdef DME_OLD_KERNEL
+	    *ec->bitmap = *ec->bitmap | (unsigned long)(1<<*eid); 
+#else
             bitmap_set(ec->bitmap, *eid, 1);
+#endif
             return 0;
         }
     }
@@ -498,7 +517,11 @@ static void put_extent(struct energy_c *ec, extent_t eid)
         put_prime(ec, eid);
     } else { 
         ec->disks[i].free_nr++;
+#ifdef DME_OLD_KERNEL
+        *ec->bitmap = *ec->bitmap & (unsigned long)(~(1<<eid)); 
+#else
         bitmap_clear(ec->bitmap, eid, 1);
+#endif
     }
 }
 
@@ -745,7 +768,11 @@ static int build_bitmap(struct energy_c *ec, bool zero)
             ec->disks[j].free_nr = ec->disks[j].capacity;
             for (k = 0; k < ec->disks[j].capacity; ++k) {
                 if (ec->table[i].state & VES_PRESENT) {
+#ifdef DME_OLD_KERNEL
+		    *ec->bitmap = *ec->bitmap | (unsigned long)(1<<i); 
+#else
                     bitmap_set(ec->bitmap, i, 1);
+#endif
                     ec->disks[j].free_nr--;
                     DMDEBUG("extent %llu is present", i);
                 }
@@ -814,7 +841,7 @@ static void map_bio(struct energy_c *ec, struct bio *bio, extent_t eid)
     bio->bi_bdev = ec->disks[idisk].dev->bdev;
     bio->bi_sector = (eid << ec->ext_shift) + offset;
     /* Limit IO within an extent as it is fine to get less than wanted. */
-    bio->bi_size = min(bio->bi_size, to_bytes(extent_size(ec) - offset));
+    bio->bi_size = min(bio->bi_size, (unsigned int)to_bytes(extent_size(ec) - offset));
 }
 
 struct promote_info {
@@ -1166,14 +1193,23 @@ static int energy_ctr(struct dm_target *ti, unsigned int argc, char **argv)
         goto bad_disks;
     }
 
+#ifdef DME_OLD_KERNEL
+    ec->io_client = dm_io_client_create(0); /* "0" needs verification */
+#else
     ec->io_client = dm_io_client_create();
+#endif
+
     if (IS_ERR(ec->io_client)) {
 		r = PTR_ERR(ec->io_client);
         ti->error = "Fail to create dm_io_client";
         goto bad_io_client;
     }
 
+#ifdef DME_OLD_KERNEL
+    dm_kcopyd_client_create((unsigned int)0, (struct dm_kcopyd_client **)&ec->kcp_client); /* "0" and "NULL" need verification */
+#else
     ec->kcp_client = dm_kcopyd_client_create();
+#endif
     if (IS_ERR(ec->kcp_client)) {
 		r = PTR_ERR(ec->io_client);
         ti->error = "Fail to create dm_io_client";
