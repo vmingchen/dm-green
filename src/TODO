@@ -1,0 +1,4 @@
++ Handle Linux Kernel Version issue
+	* several device mapper APIs depends on the Linux Kernel 
+	  Version
++ Separate header file and code
