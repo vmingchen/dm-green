@@ -1,0 +1,76 @@
+This file lists the kernel API used by green target. 
+
+# device-mapper (device-mapper.h)
+register/unregister a device mapper target:
+
+    int dm_register_target(struct target_type *t);
+    void dm_unregister_target(struct target_type *t);
+
+get/put a physical block device: 
+
+    int dm_get_device(struct dm_target *ti, const char *path, fmode_t mode,
+						 struct dm_dev **result);
+    void dm_put_device(struct dm_target *ti, struct dm_dev *d);
+
+# dm_kcopy (dm-kcopyd.h)
+create/destroy a dm_kcopy client:
+
+    struct dm_kcopyd_client *dm_kcopyd_client_create(void);
+    void dm_kcopyd_client_destroy(struct dm_kcopyd_client *kc);
+
+submit a dm_kcopy job and provide callback function:
+
+    int dm_kcopyd_copy(struct dm_kcopyd_client *kc, struct dm_io_region *from,
+            unsigned num_dests, struct dm_io_region *dests,
+            unsigned flags, dm_kcopyd_notify_fn fn, void *context);
+    typedef void (*dm_kcopyd_notify_fn)(int read_err, unsigned long write_err,
+            void *context);
+
+# dm_io (dm-io.h)
+create/destroy a dm_io client:
+
+    struct dm_io_client *dm_io_client_create(void);
+    void dm_io_client_destroy(struct dm_io_client *client);
+
+submit a dm_io job:
+
+    int dm_io(struct dm_io_request *io_req, unsigned num_regions,
+            struct dm_io_region *region, unsigned long *sync_error_bits);
+
+# workqueue_struct (workqueue.h)
+create/destroy a workqueue:
+
+    struct workqueue_struct *create_workqueue(const char *name);
+    void destroy_workqueue(struct workqueue_struct *wq);
+
+submit work to workqueue:
+
+    int queue_work(struct workqueue_struct *wq, struct work_struct *work);
+
+flush workqueue:
+
+    void flush_workqueue(struct workqueue_struct *wq);
+
+# list (list.h)
+
+    static inline void INIT_LIST_HEAD(struct list_head *list);
+    static inline int list_empty(const struct list_head *head);
+    static inline void list_add(struct list_head *new, struct list_head *head);
+    static inline void list_add_tail(struct list_head *new, 
+            struct list_head *head);
+    void list_del(struct list_head *entry);
+    list_entry(ptr, type, member);              /* macro */
+    list_first_entry(ptr, type, member);        /* macro */
+
+# memory allocation (slab.h, vmalloc.h)
+
+    void *kmalloc(size_t size, gfp_t flags);
+    void kfree(const void *);
+    void *vmalloc(unsigned long size);
+    void vfree(const void *addr);
+
+# spin lock (spinlock.h)
+
+    spin_lock_init(lock);                       /* macro */
+    static inline void spin_lock(spinlock_t *lock);
+    static inline void spin_unlock(spinlock_t *lock);

@@ -183,11 +183,17 @@ static inline bool on_prime(struct green_c *gc, extent_t eid)
     return eid < prime_size(gc);
 }
 
+/*
+ * Return physical extent id from extent pointer.
+ */
 static inline extent_t ext2id(struct green_c *gc, struct extent *ext)
 {
     return (ext - gc->prime_extents);
 }
 
+/*
+ * Return virtual extent id from vextent pointer.
+ */
 static inline extent_t vext2id(struct green_c *gc, struct vextent *vext)
 {
     return (vext - gc->table);

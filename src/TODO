@@ -2,3 +2,6 @@
 	* several device mapper APIs depends on the Linux Kernel 
 	  Version
 + Separate header file and code
++ Preallocate promote_info and demote_info, avoid frequent memory allocation.
++ Look into MAX_SECTORS limit to see if it still applies
++ Look into 'union map_info *map_context' argument

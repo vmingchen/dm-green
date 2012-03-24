@@ -108,10 +108,9 @@ struct green_header_disk {
  */
 struct vextent {
     extent_t eid;               /* physical extent id */
-    uint32_t state;             
+    uint32_t state;             /* extent states and flags */
     uint32_t counter;           /* how many times are accessed */
     uint64_t tick;              /* timestamp of latest access */
-    uint32_t exflags; 
 };
 
 /*
@@ -124,7 +123,7 @@ struct vextent_disk {
 } __packed;
 
 /*
- * Physical extent.
+ * Physical extent on prime disk.
  */
 struct extent {
     struct vextent *vext;       /* virtual extent */
@@ -141,6 +140,9 @@ struct extent_buffer {
     unsigned count;             /* number of valid extents */
 };
 
+/*
+ * Represent a physical disk. 
+ */
 struct mapped_disk {
     struct dm_dev *dev;
     extent_t capacity;          /* capacity in extent */
@@ -148,6 +150,9 @@ struct mapped_disk {
     extent_t offset;            /* offset within virtual disk in extent */
 };
 
+/*
+ * Context of green target. It contains all information of our disk. 
+ */
 struct green_c {
     struct dm_target *ti;
 
@@ -162,9 +167,6 @@ struct green_c {
     struct extent   *prime_extents; /* physical extents on prime disk */
     struct list_head prime_free;    /* free extents on prime disk */
     struct list_head prime_use;     /* in-use extents on prime disk */
-
-    struct list_head prime_active;  	/* active extents on prime disk */	
-    struct list_head prime_inactive;	/* inactive extents on prime disk */
 
     unsigned long *bitmap;      /* bitmap of extent, '0' for free extent */
     spinlock_t lock;            /* protect table, free and bitmap */

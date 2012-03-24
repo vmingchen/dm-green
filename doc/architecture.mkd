@@ -1,0 +1,96 @@
+# Device Mapper
+Device mapper is essentially a middle-ware sitting between Generic Block Layer
+and block devices. It receives BIOs, which is a kernel structure (struct bio)
+describe IO requests, from Generic Block Layer, then redirect them to other
+block devices (logical or physical) by modifying the target device (bi_bdev
+field) and target sector (bi_sector field). Device mapper itself does not
+perform the redirection. It delegates this operation to device mapper targets,
+which are registered kernel modules performing certain kinds of mapping. This
+delegation is specified in a mapping table, which contains the type of
+responsible device mapper target for certain regions of block devices. 
+
+In Linux kernel, A mapping target is an instance of 'struct target_type', which
+contains functions to construct/destruct mapped devices, map IO requests, merge
+adjacent IO requests, report/control status, as well as hooks of suspend/resume
+and IO hints. In the case of green target, 'green_ctr' is the constructor and
+'green_dtr' is the destructor. Besides these two, the most important interface
+is 'green_map', which is called by the framework to perform IO redirection. The
+first argument to 'green_map' is a pointer of 'struct dm_target', which contains
+a pointer to 'struct green_c'. 'struct green_c' is the context of our green
+target and it contains all information including metadata, mapping table, data
+for disk management, and clients of device-mapper infrastrture services. 
+
+
+# Disk Management
+Physical disks are configured using parameters passed through dmsetup. They are
+sorted by their energy efficency, i.e., the most energy-efficient disk goes
+first and so on. A 'struct mapped_disk' represents a mapped disk. Actually,
+mapped disks are not necessarily physical disks, as they themselves can be
+virtual disk provided by device-mapper. Because we are caring about energy
+consumption of physical disk, we will just take mapped disks as physical. As the
+first disk is the most energy-efficient one, it is taken specially and called
+*prime* disk. 
+
+Instead of managing space on disks in unit of sectors, green target divides
+disks into larger unit named *extent*. This has the following effects:
+
+1. Small mapping table.
+
+If mapping is in unit of sector, the table will be as large as 8GB with 4-bytes
+entries. It is apparently prohibitive for an in-memory (otherwise, too slow if
+the mapping itself incurs extra IO). Extent is also used in LVM, wherein a
+typical size of extent is 4MB. Then the mapping becomes extent-wise and its size
+diminishes to 1MB in the above example. 
+
+2. More aggresive prefetch.
+
+As energy-efficient disk such as SSD have similar effect as disk cache. When
+a large extent of data is move onto SSD, it can be consider as an aggresive
+prefetch.
+
+3. Coarse-grain I/O during data migration among disks, more sequential I/O. 
+
+Because the major lantency of magnetic disk is seek time, a larger sequential
+access will not significantly slow down the IO. Moreover, with large size of
+migration unit, there are fewer IO because adjacent sectors can be grouped. This
+is benefical to the life time of SSD considering its limited write-erase cycles.
+
+## Physical Extent Management
+Physical extents are addressed linear. Consider two disks of size 8 in extent,
+extent 0 is the first extent on disk 1 and extent 8 is the first one on disk 2. 
+
+Usage of physical extents is recorded by 'bitmap' within 'green_c'. As the name
+implies, it is a bitmap with 1 means used and 0 means free. The utilities for
+allocating/freeing an extent are 'get_extent' and 'put_extent'.
+
+Specially, each physical extent on prime disk has a 'struct extent'. It is an
+array pointed by the 'prime_extents' field within 'green_c'. Free extents are
+linked in a list named 'prime_free' and used extents are linked in 'prime_use'
+list. These are used for data migration. The utilities for allocating/freeing
+an prime extent are 'get_prime' and 'put_prime'.
+
+## Virtual Extent Management
+Virtual extents are represented by 'struct vextent'. They reside in an array
+pointed by 'table' in 'green_c'. Each 'struct vextent' contains the physical
+extent address it is mapped ('eid'), number of access ('counter'), a timestamp
+('tick') and states ('state').
+
+
+# Extent Migration
+There are two kinds of data migration. The first is moving an extent into the
+prime disk, called promotion. The second is moving an extent out of the prime
+disk, called demotion. Both of them use the kcopyd API for data movement between
+disks.
+
+## Promotion
+Promotion occurs when an extent outside of prime disk becomes hot and there is
+free extents on prime disk. It is initialized by 'promote_extent' and finished
+by 'promote_callback'. 
+
+## Demotion
+Promotion occurs when the number of free prime extents falls below a threshold.
+Currently, the threshold is 'EXTENT_LOW'. Demotion tries to evict cold extents
+on prime disks until the number of free prime extents goes up to another
+threshold, which currently is 'EXTENT_FREE'. It is initialized by
+'demote_extent' and finished 'demote_extent'. For demotion, there is a demotion
+daemon implemented as a workqueue 'kgreend_wq'. 
