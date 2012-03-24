@@ -28,7 +28,7 @@
  * Magic for persistent energy header: "EnEg"
  */
 #define ENERGY_MAGIC 0x45614567
-#define ENERGY_VERSION 52
+#define ENERGY_VERSION 53
 #define ENERGY_DAEMON "kenergyd"
 
 /* The first disk is prime disk. */
@@ -173,37 +173,6 @@ struct energy_c {
 };
 
 static struct workqueue_struct *kenergyd_wq;
-
-static inline unsigned wrap(unsigned i, unsigned limit)
-{
-    return (i >= limit) ? i - limit : i;
-}
-
-static inline bool buffer_full(struct extent_buffer *buf)
-{
-    return buf->count == buf->capacity;
-}
-
-static inline bool buffer_empty(struct extent_buffer *buf)
-{
-    return buf->count == 0;
-}
-
-static inline extent_t consume_buffer(struct extent_buffer *buf)
-{
-    extent_t out = buf->data[buf->cursor];
-
-    buf->cursor = wrap(buf->cursor + 1, buf->capacity);
-    --(buf->count);
-
-    return out;
-}
-
-static inline void produce_buffer(struct extent_buffer *buf, extent_t in)
-{
-    buf->data[wrap(buf->cursor + buf->count, buf->capacity)] = in;
-    ++(buf->count);
-}
 
 static struct energy_c *alloc_context(struct dm_target *ti, 
         uint32_t ndisk, uint32_t ext_size)
@@ -381,6 +350,11 @@ static inline bool on_prime(struct energy_c *ec, extent_t eid)
 static inline extent_t ext2id(struct energy_c *ec, struct extent *ext)
 {
     return (ext - ec->prime_extents);
+}
+
+static inline extent_t vext2id(struct energy_c *ec, struct vextent *vext)
+{
+    return (vext - ec->table);
 }
 
 /*
@@ -913,6 +887,9 @@ struct demote_info {
     extent_t        deid;       /* dest physical extent id */
 };
 
+/*
+ * Callback when an extent being demoted has been copied to other disk. 
+ */
 static void demote_callback(int read_err, unsigned long write_err, 
         void *context)
 {
@@ -928,12 +905,10 @@ static void demote_callback(int read_err, unsigned long write_err,
     seid = dinfo->seid;
     deid = dinfo->deid;
 
-    DMDEBUG("demote_callback: ext (%lx), %llu -> %llu, read_write (%d_%lu)", 
-            (unsigned long)ext, seid, deid, read_err, write_err);
     next = next_extent(&ec->prime_use, ext);
     prev = prev_extent(&ec->prime_use, ext);
-    DMDEBUG("demote_callback: ext (%lx), next (%llu), prev (%llu)",
-            (unsigned long)ext, ext2id(ec, next), ext2id(ec, prev));
+    DMDEBUG("demote_callback: ext %llu -> %llu, next (%llu), prev (%llu)",
+            seid, deid, ext2id(ec, next), ext2id(ec, prev));
 
 //    spin_lock(&ec->lock);
 //    ext->vext->state ^= VES_MIGRATE;
@@ -943,29 +918,27 @@ static void demote_callback(int read_err, unsigned long write_err,
 //    kfree(dinfo);
 //    return ;
 
-    if (read_err || write_err) {
+    spin_lock(&ec->lock);
+    ext->vext->state ^= VES_MIGRATE;
+    if (read_err || write_err || (ext->vext->state & VES_ACCESS)) {
+        /* undo demotion in case of error or extent is accessed */
 		if (read_err)
-			DMERR("promote_callback: Read error.");
-		else
-			DMERR("promote_callback: Write error.");
-        /* undo demote */
-        spin_lock(&ec->lock);
-        ext->vext->state ^= VES_MIGRATE;
+			DMERR("demote_callback: Read error.");
+		else if (write_err)
+			DMERR("demote_callback: Write error.");
+        else
+            DMDEBUG("demote_callback: cancel demotion because of access");
         put_extent(ec, deid);
-        ec->eviction_running = false;
-        spin_unlock(&ec->lock);
     } else {
-        DMDEBUG("demote: extent %u is remapped to extent %llu", 
+        DMDEBUG("demote_callback: extent %u is remapped to extent %llu", 
                 (ext->vext - ec->table), deid);
-        spin_lock(&ec->lock);
         ext->vext->state ^= VES_MIGRATE;
         ext->vext->eid = deid;
         put_extent(ec, seid);
         run_low = (ec->disks[PRIME_DISK].free_nr < EXTENT_FREE);
-//        ec->eviction_running = !run_low;
-        ec->eviction_running = false;
-        spin_unlock(&ec->lock);
     }
+    ec->eviction_running = false;
+    spin_unlock(&ec->lock);
     kfree(dinfo);
 
     /* schedule more eviction */
@@ -998,7 +971,6 @@ static struct extent *lru_extent(struct energy_c *ec)
             return NULL;
         }
     }
-    ext->vext->state |= VES_ACCESS;     /* avoid it being evicted again */
     next = next_extent(&ec->prime_use, ext);    /* advance lru cursor */
     ec->eviction_cursor = (next == ext) ? NULL : next;
     return ext;
@@ -1044,8 +1016,8 @@ static void demote_extent(struct energy_c *ec)
     dinfo->pext = ext;
     dinfo->seid = seid;
     dinfo->deid = deid;
-    DMDEBUG("demote_extent: Demoting extent %llu (%d) to %llu (%d)", 
-            seid, on_prime(ec, seid), deid, on_prime(ec, deid));
+    DMDEBUG("demote_extent: Demoting extent %llu from %llu to %llu", 
+            vext2id(ec, ext->vext), seid, deid);
 
     src.bdev = ec->disks[PRIME_DISK].dev->bdev;
     src.sector = seid << ec->ext_shift;
