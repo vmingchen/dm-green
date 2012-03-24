@@ -1,4 +1,4 @@
-obj-m += dm-energy.o
+obj-m += dm-green.o
 
 all:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
