@@ -27,9 +27,10 @@ scattering blocks among several disks, we will try to map them to a single
 disk.  The combination of spatial and temporal locality allows I/O be served
 using fewer disks and other disks can spin down to save energy.  To identify
 hot data and block groups, workload-specific traces will be analyzed offline
-and used as baseline.  Online statistics will also gathered and used by
-heuristic algorithm for adaption to hot data and block groups as they evolve
-over time.
+and used as one of the approaches.  Online statistics will also be gathered 
+and used by heuristic algorithm for adaption to hot data and block groups as 
+they evolve over time. We will also explore naive direct IO map without any
+knowledge of the workloads as baseline approach. 
 
 We use the Linux Device Mapper framework and implement our hybrid model as a
 device mapper target.  This provides modularity and transparency as it enables
