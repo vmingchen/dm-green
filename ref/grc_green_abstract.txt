@@ -1,0 +1,41 @@
+            Green Multi-Disk Device Mapper Target
+
+        Ming Chen, Rajesh Aavuty, Zhichao Li, Erez Zadok
+        {mchen, raavuty, zhicli, ezk}@cs.stonybrook.edu
+
+Storage subsystems in servers are slower than other subsystems despite the fact
+that they contribute to a large portion of the total energy consumption.
+Hybrid disks, which integrate different characteristics of various kinds of
+disks (e.g., SATA, SAS, SSD, PCM, SMR) in speed, capacity, price, and energy
+consumption, is a promising solution to the problem.  While researches on
+hybrid disk have reported significant performance boost over traditional
+magnetic disks, their energy usage is less studied.  In this project, we
+consider energy efficiency of storage systems as important as performance and
+capacity.  Our goal is to provide a multi-disk system that consists of
+different disks, provides a capacity equal to the sum of all disks, operates at
+a speed near the fastest disk, but consume less energy than the sum of all
+disks when they operate individually.
+
+To achieve energy efficiency as well as good performance, our multi-disk system
+tries to map more frequently accessed blocks (i.e., hot data) to
+energy-efficient, fast, but small disks such as SSD.  Conversely, cold data
+goes to inefficient, slow, but large disks such as SATA.  This exploits spatial
+locality of data and has similar effect in hybrid model where SSD is used as
+cache disk.  Meanwhile, temporal locality of data will also be exploited to
+group blocks that are likely to be accessed simultaneously.  Instead of
+scattering blocks among several disks, we will try to map them to a single
+disk.  The combination of spatial and temporal locality allows I/O be served
+using fewer disks and other disks can spin down to save energy.  To identify
+hot data and block groups, workload-specific traces will be analyzed offline
+and used as baseline.  Online statistics will also gathered and used by
+heuristic algorithm for adaption to hot data and block groups as they evolve
+over time.
+
+We use the Linux Device Mapper framework and implement our hybrid model as a
+device mapper target.  This provides modularity and transparency as it enables
+us to create virtual disks without exposing the details of underlying physical
+disks.  By leveraging the strengths of different disks, our virtual disk can
+better trade-off among power consumption, I/O performance, and storage
+capacity.
+
+
