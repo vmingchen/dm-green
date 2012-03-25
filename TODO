@@ -1,4 +1,4 @@
-1. Deploy linux kernel 3.0 (or above) on gr3. [Done]
+[DONE] 1. Deploy linux kernel 3.0 (or above) on gr3.
 2. Code review for GreenDM. 
 3. Documentation for software stack. 
 4. Trace analysis and preparation (online vs. offline)
