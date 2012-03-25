@@ -293,7 +293,7 @@ static inline int get_cache(struct green_c *gc, extent_t *eid)
 
     first = list_first_entry(&(gc->cache_free), struct extent, list);
     list_del(&first->list);
-    list_add(&first->list, &gc->cache_use);
+    list_add_tail(&first->list, &gc->cache_use);
     *eid = ext2id(gc, first);
 
     gc->disks[CACHE_DISK].free_nr--;
@@ -713,11 +713,16 @@ static void map_bio(struct green_c *gc, struct bio *bio, extent_t eid)
 /*
  * Callback of promote_extent. It should release resources allocated by
  * promote_extent properly upon either success or failure.
+ *
+ * Moreover, this a pending IO request of this promotion. It should be issued 
+ * no matter the promotion succeeds or fails.
  */
 static void promote_callback(int read_err, unsigned long write_err,
         void *context)
 {
     struct promote_info *pinfo = (struct promote_info *)context;
+    struct green_c *gc = pinfo->gc;
+    extent_t eid;
 
     if (read_err || write_err) {
 		if (read_err)
@@ -725,22 +730,24 @@ static void promote_callback(int read_err, unsigned long write_err,
 		else
 			DMERR("promote_callback: Write error.");
         /* undo promote */
-        spin_lock(&(pinfo->gc->lock));
-        put_cache(pinfo->gc, pinfo->peid);
-        spin_unlock(&(pinfo->gc->lock));
-    } 
-    else { 
+        spin_lock(&(gc->lock));
+        put_cache(gc, pinfo->peid);
+        eid = gc->table[pinfo->veid].eid;          /* the old physical extent */
+        gc->table[pinfo->veid].state ^= VES_PROMOTE;
+        spin_unlock(&(gc->lock));
+    } else { 
         /* update new mapping */
         DMDEBUG("promote: extent %llu is remapped to extent %llu", 
                 pinfo->veid, pinfo->peid);
-        spin_lock(&(pinfo->gc->lock));
-        put_extent(pinfo->gc, pinfo->gc->table[pinfo->veid].eid);
-        pinfo->gc->table[pinfo->veid].eid = pinfo->peid;
-        spin_unlock(&(pinfo->gc->lock));
-        /* resubmit bio */
-        map_bio(pinfo->gc, pinfo->bio, pinfo->peid);
-		generic_make_request(pinfo->bio);
+        spin_lock(&(gc->lock));
+        put_extent(gc, gc->table[pinfo->veid].eid); /* release old extent */
+        eid = gc->table[pinfo->veid].eid = pinfo->peid; /* the new extent */
+        gc->table[pinfo->veid].state ^= VES_PROMOTE;
+        spin_unlock(&(gc->lock));
     }
+    /* resubmit bio */
+    map_bio(gc, pinfo->bio, eid);
+    generic_make_request(pinfo->bio);
 
     kfree(pinfo);
 }
@@ -749,6 +756,8 @@ static void promote_callback(int read_err, unsigned long write_err,
  * Promote virtual extent 'veid'. This function returns immediately, but it
  * might schedule delayed operation and callback. Upon any failure, it
  * simply gives up. 
+ *
+ * FIXME: promote_extent is called when holding the spin lock.
  */
 static bool promote_extent(struct green_c *gc, struct bio *bio)
 {
@@ -772,6 +781,7 @@ static bool promote_extent(struct green_c *gc, struct bio *bio)
     }
 
     veid = ((bio->bi_sector) >> gc->ext_shift);
+    gc->table[veid].state |= VES_PROMOTE;
     eid = gc->table[veid].eid;
     extent_on_disk(gc, &eid, &idisk);
     src.bdev = gc->disks[idisk].dev->bdev;
@@ -787,7 +797,7 @@ static bool promote_extent(struct green_c *gc, struct bio *bio)
     pinfo->veid = veid;
     pinfo->peid = peid;
 
-	/* pinfo is the context passed to the callback routin */
+	/* pinfo is the context passed to the callback routine */
     dm_kcopyd_copy(gc->kcp_client, &src, 1, &dst, 0, 
             (dm_kcopyd_notify_fn)promote_callback, pinfo);
 
@@ -842,8 +852,8 @@ static void demote_callback(int read_err, unsigned long write_err,
     kfree(dinfo);
 
     /* schedule more demotion */
-//    if (run_low) 
-//        queue_work(kgreend_wq, &gc->demotion_work);
+    if (run_low) 
+        queue_work(kgreend_wq, &gc->demotion_work);
 }
 
 /*
@@ -916,7 +926,7 @@ static void demote_extent(struct green_c *gc)
     DMDEBUG("demote_extent: LRU extent is %llu", seid);
 
     if (get_extent(gc, &deid, false) < 0) { /* no space on disk */
-        DMDEBUG("demote_extent: No space on disk");
+        DMDEBUG("demote_extent: No space on non-cache disk");
         goto quit_demote;
     }
     ext->vext->state |= VES_MIGRATE;
@@ -1031,7 +1041,7 @@ static int green_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		return -EINVAL;
     }
 
-    if (ti->len % ext_size) {
+    if (ti->len & (ext_size - 1)) {
         ti->error = "Target length not divisible by extent size";
         return -EINVAL;
     }
@@ -1184,14 +1194,31 @@ static int green_map(struct dm_target *ti, struct bio *bio,
         DMDEBUG("map: virtual %llu -> physical %llu", veid, eid);
 		/* if mapping table indicates access to none-cache disks */
         if (!on_cache(gc, eid)) {
-            if (bio_data_dir(bio) == READ) {
-                /* Try to promote extent on read. No matter the promotion
-                 * succeed or not, map the io */
-                /* promote_extent(gc, bio)) */
-            } else if (bio_data_dir(bio) == WRITE) {
-                /* exam if mapped extent is under promotion, map io if not,
-                 * otherwise wait until the promotion is done. */
+            if (gc->table[veid].state & VES_PROMOTE) {  
+                /* If the extent is under promotion, postpone the IO request */
+                gc->table[veid].counter--;      /* undo counter */
+                spin_unlock(&gc->lock);
+                return DM_MAPIO_REQUEUE;
             }
+            if (bio_data_dir(bio) == READ && promote_extent(gc, bio)) {
+                /*
+                 * Try to promote extent on read. It will schedule callback
+                 * function to resubmit the bio no matter success or failure.
+                 */
+                spin_unlock(&gc->lock);
+                return DM_MAPIO_SUBMITTED;
+            } 
+            /* 
+             * If the operation is writing on an extent outside of the cache
+             * disk, we will not try to promote it as an effort to minimize the
+             * eraze-write cycles on cache disk (SSD). No matter we promote the
+             * extent or not, the host disk need to spin up. Anyway, if it is
+             * read soon, it will then be promoted. This policy is inspired by a
+             * paper titled "Extending SSD Lifetimes with Disk-Based Write
+             * Caches". 
+             *
+             * In this case, nothing needs to be done here. It falls through. 
+             */
         } 
     } 
 	/* How the mapping table is built here lacks workload knowledge */
