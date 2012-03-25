@@ -27,7 +27,7 @@
 #define DM_MSG_PREFIX "green"
 
 /* Define this macro if compile before Linux 3.0 */
-#undef DME_OLD_KERNEL
+#define DME_OLD_KERNEL
 
 /*
  * Magic for persistent green header: "EnEg"
@@ -178,6 +178,7 @@ struct green_c {
     struct work_struct demotion_work;   /* work of evicting prime extent */
     struct extent *eviction_cursor;
     bool eviction_running;
+    bool demotion_running; 
 };
 
 #endif
