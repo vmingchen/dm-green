@@ -47,16 +47,17 @@
 #define header_size() \
     count_sector(sizeof(struct green_header_disk))
 
-#define table_size(ec) \
-    count_sector(ec->header.capacity * sizeof(struct vextent_disk))
+#define table_size(gc) \
+    count_sector(gc->header.capacity * sizeof(struct vextent_disk))
 
 /* Return size of bitmap array */
 #define bitmap_size(len) dm_round_up(len, sizeof(unsigned long))
 
-#define extent_size(ec) (ec->header.ext_size)
-#define vdisk_size(ec) (ec->header.capacity)
-#define prime_size(ec) (ec->disks[PRIME_DISK].capacity)
-#define fdisk_nr(ec) (ec->header.ndisk)
+#define extent_size(gc) (gc->header.ext_size)
+#define vdisk_size(gc) (gc->header.capacity)
+#define prime_size(gc) (gc->disks[PRIME_DISK].capacity)
+#define prime_free_nr(gc) (gc->disks[PRIME_DISK].free_nr)
+#define fdisk_nr(gc) (gc->header.ndisk)
 
 /* 
  * When requesting a new bio, the number of requested bvecs has to be
@@ -174,7 +175,7 @@ struct green_c {
     struct dm_io_client *io_client;
     struct dm_kcopyd_client *kcp_client;
 
-    struct work_struct eviction_work;   /* work of evicting prime extent */
+    struct work_struct demotion_work;   /* work of evicting prime extent */
     struct extent *eviction_cursor;
     bool eviction_running;
 };

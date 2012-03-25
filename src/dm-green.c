@@ -776,14 +776,6 @@ static void demote_callback(int read_err, unsigned long write_err,
     DMDEBUG("demote_callback: ext %llu -> %llu, next (%llu), prev (%llu)",
             seid, deid, ext2id(gc, next), ext2id(gc, prev));
 
-//    spin_lock(&gc->lock);
-//    ext->vext->state ^= VES_MIGRATE;
-//    put_extent(gc, deid);
-//    gc->eviction_running = false;
-//    spin_unlock(&gc->lock);
-//    kfree(dinfo);
-//    return ;
-
     spin_lock(&gc->lock);
     ext->vext->state ^= VES_MIGRATE;
     if (read_err || write_err || (ext->vext->state & VES_ACCESS)) {
@@ -801,15 +793,15 @@ static void demote_callback(int read_err, unsigned long write_err,
         ext->vext->state ^= VES_MIGRATE;
         ext->vext->eid = deid;
         put_extent(gc, seid);
-        run_low = (gc->disks[PRIME_DISK].free_nr < EXTENT_FREE);
+        run_low = (prime_free_nr(gc) < EXTENT_FREE);
     }
-    gc->eviction_running = false;
+    gc->demotion_running = false;
     spin_unlock(&gc->lock);
     kfree(dinfo);
 
     /* schedule more eviction */
 //    if (run_low) 
-//        queue_work(kgreend_wq, &gc->eviction_work);
+//        queue_work(kgreend_wq, &gc->demotion_work);
 }
 
 /*
@@ -874,7 +866,7 @@ static void demote_extent(struct green_c *gc)
         goto quit_demote;
     }
     ext->vext->state |= VES_MIGRATE;
-    gc->eviction_running = true;
+    gc->demotion_running = true;
     spin_unlock(&gc->lock);
 
     BUG_ON(seid != ext->vext->eid || !on_prime(gc, seid) || on_prime(gc, deid));
@@ -904,11 +896,11 @@ quit_demote:
     kfree(dinfo);
 }
 
-static void eviction_work(struct work_struct *work)
+static void demotion_work(struct work_struct *work)
 {
     struct green_c *gc;
 
-    gc = container_of(work, struct green_c, eviction_work);
+    gc = container_of(work, struct green_c, demotion_work);
     demote_extent(gc);
 }
 
@@ -1062,8 +1054,8 @@ static int green_ctr(struct dm_target *ti, unsigned int argc, char **argv)
     }
 
     clear_table(gc);
-    INIT_WORK(&gc->eviction_work, eviction_work);
-    gc->eviction_running = false;
+    INIT_WORK(&gc->demotion_work, demotion_work);
+    gc->demotion_running = false;
 
     return 0;
 
@@ -1105,32 +1097,38 @@ static int green_map(struct dm_target *ti, struct bio *bio,
 {
     struct green_c *gc = (struct green_c*)ti->private;
     extent_t eid, veid = ((bio->bi_sector) >> gc->ext_shift);
-    bool run_eviction = false;
+    bool run_demotion = false;
 
     DMDEBUG("%lu: map(sector %llu -> extent %llu)", jiffies, 
             bio->bi_sector, veid);
     spin_lock(&gc->lock);
     gc->table[veid].state |= VES_ACCESS;
+    gc->table[veid].tick = jiffies_64;
     gc->table[veid].counter++;
     if (gc->table[veid].state & VES_PRESENT) {
         eid = gc->table[veid].eid;
         DMDEBUG("map: virtual %llu -> physical %llu", veid, eid);
-//        if (!on_prime(gc, eid) && promote_extent(gc, bio)) {
-//            spin_unlock(&gc->lock);
-//            return DM_MAPIO_SUBMITTED;      /* submit it after promote */
-//        }
+        if (!on_prime(gc, eid)) {
+            if ((bio->bi_rw & 1) == READ) {
+                /* Try to promote extent on read. No matter the promotion
+                 * succeed or not, map the io */
+                /* promote_extent(gc, bio)) */
+            } else if ((bio->bi_rw & 1) == WRITE) {
+                /* exam if mapped extent is under promotion, map io if yes,
+                 * otherwise wait until the promotion is done. */
+            }
+        } 
     } else {
         BUG_ON(get_extent(gc, &eid, true) < 0);   /* out of space */
         map_extent(gc, veid, eid);
     }
-    run_eviction = (gc->disks[PRIME_DISK].free_nr < EXTENT_LOW) 
-            && !gc->eviction_running;
+    run_demotion = (prime_free_nr(gc) < EXTENT_LOW) && !gc->demotion_running;
     spin_unlock(&gc->lock);
 
     map_bio(gc, bio, eid);
 
-    if (run_eviction) {              /* schedule extent eviction */
-        queue_work(kgreend_wq, &gc->eviction_work);
+    if (run_demotion) {              /* schedule extent eviction */
+        queue_work(kgreend_wq, &gc->demotion_work);
     }
 
     return DM_MAPIO_REMAPPED;
