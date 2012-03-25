@@ -1,11 +1,20 @@
 /*
- * Copyright (C) 2012, Ming Chen
+ * Copyright (C) 2012   Ming Chen, Rajesh Aavuty
+ * Copyright (C) 2012	Zhichao Li
+ * Copyright (C) 2012   Erez Zadok
+ * Copyright (c) 2012   Stony Brook University
+ * Copyright (c) 2012   The Research Foundation of SUNY
  * 
- * A target to save energy by directing reads/writes to different physical
- * disks based on energy characteristics. 
+ * One green target by cache implementation to make OS components green by 
+ * data grouping that redirects reads/writes to mapped physical disks for 
+ * energy and performance benefits. 
  *
- * This file is released under the GPL.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
  */
+
 #ifndef _DM_GREEN_H
 #define _DM_GREEN_H
 

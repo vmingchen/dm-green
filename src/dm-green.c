@@ -1,11 +1,20 @@
 /*
- * Copyright (C) 2012, Ming Chen
+ * Copyright (C) 2012   Ming Chen, Rajesh Aavuty
+ * Copyright (C) 2012	Zhichao Li
+ * Copyright (C) 2012   Erez Zadok
+ * Copyright (c) 2012   Stony Brook University
+ * Copyright (c) 2012   The Research Foundation of SUNY
  * 
- * A target to save energy by directing reads/writes to different physical
- * disks based on energy characteristics. 
+ * One green target by cache implementation to make OS components green by 
+ * data grouping that redirects reads/writes to mapped physical disks for 
+ * energy and performance benefits. 
  *
- * This file is released under the GPL.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
  */
+
 #include "dm-green.h"
 
 static struct workqueue_struct *kgreend_wq;
@@ -1203,6 +1212,5 @@ static void __exit green_exit(void)
 module_init(green_init);
 module_exit(green_exit);
 
-MODULE_DESCRIPTION(DM_NAME " green target");
-MODULE_AUTHOR("Ming Chen <mchen@cs.stonybrook.edu>");
+MODULE_DESCRIPTION(DM_NAME "Green");
 MODULE_LICENSE("GPL");
