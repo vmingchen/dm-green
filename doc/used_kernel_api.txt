@@ -1,4 +1,6 @@
-This file lists the kernel API used by green target. 
+This file lists the kernel API used by green target. Some of the APIs are
+independent of the kernel versions (2.6.xx vs. 3.x), and some of them
+depends on kernel versions. 
 
 # device-mapper (device-mapper.h)
 register/unregister a device mapper target:
@@ -61,6 +63,11 @@ flush workqueue:
     void list_del(struct list_head *entry);
     list_entry(ptr, type, member);              /* macro */
     list_first_entry(ptr, type, member);        /* macro */
+
+# bit operation (bitmap.h)
+
+    bitmap_set(dst, pos, nbits);                /* Set specified bit area */
+    bitmap_clear(dst, pos, nbits);              /* Clear specified bit area */	
 
 # memory allocation (slab.h, vmalloc.h)
 
