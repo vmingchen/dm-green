@@ -118,7 +118,7 @@ static int get_mdisk(struct dm_target *ti, struct green_c *gc,
         return -EINVAL;
 
     len = gc->disks[idisk].capacity << gc->ext_shift; 
-#ifdef DME_OLD_KERNEL
+#ifdef OLD_KERNEL
     if (dm_get_device(ti, argv[0], dm_table_get_mode(ti->table), 0, 
                 len, &gc->disks[idisk].dev))
 #else
@@ -252,7 +252,7 @@ static inline int get_prime(struct green_c *gc, extent_t *eid)
 
     gc->disks[PRIME_DISK].free_nr--;
 
-#ifdef DME_OLD_KERNEL
+#ifdef OLD_KERNEL
     *gc->bitmap = *gc->bitmap | (unsigned long)(1<<*eid); 
 #else
     bitmap_set(gc->bitmap, *eid, 1);
@@ -278,7 +278,7 @@ static inline void put_prime(struct green_c *gc, extent_t eid)
     list_add(&ext->list, &(gc->prime_free));
     gc->disks[PRIME_DISK].free_nr++;
 
-#ifdef DME_OLD_KERNEL
+#ifdef OLD_KERNEL
     *gc->bitmap = *gc->bitmap & (unsigned long)(~(1<<eid)); 
 #else
     bitmap_clear(gc->bitmap, eid, 1);
@@ -303,7 +303,7 @@ static int get_extent(struct green_c *gc, extent_t *eid, bool prime)
                     gc->disks[i].offset);
             DMDEBUG("get_extent: %llu obtained", *eid);
             gc->disks[i].free_nr--;
-#ifdef DME_OLD_KERNEL
+#ifdef OLD_KERNEL
 	    *gc->bitmap = *gc->bitmap | (unsigned long)(1<<*eid); 
 #else
             bitmap_set(gc->bitmap, *eid, 1);
@@ -330,7 +330,7 @@ static void put_extent(struct green_c *gc, extent_t eid)
         put_prime(gc, eid);
     } else { 
         gc->disks[i].free_nr++;
-#ifdef DME_OLD_KERNEL
+#ifdef OLD_KERNEL
         *gc->bitmap = *gc->bitmap & (unsigned long)(~(1<<eid)); 
 #else
         bitmap_clear(gc->bitmap, eid, 1);
@@ -581,7 +581,7 @@ static int build_bitmap(struct green_c *gc, bool zero)
             gc->disks[j].free_nr = gc->disks[j].capacity;
             for (k = 0; k < gc->disks[j].capacity; ++k) {
                 if (gc->table[i].state & VES_PRESENT) {
-#ifdef DME_OLD_KERNEL
+#ifdef OLD_KERNEL
 		    *gc->bitmap = *gc->bitmap | (unsigned long)(1<<i); 
 #else
                     bitmap_set(gc->bitmap, i, 1);
@@ -996,7 +996,7 @@ static int green_ctr(struct dm_target *ti, unsigned int argc, char **argv)
         goto bad_disks;
     }
 
-#ifdef DME_OLD_KERNEL
+#ifdef OLD_KERNEL
     gc->io_client = dm_io_client_create(0); /* "0" needs verification */
 #else
     gc->io_client = dm_io_client_create();
@@ -1008,7 +1008,7 @@ static int green_ctr(struct dm_target *ti, unsigned int argc, char **argv)
         goto bad_io_client;
     }
 
-#ifdef DME_OLD_KERNEL
+#ifdef OLD_KERNEL
     dm_kcopyd_client_create((unsigned int)0, (struct dm_kcopyd_client **)&gc->kcp_client); /* "0" and "NULL" need verification */
 #else
     gc->kcp_client = dm_kcopyd_client_create();

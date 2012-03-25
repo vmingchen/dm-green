@@ -27,7 +27,7 @@
 #define DM_MSG_PREFIX "green"
 
 /* Define this macro if compile before Linux 3.0 */
-#undef DME_OLD_KERNEL
+#undef OLD_KERNEL
 
 /*
  * Magic for persistent green header: "EnEg"
