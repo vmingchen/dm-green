@@ -64,7 +64,7 @@ mapped disks are not necessarily physical disks, as they can be virtual disk
 provided by device-mapper by themselves. Because we are caring about energy
 consumption of physical disks, we will just take mapped disks as physical. As the
 first disk is the most energy-efficient one, it is taken specially and called
-*prime* or *master* disk. 
+cache disk. 
 
 Instead of managing space on disks in unit of sectors, green target divides
 disks into larger unit named *extent*. This has the following effects either
