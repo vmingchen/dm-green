@@ -49,7 +49,7 @@ static struct green_c *alloc_context(struct dm_target *ti,
     gc->table = NULL;           /* table not allocated yet */
     gc->io_client = NULL;
     gc->kcp_client = NULL;
-    gc->prime_extents = NULL;
+    gc->cache_extents = NULL;
     gc->eviction_cursor = NULL;
 
     return gc;
@@ -67,9 +67,9 @@ static void free_context(struct green_c *gc)
         vfree(gc->bitmap);
         gc->bitmap = NULL;
     }
-    if (gc->prime_extents) {
-        vfree(gc->prime_extents);
-        gc->prime_extents = NULL;
+    if (gc->cache_extents) {
+        vfree(gc->cache_extents);
+        gc->cache_extents = NULL;
     }
 
     kfree(gc->disks);
@@ -185,11 +185,11 @@ static int get_disks(struct green_c *gc, char **argv)
 }
 
 /*
- * Check if physical extent 'ext' is on prime disk.
+ * Check if physical extent 'ext' is on cache disk.
  */
-static inline bool on_prime(struct green_c *gc, extent_t eid)
+static inline bool on_cache(struct green_c *gc, extent_t eid)
 {
-    return eid < prime_size(gc);
+    return eid < cache_size(gc);
 }
 
 /*
@@ -197,7 +197,7 @@ static inline bool on_prime(struct green_c *gc, extent_t eid)
  */
 static inline extent_t ext2id(struct green_c *gc, struct extent *ext)
 {
-    return (ext - gc->prime_extents);
+    return (ext - gc->cache_extents);
 }
 
 /*
@@ -245,21 +245,21 @@ static inline struct extent *prev_extent(struct list_head *head,
 }
 
 /*
- * Get a prime extent.
+ * Get a cache extent.
  */
-static inline int get_prime(struct green_c *gc, extent_t *eid)
+static inline int get_cache(struct green_c *gc, extent_t *eid)
 {
     struct extent *first;
 
-    if (list_empty(&gc->prime_free)) 
+    if (list_empty(&gc->cache_free)) 
         return -ENOSPC;
 
-    first = list_first_entry(&(gc->prime_free), struct extent, list);
+    first = list_first_entry(&(gc->cache_free), struct extent, list);
     list_del(&first->list);
-    list_add(&first->list, &gc->prime_use);
+    list_add(&first->list, &gc->cache_use);
     *eid = ext2id(gc, first);
 
-    gc->disks[PRIME_DISK].free_nr--;
+    gc->disks[CACHE_DISK].free_nr--;
 
 #ifdef OLD_KERNEL
     *gc->bitmap = *gc->bitmap | (unsigned long)(1<<*eid); 
@@ -267,25 +267,25 @@ static inline int get_prime(struct green_c *gc, extent_t *eid)
     bitmap_set(gc->bitmap, *eid, 1);
 #endif
 
-    DMDEBUG("get_prime: get %llu (%llu extents left)", 
-            *eid, gc->disks[PRIME_DISK].free_nr);
+    DMDEBUG("get_cache: get %llu (%llu extents left)", 
+            *eid, gc->disks[CACHE_DISK].free_nr);
 
     return 0;
 }
 
 /*
- * Put a prime extent.
+ * Put a cache extent.
  */
-static inline void put_prime(struct green_c *gc, extent_t eid)
+static inline void put_cache(struct green_c *gc, extent_t eid)
 {
     struct extent *ext;
 
-    BUG_ON(eid >= prime_size(gc));
-    ext = gc->prime_extents + eid;
+    BUG_ON(eid >= cache_size(gc));
+    ext = gc->cache_extents + eid;
     ext->vext = NULL;
     list_del(&ext->list);
-    list_add(&ext->list, &(gc->prime_free));
-    gc->disks[PRIME_DISK].free_nr++;
+    list_add(&ext->list, &(gc->cache_free));
+    gc->disks[CACHE_DISK].free_nr++;
 
 #ifdef OLD_KERNEL
     *gc->bitmap = *gc->bitmap & (unsigned long)(~(1<<eid)); 
@@ -293,20 +293,20 @@ static inline void put_prime(struct green_c *gc, extent_t eid)
     bitmap_clear(gc->bitmap, eid, 1);
 #endif
 
-    DMDEBUG("put_prime: %llu prime extents left", gc->disks[PRIME_DISK].free_nr);
+    DMDEBUG("put_cache: %llu cache extents left", gc->disks[CACHE_DISK].free_nr);
 }
 
 /*
  * Get a physical extent. 
  */
-static int get_extent(struct green_c *gc, extent_t *eid, bool prime)
+static int get_extent(struct green_c *gc, extent_t *eid, bool cache)
 {
     unsigned i;
 
-    if (prime && get_prime(gc, eid) == 0) 
+    if (cache && get_cache(gc, eid) == 0) 
         return 0;
 
-    for (i = PRIME_DISK+1; i < fdisk_nr(gc); ++i) {
+    for (i = CACHE_DISK+1; i < fdisk_nr(gc); ++i) {
         if (gc->disks[i].free_nr > 0) {
             *eid = find_next_zero_bit(gc->bitmap, vdisk_size(gc), 
                     gc->disks[i].offset);
@@ -335,8 +335,8 @@ static void put_extent(struct green_c *gc, extent_t eid)
     for (i = 0; eid >= gc->disks[i].capacity + gc->disks[i].offset; ++i)
         ;
 
-    if (i == PRIME_DISK) {   /* prime disk */
-        put_prime(gc, eid);
+    if (i == CACHE_DISK) {   /* cache disk */
+        put_cache(gc, eid);
     } else { 
         gc->disks[i].free_nr++;
 #ifdef OLD_KERNEL
@@ -546,7 +546,7 @@ static int load_metadata(struct green_c *gc)
         goto bad_extents;
     }
 
-    /* Load table from 1st disk, which is considered as prime disk */
+    /* Load table from 1st disk, which is considered as cache disk */
     r = sync_table(gc, extents, 0, READ);
     if (r < 0) 
         goto bad_sync;
@@ -645,8 +645,8 @@ static void map_extent(struct green_c *gc, extent_t veid, extent_t eid)
 {
     gc->table[veid].eid = eid;
     gc->table[veid].state |= VES_PRESENT;
-    if (on_prime(gc, eid)) {
-        gc->prime_extents[eid].vext = gc->table + veid;
+    if (on_cache(gc, eid)) {
+        gc->cache_extents[eid].vext = gc->table + veid;
     }
 }
 
@@ -670,7 +670,7 @@ struct promote_info {
     struct green_c *gc;
     struct bio      *bio;   /* bio to submit after migration */
     extent_t        veid;   /* virtual extent to promote */
-    extent_t        peid;   /* destinate prime extent of the promotion */
+    extent_t        peid;   /* destinate cache extent of the promotion */
 };
 
 /*
@@ -689,7 +689,7 @@ static void promote_callback(int read_err, unsigned long write_err,
 			DMERR("promote_callback: Write error.");
         /* undo promote */
         spin_lock(&(pinfo->gc->lock));
-        put_prime(pinfo->gc, pinfo->peid);
+        put_cache(pinfo->gc, pinfo->peid);
         spin_unlock(&(pinfo->gc->lock));
     } else { 
         /* update new mapping */
@@ -720,9 +720,9 @@ static bool promote_extent(struct green_c *gc, struct bio *bio)
     struct promote_info *pinfo;
 
     DMDEBUG("promote_extent: promoting");
-    if (get_prime(gc, &peid) < 0) { 
-        DMDEBUG("promote_extent: no extent on prime disk");
-        return false;        /* no free prime extent */
+    if (get_cache(gc, &peid) < 0) { 
+        DMDEBUG("promote_extent: no extent on cache disk");
+        return false;        /* no free cache extent */
     }
 
     /* use GFP_ATOMIC because it is holding a spinlock */
@@ -740,7 +740,7 @@ static bool promote_extent(struct green_c *gc, struct bio *bio)
     src.sector = eid << gc->ext_shift;
     src.count = extent_size(gc);
 
-    dst.bdev = gc->disks[PRIME_DISK].dev->bdev;
+    dst.bdev = gc->disks[CACHE_DISK].dev->bdev;
     dst.sector = peid << gc->ext_shift;
     dst.count = extent_size(gc);
 
@@ -780,8 +780,8 @@ static void demote_callback(int read_err, unsigned long write_err,
     seid = dinfo->seid;
     deid = dinfo->deid;
 
-    next = next_extent(&gc->prime_use, ext);
-    prev = prev_extent(&gc->prime_use, ext);
+    next = next_extent(&gc->cache_use, ext);
+    prev = prev_extent(&gc->cache_use, ext);
     DMDEBUG("demote_callback: ext %llu -> %llu, next (%llu), prev (%llu)",
             seid, deid, ext2id(gc, next), ext2id(gc, prev));
 
@@ -802,7 +802,7 @@ static void demote_callback(int read_err, unsigned long write_err,
         ext->vext->state ^= VES_MIGRATE;
         ext->vext->eid = deid;
         put_extent(gc, seid);
-        run_low = (prime_free_nr(gc) < EXTENT_FREE);
+        run_low = (cache_free_nr(gc) < EXTENT_FREE);
     }
     gc->demotion_running = false;
     spin_unlock(&gc->lock);
@@ -814,31 +814,31 @@ static void demote_callback(int read_err, unsigned long write_err,
 }
 
 /*
- * Return a least-recently-used extent on prime disk, NULL if not exist.
+ * Return a least-recently-used extent on cache disk, NULL if not exist.
  */
 static struct extent *lru_extent(struct green_c *gc)
 {
     struct extent *ext, *next;
 
     if (gc->eviction_cursor == NULL) { 
-        if (list_empty(&gc->prime_use)) { 
+        if (list_empty(&gc->cache_use)) { 
             DMDEBUG("lru_extent: Empty list");
             return NULL;
         }
-        gc->eviction_cursor = list_first_entry(&gc->prime_use, 
+        gc->eviction_cursor = list_first_entry(&gc->cache_use, 
                 struct extent, list);
     }
     ext = gc->eviction_cursor;
     while (ext->vext->state & (VES_ACCESS | VES_MIGRATE)) { 
         DMDEBUG("lru_extent: Extent %llu accessed", ext2id(gc, ext));
         ext->vext->state ^= VES_ACCESS;     /* clear access bit */
-        ext = next_extent(&gc->prime_use, ext);
+        ext = next_extent(&gc->cache_use, ext);
         if (ext == gc->eviction_cursor) {   /* end of iteration */ 
             DMDEBUG("lru_extent: No eviction candidate");
             return NULL;
         }
     }
-    next = next_extent(&gc->prime_use, ext);    /* advance lru cursor */
+    next = next_extent(&gc->cache_use, ext);    /* advance lru cursor */
     gc->eviction_cursor = (next == ext) ? NULL : next;
     return ext;
 }
@@ -878,7 +878,7 @@ static void demote_extent(struct green_c *gc)
     gc->demotion_running = true;
     spin_unlock(&gc->lock);
 
-    BUG_ON(seid != ext->vext->eid || !on_prime(gc, seid) || on_prime(gc, deid));
+    BUG_ON(seid != ext->vext->eid || !on_cache(gc, seid) || on_cache(gc, deid));
     dinfo->gc = gc;
     dinfo->pext = ext;
     dinfo->seid = seid;
@@ -886,7 +886,7 @@ static void demote_extent(struct green_c *gc)
     DMDEBUG("demote_extent: Demoting extent %llu from %llu to %llu", 
             vext2id(gc, ext->vext), seid, deid);
 
-    src.bdev = gc->disks[PRIME_DISK].dev->bdev;
+    src.bdev = gc->disks[CACHE_DISK].dev->bdev;
     src.sector = seid << gc->ext_shift;
     src.count = extent_size(gc);
 
@@ -914,36 +914,36 @@ static void demotion_work(struct work_struct *work)
 }
 
 /*
- * Build LRU list and free list of extents on prime disk.
+ * Build LRU list and free list of extents on cache disk.
  */
-static int build_prime(struct green_c *gc)
+static int build_cache(struct green_c *gc)
 {
     size_t size; 
     extent_t eid, veid;
 
-    size = sizeof(struct extent) * prime_size(gc);
-    gc->prime_extents = (struct extent *)vmalloc(size);
-    if (!gc->prime_extents) {
-        DMERR("build_prime: Unable to allocate memory");
+    size = sizeof(struct extent) * cache_size(gc);
+    gc->cache_extents = (struct extent *)vmalloc(size);
+    if (!gc->cache_extents) {
+        DMERR("build_cache: Unable to allocate memory");
         return -ENOMEM;
     }
-    memset(gc->prime_extents, 0, size);
+    memset(gc->cache_extents, 0, size);
 
-    INIT_LIST_HEAD(&gc->prime_free);
-    for (eid = 0; eid < prime_size(gc); ++eid) {
-        list_add_tail(&(gc->prime_extents[eid].list), &gc->prime_free);
+    INIT_LIST_HEAD(&gc->cache_free);
+    for (eid = 0; eid < cache_size(gc); ++eid) {
+        list_add_tail(&(gc->cache_extents[eid].list), &gc->cache_free);
     }
 
-    INIT_LIST_HEAD(&gc->prime_use);
+    INIT_LIST_HEAD(&gc->cache_use);
     for (veid = 0; veid < vdisk_size(gc); ++veid) {
         if (!(gc->table[veid].state & VES_PRESENT))
             continue;
         eid = gc->table[veid].eid;
-        if (on_prime(gc, eid)) { 
-            gc->prime_extents[eid].vext = gc->table + veid;
-            list_del(&(gc->prime_extents[eid].list));
-            list_add_tail(&(gc->prime_extents[eid].list), &gc->prime_use);
-            DMDEBUG("build_prime: prime extent %llu is in use", eid);
+        if (on_cache(gc, eid)) { 
+            gc->cache_extents[eid].vext = gc->table + veid;
+            list_del(&(gc->cache_extents[eid].list));
+            list_add_tail(&(gc->cache_extents[eid].list), &gc->cache_use);
+            DMDEBUG("build_cache: cache extent %llu is in use", eid);
         }
     }
 
@@ -1055,11 +1055,11 @@ static int green_ctr(struct dm_target *ti, unsigned int argc, char **argv)
         }
     }
 
-    r = build_prime(gc);
+    r = build_cache(gc);
     if (r < 0) {
-        DMDEBUG("building prime extents");
-        ti->error = "Fail to build prime extents";
-        goto bad_prime;
+        DMDEBUG("building cache extents");
+        ti->error = "Fail to build cache extents";
+        goto bad_cache;
     }
 
     clear_table(gc);
@@ -1068,7 +1068,7 @@ static int green_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
     return 0;
 
-bad_prime:
+bad_cache:
     vfree(gc->bitmap);
     gc->bitmap = NULL;
 bad_bitmap:
@@ -1117,7 +1117,7 @@ static int green_map(struct dm_target *ti, struct bio *bio,
     if (gc->table[veid].state & VES_PRESENT) {
         eid = gc->table[veid].eid;
         DMDEBUG("map: virtual %llu -> physical %llu", veid, eid);
-        if (!on_prime(gc, eid)) {
+        if (!on_cache(gc, eid)) {
             if ((bio->bi_rw & 1) == READ) {
                 /* Try to promote extent on read. No matter the promotion
                  * succeed or not, map the io */
@@ -1131,7 +1131,7 @@ static int green_map(struct dm_target *ti, struct bio *bio,
         BUG_ON(get_extent(gc, &eid, true) < 0);   /* out of space */
         map_extent(gc, veid, eid);
     }
-    run_demotion = (prime_free_nr(gc) < EXTENT_LOW) && !gc->demotion_running;
+    run_demotion = (cache_free_nr(gc) < EXTENT_LOW) && !gc->demotion_running;
     spin_unlock(&gc->lock);
 
     map_bio(gc, bio, eid);
@@ -1160,9 +1160,9 @@ static int green_status(struct dm_target *ti, status_type_t type,
             for (i = 0; i < fdisk_nr(gc); ++i) 
                 free += gc->disks[i].free_nr;
             snprintf(result, maxlen, "extent size: %u, capacity: %llu \
-                    free prime extents: %llu, free extents: %llu",
+                    free cache extents: %llu, free extents: %llu",
                     extent_size(gc), vdisk_size(gc), 
-                    gc->disks[PRIME_DISK].free_nr, free);
+                    gc->disks[CACHE_DISK].free_nr, free);
             break;
     }
     return 0;

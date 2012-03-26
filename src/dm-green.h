@@ -36,18 +36,17 @@
 #define DM_MSG_PREFIX "green"
 
 /* Define this macro if compile before Linux 3.0 */
-#undef OLD_KERNEL
+#define OLD_KERNEL
 
-/*
- * Magic for persistent green header: "EnEg"
- */
+/* Magic for persistent green header */
 #define GREEN_MAGIC 0x45614567
 #define GREEN_VERSION 53
 #define GREEN_DAEMON "kgreend"
 
-/* The first disk is prime disk. */
-#define PRIME_DISK 0
+/* The first disk is cache disk. */
+#define CACHE_DISK 0
 
+/* SECTOR_SHIFT is defined in device-mapper.h as 9 */
 #define SECTOR_SIZE (1 << SECTOR_SHIFT)
 
 #define count_sector(x) (((x) + SECTOR_SIZE - 1) >> SECTOR_SHIFT)
@@ -64,8 +63,8 @@
 
 #define extent_size(gc) (gc->header.ext_size)
 #define vdisk_size(gc) (gc->header.capacity)
-#define prime_size(gc) (gc->disks[PRIME_DISK].capacity)
-#define prime_free_nr(gc) (gc->disks[PRIME_DISK].free_nr)
+#define cache_size(gc) (gc->disks[CACHE_DISK].capacity)
+#define cache_free_nr(gc) (gc->disks[CACHE_DISK].free_nr)
 #define fdisk_nr(gc) (gc->header.ndisk)
 
 /* 
@@ -77,7 +76,7 @@
  */
 #define MAX_SECTORS ((BIO_MAX_PAGES - 2) * (PAGE_SIZE >> SECTOR_SHIFT))
 
-/* Size of reserved free extent on prime disk */
+/* Size of reserved free extent on cache disk */
 #define EXTENT_FREE 8
 #define EXTENT_LOW 4
 
@@ -133,7 +132,7 @@ struct vextent_disk {
 } __packed;
 
 /*
- * Physical extent on prime disk.
+ * Physical extent on cache disk.
  */
 struct extent {
     struct vextent *vext;       /* virtual extent */
@@ -174,9 +173,9 @@ struct green_c {
 
     struct vextent *table;       /* mapping table */
 
-    struct extent   *prime_extents; /* physical extents on prime disk */
-    struct list_head prime_free;    /* free extents on prime disk */
-    struct list_head prime_use;     /* in-use extents on prime disk */
+    struct extent   *cache_extents; /* physical extents on cache disk */
+    struct list_head cache_free;    /* free extents on cache disk */
+    struct list_head cache_use;     /* in-use extents on cache disk */
 
     unsigned long *bitmap;      /* bitmap of extent, '0' for free extent */
     spinlock_t lock;            /* protect table, free and bitmap */
@@ -184,7 +183,7 @@ struct green_c {
     struct dm_io_client *io_client;
     struct dm_kcopyd_client *kcp_client;
 
-    struct work_struct demotion_work;   /* work of evicting prime extent */
+    struct work_struct demotion_work;   /* work of evicting cache extent */
     struct extent *eviction_cursor;
     bool eviction_running;
     bool demotion_running; 
