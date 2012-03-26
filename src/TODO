@@ -1,7 +1,7 @@
 [DONE] 1. Handle Linux Kernel Version issue
 		- several device mapper APIs depends on the Linux Kernel 
 	  	  Version
-       2. Separate header file and code
+[DONE] 2. Separate header file and code
        3. Preallocate promote_info and demote_info, avoid frequent memory allocation
         - Maybe use 'struct kmem_cache'
        4. Look into MAX_SECTORS limit to see if it still applies
