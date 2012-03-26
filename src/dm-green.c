@@ -50,7 +50,7 @@ static struct green_c *alloc_context(struct dm_target *ti,
     gc->io_client = NULL;
     gc->kcp_client = NULL;
     gc->cache_extents = NULL;
-    gc->eviction_cursor = NULL;
+    gc->demotion_cursor = NULL;
 
     return gc;
 }
@@ -210,15 +210,19 @@ static inline extent_t vext2id(struct green_c *gc, struct vextent *vext)
 }
 
 /*
- * Return physical disk id and offset of physical extent.
+ * Return physical disk id and offset of physical extent. Note, parameters
+ * passed in as pointers will be changed in this function.
+ *
+ * 'eid': [IN/OUT] extent id before/after the virtual to physical translation.
+ * 'idisk': [OUT] physical disk id.
  */
 static inline void extent_on_disk(struct green_c *gc, extent_t *eid,
-        unsigned *i)
+        unsigned *idisk)
 {
     BUG_ON(*eid >= vdisk_size(gc));
-    *i = 0;
-    while (*i < fdisk_nr(gc) && *eid >= gc->disks[*i].capacity) {
-        *eid -= gc->disks[(*i)++].capacity;
+    *idisk = 0;
+    while (*idisk < fdisk_nr(gc) && *eid >= gc->disks[*idisk].capacity) {
+        *eid -= gc->disks[(*idisk)++].capacity;
     }
 }
 
@@ -657,22 +661,17 @@ static void map_extent(struct green_c *gc, extent_t veid, extent_t eid)
 static void map_bio(struct green_c *gc, struct bio *bio, extent_t eid)
 {
     unsigned idisk;
+    struct dm_target *ti = gc->ti;
     sector_t offset;          /* sector offset within extent */
 
-    offset = (bio->bi_sector & (extent_size(gc) - 1));
+    offset = ((bio->bi_sector - ti->begin) & (extent_size(gc) - 1));
     extent_on_disk(gc, &eid, &idisk);
     bio->bi_bdev = gc->disks[idisk].dev->bdev;
-    bio->bi_sector = (eid << gc->ext_shift) + offset;
+    bio->bi_sector = ti->begin + (eid << gc->ext_shift) + offset;
     /* Limit IO within an extent as it is fine to get less than wanted. */
-    bio->bi_size = min(bio->bi_size, (unsigned int)to_bytes(extent_size(gc) - offset));
+    bio->bi_size = min(bio->bi_size, 
+            (unsigned int)to_bytes(extent_size(gc) - offset));
 }
-
-struct promote_info {
-    struct green_c *gc;
-    struct bio      *bio;   /* bio to submit after migration */
-    extent_t        veid;   /* virtual extent to promote */
-    extent_t        peid;   /* destinate cache extent of the promotion */
-};
 
 /*
  * Callback of promote_extent. It should release resources allocated by
@@ -757,13 +756,6 @@ static bool promote_extent(struct green_c *gc, struct bio *bio)
     return true;
 }
 
-struct demote_info {
-    struct green_c *gc;
-    struct extent   *pext;      /* physical extent to demote */
-    extent_t        seid;       /* source physical extent id */
-    extent_t        deid;       /* dest physical extent id */
-};
-
 /*
  * Callback when an extent being demoted has been copied to other disk. 
  */
@@ -811,7 +803,7 @@ static void demote_callback(int read_err, unsigned long write_err,
     spin_unlock(&gc->lock);
     kfree(dinfo);
 
-    /* schedule more eviction */
+    /* schedule more demotion */
 //    if (run_low) 
 //        queue_work(kgreend_wq, &gc->demotion_work);
 }
@@ -823,26 +815,26 @@ static struct extent *lru_extent(struct green_c *gc)
 {
     struct extent *ext, *next;
 
-    if (gc->eviction_cursor == NULL) { 
+    if (gc->demotion_cursor == NULL) { 
         if (list_empty(&gc->cache_use)) { 
             DMDEBUG("lru_extent: Empty list");
             return NULL;
         }
-        gc->eviction_cursor = list_first_entry(&gc->cache_use, 
+        gc->demotion_cursor = list_first_entry(&gc->cache_use, 
                 struct extent, list);
     }
-    ext = gc->eviction_cursor;
+    ext = gc->demotion_cursor;
     while (ext->vext->state & (VES_ACCESS | VES_MIGRATE)) { 
         DMDEBUG("lru_extent: Extent %llu accessed", ext2id(gc, ext));
         ext->vext->state ^= VES_ACCESS;     /* clear access bit */
         ext = next_extent(&gc->cache_use, ext);
-        if (ext == gc->eviction_cursor) {   /* end of iteration */ 
-            DMDEBUG("lru_extent: No eviction candidate");
+        if (ext == gc->demotion_cursor) {   /* end of iteration */ 
+            DMDEBUG("lru_extent: No demotion candidate");
             return NULL;
         }
     }
     next = next_extent(&gc->cache_use, ext);    /* advance lru cursor */
-    gc->eviction_cursor = (next == ext) ? NULL : next;
+    gc->demotion_cursor = (next == ext) ? NULL : next;
     return ext;
 }
 
@@ -1021,7 +1013,9 @@ static int green_ctr(struct dm_target *ti, unsigned int argc, char **argv)
     }
 
 #ifdef OLD_KERNEL
-    dm_kcopyd_client_create((unsigned int)0, (struct dm_kcopyd_client **)&gc->kcp_client); /* "0" needs verification */
+    /* "0" needs verification */
+    dm_kcopyd_client_create((unsigned int)0, 
+            (struct dm_kcopyd_client **)&gc->kcp_client); 
 #else
     gc->kcp_client = dm_kcopyd_client_create();
 #endif
@@ -1108,11 +1102,11 @@ static int green_map(struct dm_target *ti, struct bio *bio,
         union map_info *map_context)
 {
     struct green_c *gc = (struct green_c*)ti->private;
-    extent_t eid, veid = ((bio->bi_sector) >> gc->ext_shift);
+    extent_t eid, veid = (bio->bi_sector - ti->begin) >> gc->ext_shift;
     bool run_demotion = false;
 
     DMDEBUG("%lu: map(sector %llu -> extent %llu)", jiffies, 
-            bio->bi_sector, veid);
+            (bio->bi_sector - ti->begin), veid);
     spin_lock(&gc->lock);
     gc->table[veid].state |= VES_ACCESS;
     gc->table[veid].tick = jiffies_64;
@@ -1121,12 +1115,12 @@ static int green_map(struct dm_target *ti, struct bio *bio,
         eid = gc->table[veid].eid;
         DMDEBUG("map: virtual %llu -> physical %llu", veid, eid);
         if (!on_cache(gc, eid)) {
-            if ((bio->bi_rw & 1) == READ) {
+            if (bio_data_dir(bio) == READ) {
                 /* Try to promote extent on read. No matter the promotion
                  * succeed or not, map the io */
                 /* promote_extent(gc, bio)) */
-            } else if ((bio->bi_rw & 1) == WRITE) {
-                /* exam if mapped extent is under promotion, map io if yes,
+            } else if (bio_data_dir(bio) == WRITE) {
+                /* exam if mapped extent is under promotion, map io if not,
                  * otherwise wait until the promotion is done. */
             }
         } 
@@ -1139,7 +1133,7 @@ static int green_map(struct dm_target *ti, struct bio *bio,
 
     map_bio(gc, bio, eid);
 
-    if (run_demotion) {              /* schedule extent eviction */
+    if (run_demotion) {              /* schedule extent demotion */
         queue_work(kgreend_wq, &gc->demotion_work);
     }
 

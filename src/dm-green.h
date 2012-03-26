@@ -181,9 +181,28 @@ struct green_c {
     struct dm_kcopyd_client *kcp_client; /* data copy in device mapper */
 
     struct work_struct demotion_work;    /* work of evicting cache extent */
-    struct extent *eviction_cursor;
-    bool eviction_running;
+    struct extent *demotion_cursor;
     bool demotion_running; 
+};
+
+/*
+ * Information passed between promotion function and its callback.
+ */
+struct promote_info {
+    struct green_c *gc;
+    struct bio      *bio;   /* bio to submit after migration */
+    extent_t        veid;   /* virtual extent to promote */
+    extent_t        peid;   /* destinate cache extent of the promotion */
+};
+
+/*
+ * Information passed between demotion function and its callback.
+ */
+struct demote_info {
+    struct green_c *gc;
+    struct extent   *pext;      /* physical extent to demote */
+    extent_t        seid;       /* source physical extent id */
+    extent_t        deid;       /* dest physical extent id */
 };
 
 #endif
