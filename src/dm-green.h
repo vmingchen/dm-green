@@ -49,17 +49,18 @@
 /* SECTOR_SHIFT is defined in device-mapper.h as 9 */
 #define SECTOR_SIZE (1 << SECTOR_SHIFT)
 
+/* Given size x, how many sectors it contains */
 #define count_sector(x) (((x) + SECTOR_SIZE - 1) >> SECTOR_SHIFT)
 
-/* Return metadata's size in sector. */
+/* Return metadata's size in unit of sector */
 #define header_size() \
     count_sector(sizeof(struct green_header_disk))
 
 #define table_size(gc) \
     count_sector(gc->header.capacity * sizeof(struct vextent_disk))
 
-/* Return size of bitmap array */
-#define bitmap_size(len) dm_round_up(len, sizeof(unsigned long))
+/* Return size of bitmap array in unit of unsigned long; round up to the ceiling */
+#define bitmap_size(sz) dm_round_up(sz, sizeof(unsigned long))
 
 #define extent_size(gc) (gc->header.ext_size)
 #define vdisk_size(gc) (gc->header.capacity)
@@ -69,25 +70,34 @@
 
 /* 
  * When requesting a new bio, the number of requested bvecs has to be
- * less than BIO_MAX_PAGES. Otherwise, null is returned. In dm-io.c,
- * this return value is not checked and kernel Oops may happen. We set
- * the limit here to avoid such situations. (2 additional bvecs are
- * required by dm-io for bookeeping.) (From dm-cache)
+ * less than BIO_MAX_PAGES (defined in bio.h to be 256). 
+ * Otherwise, null is returned. 
+ *
+ * In dm-io.c, this return value is not checked and kernel Oops may 
+ * happen. We set the limit here to avoid such situations. (2 additional 
+ * bvecs are required by dm-io for bookeeping.) (From dm-cache)
+ *
+ * PAGE_SIZE is defined in asm/linux-generic/page.h to be 4KB (1<<12)
  */
 #define MAX_SECTORS ((BIO_MAX_PAGES - 2) * (PAGE_SIZE >> SECTOR_SHIFT))
 
-/* Size of reserved free extent on cache disk */
-#define EXTENT_FREE 8
+/* When free extents are less than EXTENT_LOW, demotion is triggered */
 #define EXTENT_LOW 4
 
+/* The total number of free extents on the cache disk after demotion */
+#define EXTENT_FREE_NUM 8
+
+/* 
+ * Borrowed from dm_array_too_big, defined in device-mapper.h 
+ * UNIT_MAX is ~0U, defined in linux/kernel.h
+ */
 #define array_too_big(fixed, obj, num) \
 	((num) > (UINT_MAX - (fixed)) / (obj))
 
-typedef uint64_t extent_t;
+/* extent id type */
+typedef uint64_t extent_t; 
 
-/*
- * Header in memory, contained in green context (green_c).
- */
+/* Header in memory, contained in green context (green_c) */
 struct green_header {
     uint32_t magic;
     uint32_t version;
@@ -96,9 +106,8 @@ struct green_header {
     extent_t capacity;          /* capacity in extent */
 };
 
-/*
- * Header on disk, followed by metadata of mapping table.
- */
+
+/* Header on disk, followed by metadata of mapping table */
 struct green_header_disk {
     __le32 magic;
     __le32 version;
@@ -112,9 +121,7 @@ struct green_header_disk {
 #define VES_ACCESS  0x02
 #define VES_MIGRATE 0x04
 
-/*
- * Virtual extent in memory.
- */
+/* Virtual extent in memory */
 struct vextent {
     extent_t eid;               /* physical extent id */
     uint32_t state;             /* extent states and flags */
@@ -122,36 +129,28 @@ struct vextent {
     uint64_t tick;              /* timestamp of latest access */
 };
 
-/*
- * Extent metadata on disk.
- */
+/* Extent metadata on disk */
 struct vextent_disk {
     __le64 eid;
     __le32 state;
     __le32 counter;
 } __packed;
 
-/*
- * Physical extent on cache disk.
- */
+/* Memory structure for physical extent on cache disk */
 struct extent {
     struct vextent *vext;       /* virtual extent */
     struct list_head list;
 };
 
-/*
- * Ring buffer of physical extent.
- */
+/* Ring buffer of physical free extent after demotion */
 struct extent_buffer {
-    extent_t data[EXTENT_FREE]; /* array of physical extent id */
+    extent_t data[EXTENT_FREE_NUM]; 	/* array of physical extent id */
     unsigned capacity;          
-    unsigned cursor;            /* cursor of first entent id */
-    unsigned count;             /* number of valid extents */
+    unsigned cursor;            	/* cursor of first entent id */
+    unsigned count;             	/* number of valid extents */
 };
 
-/*
- * Represent a physical disk. 
- */
+/* Memory structure to represent a physical disk */
 struct mapped_disk {
     struct dm_dev *dev;
     extent_t capacity;          /* capacity in extent */
@@ -159,9 +158,7 @@ struct mapped_disk {
     extent_t offset;            /* offset within virtual disk in extent */
 };
 
-/*
- * Context of green target. It contains all information of our disk. 
- */
+/* Context of green target, containing all the information of our disk */
 struct green_c {
     struct dm_target *ti;
 
@@ -173,7 +170,7 @@ struct green_c {
 
     struct vextent *table;       /* mapping table */
 
-    struct extent   *cache_extents; /* physical extents on cache disk */
+    struct extent *cache_extents;   /* physical extents on cache disk */
     struct list_head cache_free;    /* free extents on cache disk */
     struct list_head cache_use;     /* in-use extents on cache disk */
 
@@ -181,9 +178,9 @@ struct green_c {
     spinlock_t lock;            /* protect table, free and bitmap */
 
     struct dm_io_client *io_client;
-    struct dm_kcopyd_client *kcp_client;
+    struct dm_kcopyd_client *kcp_client; /* data copy in device mapper */
 
-    struct work_struct demotion_work;   /* work of evicting cache extent */
+    struct work_struct demotion_work;    /* work of evicting cache extent */
     struct extent *eviction_cursor;
     bool eviction_running;
     bool demotion_running; 

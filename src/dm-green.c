@@ -118,7 +118,7 @@ static inline void extent_from_disk(struct vextent *core,
 static int get_mdisk(struct dm_target *ti, struct green_c *gc, 
         unsigned idisk, char **argv)
 {
-	sector_t dev_size;
+    sector_t dev_size;
     sector_t len;
     char *end;
 
@@ -353,15 +353,15 @@ static void put_extent(struct green_c *gc, extent_t eid)
 static int dm_io_sync_vm(unsigned num_regions, struct dm_io_region *where,
         int rw, void *data, unsigned long *error_bits, struct green_c *gc)
 {
-	struct dm_io_request iorq;
+    struct dm_io_request iorq;
 
-	iorq.bi_rw= rw;
-	iorq.mem.type = DM_IO_VMA;
-	iorq.mem.ptr.vma = data;
-	iorq.notify.fn = NULL;
-	iorq.client = gc->io_client;
+    iorq.bi_rw= rw;
+    iorq.mem.type = DM_IO_VMA;
+    iorq.mem.ptr.vma = data;
+    iorq.notify.fn = NULL;
+    iorq.client = gc->io_client;
 
-	return dm_io(&iorq, num_regions, where, error_bits);
+    return dm_io(&iorq, num_regions, where, error_bits);
 }
 
 static inline void locate_header(struct dm_io_region *where, 
@@ -381,7 +381,7 @@ static int dump_header(struct green_c *gc, unsigned idisk)
     int r = 0;
     unsigned long bits;
     struct green_header_disk *header;
-	struct dm_io_region where;
+    struct dm_io_region where;
 
     locate_header(&where, gc, idisk);
     header = (struct green_header_disk*)vmalloc(where.count << SECTOR_SHIFT);
@@ -405,7 +405,7 @@ static int sync_table(struct green_c *gc, struct vextent_disk *extents,
 {
     int r;
     unsigned long bits;
-	struct dm_io_region where;
+    struct dm_io_region where;
     sector_t index, offset, size = table_size(gc);
     void *data = (void*)extents;
 
@@ -477,7 +477,7 @@ static int check_header(struct green_c *gc, unsigned idisk)
     unsigned long bits;
     struct green_header_disk *ehd;
     struct green_header header;
-	struct dm_io_region where;
+    struct dm_io_region where;
 
     locate_header(&where, gc, idisk);
     ehd = (struct green_header_disk*)vmalloc(where.count << SECTOR_SHIFT);
@@ -691,7 +691,8 @@ static void promote_callback(int read_err, unsigned long write_err,
         spin_lock(&(pinfo->gc->lock));
         put_cache(pinfo->gc, pinfo->peid);
         spin_unlock(&(pinfo->gc->lock));
-    } else { 
+    } 
+    else { 
         /* update new mapping */
         DMDEBUG("promote: extent %llu is remapped to extent %llu", 
                 pinfo->veid, pinfo->peid);
@@ -796,13 +797,14 @@ static void demote_callback(int read_err, unsigned long write_err,
         else
             DMDEBUG("demote_callback: cancel demotion because of access");
         put_extent(gc, deid);
-    } else {
+    } 
+    else {
         DMDEBUG("demote_callback: extent %u is remapped to extent %llu", 
                 (ext->vext - gc->table), deid);
         ext->vext->state ^= VES_MIGRATE;
         ext->vext->eid = deid;
         put_extent(gc, seid);
-        run_low = (cache_free_nr(gc) < EXTENT_FREE);
+        run_low = (cache_free_nr(gc) < EXTENT_FREE_NUM);
     }
     gc->demotion_running = false;
     spin_unlock(&gc->lock);
@@ -958,7 +960,7 @@ static int green_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
     uint32_t ndisk;
     uint32_t ext_size;
-	char *end;
+    char *end;
     struct green_c *gc;
     int r;
 
@@ -969,12 +971,12 @@ static int green_ctr(struct dm_target *ti, unsigned int argc, char **argv)
         return -EINVAL;
     }
 
-	ext_size = simple_strtoul(argv[0], &end, 10);
-	if (*end || !is_power_of_2(ext_size) 
+    ext_size = simple_strtoul(argv[0], &end, 10);
+    if (*end || !is_power_of_2(ext_size) 
             || (ext_size < (PAGE_SIZE >> SECTOR_SHIFT))) {
-		ti->error = "Invalid extent size";
-		return -EINVAL;
-	}
+        ti->error = "Invalid extent size";
+	return -EINVAL;
+    }
 
     if (ti->len & (ext_size -1)) {
         ti->error = "Target length not divisible by extent size";
@@ -1018,7 +1020,7 @@ static int green_ctr(struct dm_target *ti, unsigned int argc, char **argv)
     }
 
 #ifdef OLD_KERNEL
-    dm_kcopyd_client_create((unsigned int)0, (struct dm_kcopyd_client **)&gc->kcp_client); /* "0" and "NULL" need verification */
+    dm_kcopyd_client_create((unsigned int)0, (struct dm_kcopyd_client **)&gc->kcp_client); /* "0" needs verification */
 #else
     gc->kcp_client = dm_kcopyd_client_create();
 #endif
@@ -1169,13 +1171,13 @@ static int green_status(struct dm_target *ti, status_type_t type,
 }
 
 static struct target_type green_target = {
-	.name	     = "green",
-	.version     = {0, 1, 0},
-	.module      = THIS_MODULE,
-	.ctr	     = green_ctr,
-	.dtr	     = green_dtr,
-	.map	     = green_map,
-	.status	     = green_status,
+    .name	     = "green",
+    .version     = {0, 1, 0},
+    .module      = THIS_MODULE,
+    .ctr	     = green_ctr,
+    .dtr	     = green_dtr,
+    .map	     = green_map,
+    .status	     = green_status,
 };
 
 static int __init green_init(void)
@@ -1188,7 +1190,7 @@ static int __init green_init(void)
         goto bad_workqueue;
     }
 
-	r = dm_register_target(&green_target);
+    r = dm_register_target(&green_target);
     if (r < 0) {
         DMERR("green register failed %d\n", r);
         goto bad_register;
@@ -1205,7 +1207,7 @@ bad_workqueue:
 
 static void __exit green_exit(void)
 {
-	dm_unregister_target(&green_target);
+    dm_unregister_target(&green_target);
     destroy_workqueue(kgreend_wq);
 }
 
