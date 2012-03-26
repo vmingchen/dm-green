@@ -18,6 +18,7 @@
 	- sequential pre-fetch by trace analysis
 	- reliability optimization with reliability aware policy
 	- extent overhead optimization
+	- explore workloads with different IO patterns 
 8. Paper submission. 
 	- By May 10, write a paper skeleton summarizing what has been
 	  done so far 
