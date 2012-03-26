@@ -79,6 +79,7 @@ static void free_context(struct green_c *gc)
 static inline void header_to_disk(struct green_header *core, 
         struct green_header_disk *disk)
 {   
+    /* big/little endian issue */
     disk->magic = cpu_to_le32(core->magic);
     disk->version = cpu_to_le32(core->version);
     disk->ndisk = cpu_to_le32(core->ndisk);
