@@ -1,13 +1,14 @@
 [DONE] 1. Deploy linux kernel 3.0 (or above) on gr3.
 2. Code review for GreenDM. 
+	- basic comments [DONE]
 	- kernel control of user program to spin down/up disk
 	- metadata flush to be made periodical, similar to what
 	  pdflush does
 	- merge disks reliability concern into implementation 
 	- extend vs. sector tradeoff
-3. Documentation for software stack. 
+[DONE] 3. Documentation for software stack. 
 4. Trace analysis and preparation (online vs. offline)
-5. Review on the cache design and implementation. 
+[REVISE] 5. Review on the cache design and implementation. 
 6. Evaluation of different workloads (web server, file server,
    database server, email server, etc) with three different approaches
 	- Naive sectors mapping without knowledge about workload
@@ -20,7 +21,7 @@
 	- extent overhead optimization
 	- explore workloads with different IO patterns 
 8. Paper submission. 
-	- By May 10, write a paper skeleton summarizing what has been
+	- By May 10, write a report summarizing what has been
 	  done so far 
-	- By September, submit a full length paper to FAST'13
-	- More extend work follows what we achieve by then
+	- Extend the work with more domain knowledge and optimization
+	  techniques, and submit as one potential paper. 
