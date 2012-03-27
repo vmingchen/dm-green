@@ -19,6 +19,36 @@
 
 static struct workqueue_struct *kgreend_wq;
 
+/*
+ * Set a single bit of bitmap.
+ */
+static inline void green_bm_set(unsigned long *bitmap, int pos) 
+{
+#ifdef OLD_KERNEL
+    unsigned long *p;
+
+    p = bitmap + pos / BITS_PER_LONG;
+    *p |= (unsigned long)(1 << (pos % BITS_PER_LONG));
+#else
+    bitmap_set(bitmap, pos, 1);
+#endif
+}
+
+/*
+ * Clear a single bit of bitmap.
+ */
+static inline void green_bm_clear(unsigned long *bitmap, int pos)
+{
+#ifdef OLD_KERNEL
+    unsigned long *p;
+
+    p = bitmap + pos / BITS_PER_LONG;
+    *p &= (unsigned long)(~(1 << (pos % BITS_PER_LONG)));
+#else
+    bitmap_clear(bitmap, pos, 1);
+#endif
+}
+
 static struct green_c *alloc_context(struct dm_target *ti, 
         uint32_t ndisk, uint32_t ext_size)
 {
@@ -267,11 +297,7 @@ static inline int get_cache(struct green_c *gc, extent_t *eid)
 
     gc->disks[CACHE_DISK].free_nr--;
 
-#ifdef OLD_KERNEL
-    *gc->bitmap = *gc->bitmap | (unsigned long)(1<<*eid); 
-#else
-    bitmap_set(gc->bitmap, *eid, 1);
-#endif
+    green_bm_set(gc->bitmap, *eid);
 
     DMDEBUG("get_cache: get %llu (%llu extents left)", 
             *eid, gc->disks[CACHE_DISK].free_nr);
@@ -293,11 +319,7 @@ static inline void put_cache(struct green_c *gc, extent_t eid)
     list_add(&ext->list, &(gc->cache_free));
     gc->disks[CACHE_DISK].free_nr++;
 
-#ifdef OLD_KERNEL
-    *gc->bitmap = *gc->bitmap & (unsigned long)(~(1<<eid)); 
-#else
-    bitmap_clear(gc->bitmap, eid, 1);
-#endif
+    green_bm_clear(gc->bitmap, eid);
 
     DMDEBUG("put_cache: %llu cache extents left", gc->disks[CACHE_DISK].free_nr);
 }
@@ -318,11 +340,7 @@ static int get_extent(struct green_c *gc, extent_t *eid, bool cache)
                     gc->disks[i].offset);
             DMDEBUG("get_extent: %llu obtained", *eid);
             gc->disks[i].free_nr--;
-#ifdef OLD_KERNEL
-	    *gc->bitmap = *gc->bitmap | (unsigned long)(1<<*eid); 
-#else
-            bitmap_set(gc->bitmap, *eid, 1);
-#endif
+            green_bm_set(gc->bitmap, *eid);
             return 0;
         }
     }
@@ -345,11 +363,7 @@ static void put_extent(struct green_c *gc, extent_t eid)
         put_cache(gc, eid);
     } else { 
         gc->disks[i].free_nr++;
-#ifdef OLD_KERNEL
-        *gc->bitmap = *gc->bitmap & (unsigned long)(~(1<<eid)); 
-#else
-        bitmap_clear(gc->bitmap, eid, 1);
-#endif
+        green_bm_clear(gc->bitmap, eid);
     }
 }
 
@@ -600,11 +614,7 @@ static int build_bitmap(struct green_c *gc, bool zero)
             gc->disks[j].free_nr = gc->disks[j].capacity;
             for (k = 0; k < gc->disks[j].capacity; ++k) {
                 if (gc->table[i].state & VES_PRESENT) {
-#ifdef OLD_KERNEL
-		    *gc->bitmap = *gc->bitmap | (unsigned long)(1<<i); 
-#else
-                    bitmap_set(gc->bitmap, i, 1);
-#endif
+                    green_bm_set(gc->bitmap, i);
                     gc->disks[j].free_nr--;
                     DMDEBUG("extent %llu is present", i);
                 }
@@ -809,7 +819,7 @@ static void demote_callback(int read_err, unsigned long write_err,
         ext->vext->state ^= VES_MIGRATE;
         ext->vext->eid = deid;
         put_extent(gc, seid);
-        run_low = (cache_free_nr(gc) < EXTENT_FREE_NUM);
+        run_low = (cache_free_nr(gc) < EXT_MAX_THRESHOLD);
     }
     gc->demotion_running = false;
     spin_unlock(&gc->lock);
@@ -1152,7 +1162,8 @@ static int green_map(struct dm_target *ti, struct bio *bio,
         BUG_ON(get_extent(gc, &eid, true) < 0);   /* out of space */
         map_extent(gc, veid, eid);
     }
-    run_demotion = (cache_free_nr(gc) < EXTENT_LOW) && !gc->demotion_running;
+    run_demotion = (cache_free_nr(gc) < EXT_MIN_THRESHOLD) 
+            && !gc->demotion_running;
     spin_unlock(&gc->lock);
 
     map_bio(gc, bio, eid);
@@ -1233,5 +1244,5 @@ static void __exit green_exit(void)
 module_init(green_init);
 module_exit(green_exit);
 
-MODULE_DESCRIPTION(DM_NAME "Green");
+MODULE_DESCRIPTION(DM_NAME " green target");
 MODULE_LICENSE("GPL");

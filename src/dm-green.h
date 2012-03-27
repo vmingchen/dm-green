@@ -38,6 +38,14 @@
 /* Define this macro if compile before Linux 3.0 */
 #define OLD_KERNEL
 
+#ifdef OLD_KERNEL
+#ifdef CONFIG_64BIT
+#define BITS_PER_LONG 64
+#else
+#define BITS_PER_LONG 32
+#endif /* CONFIG_64BIT */
+#endif
+
 /* Magic for persistent green header */
 #define GREEN_MAGIC 0x45614567
 #define GREEN_VERSION 53
@@ -81,11 +89,11 @@
  */
 #define MAX_SECTORS ((BIO_MAX_PAGES - 2) * (PAGE_SIZE >> SECTOR_SHIFT))
 
-/* When free extents are less than EXTENT_LOW, demotion is triggered */
-#define EXTENT_LOW 4
+/* When free extents are less than EXT_MIN_THRESHOLD, demotion is triggered */
+#define EXT_MIN_THRESHOLD 4
 
 /* The total number of free extents on the cache disk after demotion */
-#define EXTENT_FREE_NUM 8
+#define EXT_MAX_THRESHOLD 8
 
 /* 
  * Borrowed from dm_array_too_big, defined in device-mapper.h 
@@ -139,14 +147,6 @@ struct vextent_disk {
 struct extent {
     struct vextent *vext;       /* virtual extent */
     struct list_head list;
-};
-
-/* Ring buffer of physical free extent after demotion */
-struct extent_buffer {
-    extent_t data[EXTENT_FREE_NUM]; 	/* array of physical extent id */
-    unsigned capacity;          
-    unsigned cursor;            	/* cursor of first entent id */
-    unsigned count;             	/* number of valid extents */
 };
 
 /* Memory structure to represent a physical disk */

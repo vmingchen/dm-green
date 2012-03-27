@@ -66,13 +66,16 @@ flush workqueue:
 
 # bit operation (bitmap.h)
 
-    void bitmap_set(dst, pos, nbits);                /* Set specified bit area */
-    void bitmap_clear(dst, pos, nbits);              /* Clear specified bit area */	
-	int ffs(x); 									/* find first bit set of x from right to left, return position */
+    void bitmap_set(dst, pos, nbits);       /* Set specified bit area */
+    void bitmap_clear(dst, pos, nbits);     /* Clear specified bit area */	
 
-# string operation (lib/vsprintf.c)
+    /* find first bit set of x from right to left, return position */
+	int ffs(x); 
 
-	uint32_t simple_strtoul(char * str, char ** end, int base);  /* str to unsigned long based on base, end points to the end of str */
+# string operation (kernel.h, lib/vsprintf.c)
+
+    /* str to unsigned long based on base, end points to the end of str */
+	uint32_t simple_strtoul(char * str, char ** end, int base);  
 
 # memory allocation (slab.h, vmalloc.h)
 
@@ -86,3 +89,10 @@ flush workqueue:
     spin_lock_init(lock);                       /* macro */
     static inline void spin_lock(spinlock_t *lock);
     static inline void spin_unlock(spinlock_t *lock);
+
+# bio (blkdev.h)
+
+    bio_data_dir(bio);      /* return data direction, READ or WRITE. macro */
+
+    /* make I/O requests of block devices */
+    void generic_make_request(struct bio *bio); 
