@@ -1,0 +1,12 @@
+The green target component should be relatively easy and should not
+takes too much time: 
+	1. Without any workload knowledge, it is just naive mapping. It
+works just like "dmsetup create linear-disk  x x linear xxx x x". Code 
+can just borrow from dm-stripe.c and linear.c". The only thing the
+dm-green needs to do is a Cache replacement algorithm, which can also 
+be easily implemented by array counter based LRU algorithm.  
+	2. Much more work should be focused on studying workloads and
+applications, and build the model with domain knowledge. 
+	3. Massive benchmark processes are needed for doing the right 
+experiments, preparing the right data, more optimization with results, 
+etc. 
