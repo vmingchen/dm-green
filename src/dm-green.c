@@ -229,6 +229,7 @@ static inline bool on_cache(struct green_c *gc, extent_t eid)
  */
 static inline extent_t ext2id(struct green_c *gc, struct extent *ext)
 {
+	/* array offset */
     return (ext - gc->cache_extents);
 }
 
@@ -450,6 +451,13 @@ static int sync_table(struct green_c *gc, struct vextent_disk *extents,
 
 /*
  * Dump metadata to all disks.
+ *
+ * NOTE: For performance boost, all metadata should be dumped to most
+ * efficient device (SSD), especially under the condition that the
+ * flush exhibits the periodic feature. 
+ *
+ * Another issue is the bitmap, which has to be dumped to disk as
+ * well. 
  */
 static int dump_metadata(struct green_c *gc)
 {
@@ -542,6 +550,7 @@ static int alloc_table(struct green_c *gc, bool zero)
         return -ENOMEM;
     }
     if (zero) {
+		/* zero out means no state for every reachable virtual extent */
         memset(gc->table, 0, size);
     }
     DMDEBUG("alloc_table: table created");
@@ -608,7 +617,12 @@ static int build_bitmap(struct green_c *gc, bool zero)
     if (zero) {
         for (j = 0; j < fdisk_nr(gc); ++j)
             gc->disks[j].free_nr = gc->disks[j].capacity;
-    } else {
+    } 
+	/* 
+	 * build_bitmap should be very easy, not sure why necessary for
+	 * the below code.
+	 */
+	else {
         i = 0;
         for (j = 0; j < fdisk_nr(gc); ++j) {
             gc->disks[j].free_nr = gc->disks[j].capacity;
@@ -666,6 +680,7 @@ static void map_extent(struct green_c *gc, extent_t veid, extent_t eid)
     gc->table[veid].eid = eid;
     gc->table[veid].state |= VES_PRESENT;
     if (on_cache(gc, eid)) {
+		/* lack workload knowledge */
         gc->cache_extents[eid].vext = gc->table + veid;
     }
 }
@@ -948,13 +963,19 @@ static int build_cache(struct green_c *gc)
 
     INIT_LIST_HEAD(&gc->cache_free);
     for (eid = 0; eid < cache_size(gc); ++eid) {
+		/* free list of struct extent */
         list_add_tail(&(gc->cache_extents[eid].list), &gc->cache_free);
     }
 
+	/* initially, use list empty; after redirecting, list rearrange */
     INIT_LIST_HEAD(&gc->cache_use);
     for (veid = 0; veid < vdisk_size(gc); ++veid) {
         if (!(gc->table[veid].state & VES_PRESENT))
             continue;
+		/* 
+		 * Currently, build_cache is only called in green_ctr.
+		 * Unnecessary for the following code.
+		 */
         eid = gc->table[veid].eid;
         if (on_cache(gc, eid)) { 
             gc->cache_extents[eid].vext = gc->table + veid;
@@ -1054,6 +1075,8 @@ static int green_ctr(struct dm_target *ti, unsigned int argc, char **argv)
     r = check_header(gc, 0);
     if (r < 0) {
         DMDEBUG("no useable metadata on disk");
+
+		/* BUG: in case of check error, no further allocation required */
         r = alloc_table(gc, true);
         if (r < 0) {
             ti->error = "Fail to alloc table";
@@ -1167,6 +1190,16 @@ static int green_map(struct dm_target *ti, struct bio *bio,
     spin_unlock(&gc->lock);
 
     map_bio(gc, bio, eid);
+
+	/* 
+	 * demotion/promotion makes simple IO access complex, and makes
+	 * the debug process complex as well. It also increase system
+	 * overhead, especially in our case, the workload is in block
+	 * level, and is IO intensive. 
+	 * 
+	 * Disable demotion/promotion in the first place. Start with easy
+	 * things first and add complexity gradually. 
+	 */
 
     if (run_demotion) {              /* schedule extent demotion */
         queue_work(kgreend_wq, &gc->demotion_work);
