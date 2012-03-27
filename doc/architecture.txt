@@ -70,6 +70,9 @@ Instead of managing space on disks in unit of sectors, green target divides
 disks into larger unit named *extent*. This has the following effects either
 good or bad:
 
+NOTE: extent here works just like chunk, and the later is used more often in 
+various situations. 
+
 1. Smaller mapping table.
 
 If mapping is done in units of sector, the table will be as large as 8GB with 4-bytes
