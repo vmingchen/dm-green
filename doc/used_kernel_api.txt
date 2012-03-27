@@ -66,8 +66,13 @@ flush workqueue:
 
 # bit operation (bitmap.h)
 
-    bitmap_set(dst, pos, nbits);                /* Set specified bit area */
-    bitmap_clear(dst, pos, nbits);              /* Clear specified bit area */	
+    void bitmap_set(dst, pos, nbits);                /* Set specified bit area */
+    void bitmap_clear(dst, pos, nbits);              /* Clear specified bit area */	
+	int ffs(x); 									/* find first bit set of x from right to left, return position */
+
+# string operation (lib/vsprintf.c)
+
+	uint32_t simple_strtoul(char * str, char ** end, int base);  /* str to unsigned long based on base, end points to the end of str */
 
 # memory allocation (slab.h, vmalloc.h)
 
