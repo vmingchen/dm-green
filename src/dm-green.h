@@ -115,7 +115,7 @@ struct green_header_disk {
     __le64 capacity;
 } __packed;
 
-/* Virtual extent states */
+/* Three bits represent three different virtual extent states */
 #define VES_PRESENT 0x01
 #define VES_ACCESS  0x02
 #define VES_MIGRATE 0x04
@@ -169,7 +169,7 @@ struct green_c {
 
     struct vextent *table;          /* mapping table, sequential storage */
 
-    struct extent *cache_extents;   /* physical extents on cache disk */
+    struct extent *cache_extents;   /* physical extents on cache disk, sequential storage */
     struct list_head cache_free;    /* free extents on cache disk */
     struct list_head cache_use;     /* in-use extents on cache disk */
 
