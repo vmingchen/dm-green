@@ -437,6 +437,13 @@ static int sync_table(struct green_c *gc, struct vextent_disk *extents,
 
 /*
  * Dump metadata to all disks.
+ *
+ * NOTE: For performance boost, all metadata should be dumped to most
+ * efficient device (SSD), especially under the condition that the
+ * flush exhibits the periodic feature. 
+ *
+ * Another issue is the bitmap, which has to be dumped to disk as
+ * well. 
  */
 static int dump_metadata(struct green_c *gc)
 {
