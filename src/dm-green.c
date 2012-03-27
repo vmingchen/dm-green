@@ -373,6 +373,7 @@ static int dm_io_sync_vm(unsigned num_regions, struct dm_io_region *where,
 static inline void locate_header(struct dm_io_region *where, 
         struct green_c *gc, unsigned idisk)
 {
+	/* dm_io_region coupled with dm_io_memory  */
     where->bdev = gc->disks[idisk].dev->bdev;
     where->sector = gc->disks[idisk].capacity << gc->ext_shift;
     where->count = header_size();
@@ -486,12 +487,15 @@ static int check_header(struct green_c *gc, unsigned idisk)
     struct dm_io_region where;
 
     locate_header(&where, gc, idisk);
+
+	/* simple one: vmalloc(sizeof(struct green_header_disk) */
     ehd = (struct green_header_disk*)vmalloc(where.count << SECTOR_SHIFT);
     if (!ehd) {
 		DMERR("check_header: Unable to allocate memory");
         return -ENOMEM;
     }
 
+	/* synchronous IO, check Documentation/device-mapper/dm-io.txt */
     r = dm_io_sync_vm(1, &where, READ, ehd, &bits, gc);
     if (r < 0) {
         DMERR("check_header: dm_io failed when reading metadata");
@@ -661,11 +665,18 @@ static void map_extent(struct green_c *gc, extent_t veid, extent_t eid)
  */
 static void map_bio(struct green_c *gc, struct bio *bio, extent_t eid)
 {
+	/* 
+	 * It is unclear why normal bio access is handled by promotion
+	 * worker as well. 
+	 */
+
     unsigned idisk;
     struct dm_target *ti = gc->ti;
     sector_t offset;          /* sector offset within extent */
 
+	/* BUG? should be (bio->bi_sector - ti->begin) % extent_size(gc) */
     offset = ((bio->bi_sector - ti->begin) & (extent_size(gc) - 1));
+
     extent_on_disk(gc, &eid, &idisk);
     bio->bi_bdev = gc->disks[idisk].dev->bdev;
     bio->bi_sector = ti->begin + (eid << gc->ext_shift) + offset;
@@ -1108,6 +1119,8 @@ static int green_map(struct dm_target *ti, struct bio *bio,
         union map_info *map_context)
 {
     struct green_c *gc = (struct green_c*)ti->private;
+
+	/* bio->bi_sector is based on virtual sector specified in argv */
     extent_t eid, veid = (bio->bi_sector - ti->begin) >> gc->ext_shift;
     bool run_demotion = false;
 
@@ -1117,9 +1130,12 @@ static int green_map(struct dm_target *ti, struct bio *bio,
     gc->table[veid].state |= VES_ACCESS;
     gc->table[veid].tick = jiffies_64;
     gc->table[veid].counter++;
+
+	/* if the mapping table is setup already */
     if (gc->table[veid].state & VES_PRESENT) {
         eid = gc->table[veid].eid;
         DMDEBUG("map: virtual %llu -> physical %llu", veid, eid);
+		/* if mapping table indicates access to none-cache disks */
         if (!on_cache(gc, eid)) {
             if (bio_data_dir(bio) == READ) {
                 /* Try to promote extent on read. No matter the promotion
@@ -1130,7 +1146,9 @@ static int green_map(struct dm_target *ti, struct bio *bio,
                  * otherwise wait until the promotion is done. */
             }
         } 
-    } else {
+    } 
+	/* How the mapping table is built here lacks workload knowledge */
+	else {
         BUG_ON(get_extent(gc, &eid, true) < 0);   /* out of space */
         map_extent(gc, veid, eid);
     }

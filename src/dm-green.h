@@ -165,9 +165,9 @@ struct green_c {
     uint32_t flags;
     uint32_t ext_shift;
 
-    struct mapped_disk *disks;
+    struct mapped_disk *disks;      /* mapped disks, sequential storage */
 
-    struct vextent *table;       /* mapping table */
+    struct vextent *table;          /* mapping table, sequential storage */
 
     struct extent *cache_extents;   /* physical extents on cache disk */
     struct list_head cache_free;    /* free extents on cache disk */
