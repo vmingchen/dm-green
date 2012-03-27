@@ -1,7 +1,7 @@
             Green Multi-Disk Device Mapper Target
 
-        Ming Chen, Rajesh Aavuty, Zhichao Li, Erez Zadok
-        {mchen, raavuty, zhicli, ezk}@cs.stonybrook.edu
+        	Students: Ming Chen, Rajesh Aavuty
+			Sponsors: Zhichao Li, Erez Zadok
 
 Storage subsystems in servers are slower than other subsystems despite the fact
 that they contribute to a large portion of the total energy consumption.
@@ -38,5 +38,4 @@ us to create virtual disks without exposing the details of underlying physical
 disks.  By leveraging the strengths of different disks, our virtual disk can
 better trade-off among power consumption, I/O performance, and storage
 capacity.
-
 
