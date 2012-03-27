@@ -6,8 +6,7 @@ trade-off among power consumption, IO performance and storage capacity by
 leveraging strengths of different disks.
 
 # Key idea: 
-Data grouping by caching most frequently accessed data blocks in the 
-most efficient disk (like SSD) to make the current device mapper green.  Workloads
-that previously go across multiple disks can now be satisified mostly by 
-the SSD cache, and therefore the other disks can be spin down for power 
-benefit. 
+Data grouping by caching most frequently accessed data blocks in the most
+efficient disk (like SSD) to make the current device mapper green.  Workloads
+that previously go across multiple disks can now be satisified mostly by the SSD
+cache, and therefore the other disks can be spin down for power benefit. 
