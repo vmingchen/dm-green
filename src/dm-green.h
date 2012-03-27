@@ -106,7 +106,6 @@ struct green_header {
     extent_t capacity;          /* capacity in extent */
 };
 
-
 /* Header on disk, followed by metadata of mapping table */
 struct green_header_disk {
     __le32 magic;
@@ -185,9 +184,7 @@ struct green_c {
     bool demotion_running; 
 };
 
-/*
- * Information passed between promotion function and its callback.
- */
+/* Information passed between promotion function and its callback */
 struct promote_info {
     struct green_c *gc;
     struct bio      *bio;   /* bio to submit after migration */
@@ -195,9 +192,7 @@ struct promote_info {
     extent_t        peid;   /* destinate cache extent of the promotion */
 };
 
-/*
- * Information passed between demotion function and its callback.
- */
+/* Information passed between demotion function and its callback */
 struct demote_info {
     struct green_c *gc;
     struct extent   *pext;      /* physical extent to demote */

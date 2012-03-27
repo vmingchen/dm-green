@@ -44,6 +44,7 @@ static struct green_c *alloc_context(struct dm_target *ti,
     gc->header.ext_size = ext_size;
     gc->header.capacity = (ti->len >> gc->ext_shift);
 
+	/* gc->bitmap is not initialized here */
     spin_lock_init(&gc->lock);
 
     gc->table = NULL;           /* table not allocated yet */
@@ -967,17 +968,21 @@ static int green_ctr(struct dm_target *ti, unsigned int argc, char **argv)
     ext_size = simple_strtoul(argv[0], &end, 10);
     if (*end || !is_power_of_2(ext_size) 
             || (ext_size < (PAGE_SIZE >> SECTOR_SHIFT))) {
+		/*
+		 * NOTE: the extent size does not necessarily to be less than
+		 * one page. IO should be sector based. 
+		 */
         ti->error = "Invalid extent size";
-	return -EINVAL;
+		return -EINVAL;
     }
 
-    if (ti->len & (ext_size -1)) {
+    if (ti->len % ext_size) {
         ti->error = "Target length not divisible by extent size";
         return -EINVAL;
     }
 
     ndisk = simple_strtoul(argv[1], &end, 10);
-    if (!ndisk || *end) {
+    if ((ndisk<1) || *end) {
         ti->error = "Invalid disk number";
         return -EINVAL;
     }
@@ -1065,6 +1070,7 @@ static int green_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
     return 0;
 
+/* free memory reversely */
 bad_cache:
     vfree(gc->bitmap);
     gc->bitmap = NULL;
