@@ -6,6 +6,7 @@
 	  pdflush does
 	- merge disks reliability concern into implementation 
 	- extend vs. sector tradeoff
+    - add special mechanism for disk initialization
 [DONE] 3. Documentation for software stack. 
 4. Trace analysis and preparation (online vs. offline)
 [REVISE] 5. Review on the cache design and implementation. 

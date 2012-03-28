@@ -1100,6 +1100,14 @@ static int green_ctr(struct dm_target *ti, unsigned int argc, char **argv)
         DMDEBUG("no useable metadata on disk");
 
 		/* BUG: in case of check error, no further allocation required */
+        /* 
+         * This happens when it is the first time the disk is used. However, the
+         * current manner of processing is too simple. We should add some
+         * special mechnism to do this initialization, because it might destory
+         * the old data already in the disks. 
+         *
+         * TODO: add special mechanism for disk initialization.
+         */
         r = alloc_table(gc, true);
         if (r < 0) {
             ti->error = "Fail to alloc table";
