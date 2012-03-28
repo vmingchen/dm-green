@@ -7,3 +7,7 @@
        4. Look into MAX_SECTORS limit to see if it still applies
        5. Look into 'union map_info *map_context' argument
        6. Zhichao's position talk at GRC 2012
+	   7. master branch should be clean, simple, and bug-free. Any
+	      additional functionality can add to other experimental
+	      branches and merge to the master branch when they are stable
+	      enough. 
