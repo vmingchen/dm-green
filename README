@@ -1,9 +1,4 @@
-# About
-An energy-efficient device mapper target that can redirect block reads/writes to
-different disks (SATA, SAS, SSD, PCM, SMR) and can potentially power/spin down
-disks according to workload block IO characteristics. The aim is balanced
-trade-off among power consumption, IO performance and storage capacity by
-leveraging strengths of different disks.
+# THIS IS THE EXPERIMENTAL BRANCH. 
 
 # Key idea: 
 Data grouping by caching most frequently accessed data blocks in the most
