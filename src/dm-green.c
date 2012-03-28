@@ -787,6 +787,7 @@ static bool promote_extent(struct green_c *gc, struct bio *bio)
     pinfo->veid = veid;
     pinfo->peid = peid;
 
+	/* pinfo is the context passed to the callback routin */
     dm_kcopyd_copy(gc->kcp_client, &src, 1, &dst, 0, 
             (dm_kcopyd_notify_fn)promote_callback, pinfo);
 
@@ -847,6 +848,18 @@ static void demote_callback(int read_err, unsigned long write_err,
 
 /*
  * Return a least-recently-used extent on cache disk, NULL if not exist.
+ *
+ * NOTE: This is in fact a WSClock cache replacement algorithm, not an 
+ * exact LRU algorithm. 
+ *
+ * One example LRU algorithm can be using counter for each cached
+ * chunk(extent), everytime one chunk is accessed, the counter for the
+ * accessed chunk is set to 0, all the other counters are increased by
+ * 1. The process keeps running until the cache is full, when the
+ * chunk with the largest counter will be replaced. 
+ * 
+ * Time complexity: O(n) (more complex than WSClock algorithm)
+ * Space complexity: O(n) (half the space of WSClock algorithm)
  */
 static struct extent *lru_extent(struct green_c *gc)
 {
@@ -876,7 +889,7 @@ static struct extent *lru_extent(struct green_c *gc)
 }
 
 /*
- * Demote extents using WSClock-LRU algorithm.
+ * Demote extents using WSClock algorithm.
  */
 static void demote_extent(struct green_c *gc)
 {
@@ -1109,6 +1122,7 @@ static int green_ctr(struct dm_target *ti, unsigned int argc, char **argv)
     }
 
     clear_table(gc);
+	/* map kernel thread id to thread work function */
     INIT_WORK(&gc->demotion_work, demotion_work);
     gc->demotion_running = false;
 
@@ -1202,6 +1216,7 @@ static int green_map(struct dm_target *ti, struct bio *bio,
 	 */
 
     if (run_demotion) {              /* schedule extent demotion */
+		/* remember to flush_work */
         queue_work(kgreend_wq, &gc->demotion_work);
     }
 
@@ -1247,6 +1262,7 @@ static int __init green_init(void)
 {
     int r = 0;
 
+	/* work queue scheduling kernel threads */
     kgreend_wq = create_workqueue(GREEN_DAEMON);
     if (!kgreend_wq) {
         DMERR("Couldn't start " GREEN_DAEMON);
