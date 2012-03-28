@@ -831,7 +831,7 @@ static void demote_callback(int read_err, unsigned long write_err,
     } 
     else {
         DMDEBUG("demote_callback: extent %u is remapped to extent %llu", 
-                (ext->vext - gc->table), deid);
+                (unsigned int)(ext->vext - gc->table), deid);
         ext->vext->state ^= VES_MIGRATE;
         ext->vext->eid = deid;
         put_extent(gc, seid);
@@ -1172,7 +1172,7 @@ static int green_map(struct dm_target *ti, struct bio *bio,
     bool run_demotion = false;
 
     DMDEBUG("%lu: map(sector %llu -> extent %llu)", jiffies, 
-            (bio->bi_sector - ti->begin), veid);
+            (long long unsigned int)(bio->bi_sector - ti->begin), veid);
     spin_lock(&gc->lock);
     gc->table[veid].state |= VES_ACCESS;
     gc->table[veid].tick = jiffies_64;
