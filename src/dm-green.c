@@ -452,7 +452,7 @@ static int sync_table(struct green_c *gc, struct vextent_disk *extents,
 /*
  * Dump metadata to all disks.
  *
- * NOTE: For performance boost, all metadata should be dumped to most
+ * TODO: For performance boost, all metadata should be dumped to most
  * efficient device (SSD), especially under the condition that the
  * flush exhibits the periodic feature. 
  *
@@ -1099,12 +1099,12 @@ static int green_ctr(struct dm_target *ti, unsigned int argc, char **argv)
     if (r < 0) {
         DMDEBUG("no useable metadata on disk");
 
-		/* BUG: in case of check error, no further allocation required */
         /* 
          * This happens when it is the first time the disk is used. However, the
          * current manner of processing is too simple. We should add some
          * special mechnism to do this initialization, because it might destory
-         * the old data already in the disks. 
+         * the old data already in the disks.  Pre data migration for
+		 * old data? Snapshot? etc? 
          *
          * TODO: add special mechanism for disk initialization.
          */
@@ -1241,13 +1241,13 @@ static int green_map(struct dm_target *ti, struct bio *bio,
     map_bio(gc, bio, eid);
 
 	/* 
-	 * demotion/promotion makes simple IO access complex, and makes
-	 * the debug process complex as well. It also increase system
-	 * overhead, especially in our case, the workload is in block
-	 * level, and is IO intensive. 
+	 * demotion/promotion before cache is full makes simple IO access 
+	 * complex, and makes the debug process complex as well. It also 
+	 * increase system overhead, especially in our case, the workload 
+	 * is in block level, and is IO intensive. 
 	 * 
-	 * Disable demotion/promotion in the first place. Start with easy
-	 * things first and add complexity gradually. 
+	 * TODO: demotion/promotion only when cache is full in the first 
+	 * place. Start with easy things first and add complexity gradually. 
 	 */
 
     if (run_demotion) {              /* schedule extent demotion */
