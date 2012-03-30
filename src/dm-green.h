@@ -36,7 +36,7 @@
 #define DM_MSG_PREFIX "green"
 
 /* Define this macro if compile before Linux 3.0 */
-#define OLD_KERNEL
+#undef OLD_KERNEL
 
 #ifdef OLD_KERNEL
 #ifdef CONFIG_64BIT

@@ -737,8 +737,8 @@ static void promote_callback(int read_err, unsigned long write_err,
         spin_unlock(&(gc->lock));
     } else { 
         /* update new mapping */
-        DMDEBUG("promote: extent %llu is remapped to extent %llu", 
-                pinfo->veid, pinfo->peid);
+        DMDEBUG("promote: extent %llu is remapped from %llu to %llu", 
+                pinfo->veid, gc->table[pinfo->veid].eid, pinfo->peid);
         spin_lock(&(gc->lock));
         put_extent(gc, gc->table[pinfo->veid].eid); /* release old extent */
         eid = gc->table[pinfo->veid].eid = pinfo->peid; /* the new extent */
