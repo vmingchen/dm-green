@@ -89,8 +89,11 @@
  */
 #define MAX_SECTORS ((BIO_MAX_PAGES - 2) * (PAGE_SIZE >> SECTOR_SHIFT))
 
-/* When free extents are less than EXT_MIN_THRESHOLD, demotion is triggered */
-#define EXT_MIN_THRESHOLD 4
+/* 
+ * When free extents are less than EXT_MIN_THRESHOLD, demotion is
+ * triggered. Initialized to 1 for a simple cache replacement algo
+ */
+#define EXT_MIN_THRESHOLD 1
 
 /* The total number of free extents on the cache disk after demotion */
 #define EXT_MAX_THRESHOLD 8

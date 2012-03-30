@@ -636,25 +636,6 @@ static int build_bitmap(struct green_c *gc, bool zero)
             }
         }
         BUG_ON(i != vdisk_size(gc));
-        /*
-        j = 0;
-        k = gc->disks[j].capacity;
-        gc->disks[j].free_nr = k;
-        for (i = 0; i < vdisk_size(gc); ++i) {
-            if (k == 0) { 
-                DMDEBUG("free extent on disk %lu: %llu", 
-                        j, gc->disks[j].free_nr);
-                k = gc->disks[++j].capacity;
-                gc->disks[j].free_nr = k;
-            }
-            if (gc->table[i].state & VES_PRESENT) {
-                bitmap_set(gc->bitmap, i, 1);
-                gc->disks[j].free_nr--;
-                DMDEBUG("extent %d is present", i);
-            }
-            --k;
-        }
-        */
     }
 
     for (j = 0; j < fdisk_nr(gc); ++j) {
@@ -1100,14 +1081,20 @@ static int green_ctr(struct dm_target *ti, unsigned int argc, char **argv)
         DMDEBUG("no useable metadata on disk");
 
         /* 
-         * This happens when it is the first time the disk is used. However, the
-         * current manner of processing is too simple. We should add some
-         * special mechnism to do this initialization, because it might destory
-         * the old data already in the disks.  Pre data migration for
-		 * old data? Snapshot? etc? 
-         *
-         * TODO: add special mechanism for disk initialization.
+         * This happens when it is the first time the disk is used. 
+		 * However, the current manner of processing is too simple. 
+		 *
+		 * We should add some special mechnism to do this initialization, 
+		 * because it might destory the old data already in the disks.     
+		 *
+		 * If we are assuming that when creating the virtual device, 
+		 * the multi disks are ready to be formatted, we just need 
+		 * to write the metadata as we like. 
+		 *
+		 * If not, we just need to first migrate the metadata from the
+		 * multi-disk to other persistent storage for snapshot purpose. 
          */
+
         r = alloc_table(gc, true);
         if (r < 0) {
             ti->error = "Fail to alloc table";
