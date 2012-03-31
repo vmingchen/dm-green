@@ -81,7 +81,7 @@ static struct green_c *alloc_context(struct dm_target *ti,
     gc->io_client = NULL;
     gc->kcp_client = NULL;
     gc->cache_extents = NULL;
-    gc->demotion_cursor = NULL;
+    gc->demotion_cursor = 0;
 
     return gc;
 }
@@ -722,7 +722,7 @@ static void promote_callback(int read_err, unsigned long write_err,
 {
     struct promote_info *pinfo = (struct promote_info *)context;
     struct green_c *gc = pinfo->gc;
-    extent_t eid;
+    struct vextent *vext = gc->table + pinfo->veid;
 
     if (read_err || write_err) {
 		if (read_err)
@@ -732,21 +732,23 @@ static void promote_callback(int read_err, unsigned long write_err,
         /* undo promote */
         spin_lock(&(gc->lock));
         put_cache(gc, pinfo->peid);
-        eid = gc->table[pinfo->veid].eid;          /* the old physical extent */
-        gc->table[pinfo->veid].state ^= VES_PROMOTE;
+        vext->state &= ~VES_PROMOTE;
         spin_unlock(&(gc->lock));
     } else { 
         /* update new mapping */
-        DMDEBUG("promote: extent %llu is remapped from %llu to %llu", 
-                pinfo->veid, gc->table[pinfo->veid].eid, pinfo->peid);
+        BUG_ON(on_cache(gc, vext->eid) || !on_cache(gc, pinfo->peid));
+        DMDEBUG("promote_callback: extent %llu is remapped from %llu to %llu", 
+                pinfo->veid, vext->eid, pinfo->peid);
         spin_lock(&(gc->lock));
-        put_extent(gc, gc->table[pinfo->veid].eid); /* release old extent */
-        eid = gc->table[pinfo->veid].eid = pinfo->peid; /* the new extent */
-        gc->table[pinfo->veid].state ^= VES_PROMOTE;
+        put_extent(gc, vext->eid);      /* release old extent */
+        gc->cache_extents[pinfo->peid].vext = vext;
+        vext->eid = pinfo->peid;        /* the new extent */
+        vext->state &= ~VES_PROMOTE;
+
         spin_unlock(&(gc->lock));
     }
     /* resubmit bio */
-    map_bio(gc, pinfo->bio, eid);
+    map_bio(gc, pinfo->bio, vext->eid);
     generic_make_request(pinfo->bio);
 
     kfree(pinfo);
@@ -827,8 +829,6 @@ static void demote_callback(int read_err, unsigned long write_err,
     DMDEBUG("demote_callback: ext %llu -> %llu, next (%llu), prev (%llu)",
             seid, deid, ext2id(gc, next), ext2id(gc, prev));
 
-    spin_lock(&gc->lock);
-    ext->vext->state ^= VES_MIGRATE;
     if (read_err || write_err || (ext->vext->state & VES_ACCESS)) {
         /* undo demotion in case of error or extent is accessed */
 		if (read_err)
@@ -837,18 +837,23 @@ static void demote_callback(int read_err, unsigned long write_err,
 			DMERR("demote_callback: Write error.");
         else
             DMDEBUG("demote_callback: cancel demotion because of access");
+        spin_lock(&gc->lock);
+        ext->vext->state &= ~VES_MIGRATE;
         put_extent(gc, deid);
+        gc->demotion_running = false;
+        spin_unlock(&gc->lock);
     } 
     else {
         DMDEBUG("demote_callback: extent %u is remapped to extent %llu", 
                 (unsigned int)(ext->vext - gc->table), deid);
-        ext->vext->state ^= VES_MIGRATE;
-        ext->vext->eid = deid;
+        spin_lock(&gc->lock);
+        ext->vext->state &= ~VES_MIGRATE;
         put_extent(gc, seid);
+        ext->vext->eid = deid;
         run_low = (cache_free_nr(gc) < EXT_MAX_THRESHOLD);
+        gc->demotion_running = false;
+        spin_unlock(&gc->lock);
     }
-    gc->demotion_running = false;
-    spin_unlock(&gc->lock);
     kfree(dinfo);
 
     /* schedule more demotion */
@@ -873,29 +878,31 @@ static void demote_callback(int read_err, unsigned long write_err,
  */
 static struct extent *lru_extent(struct green_c *gc)
 {
-    struct extent *ext, *next;
+    struct extent *ext;
+    extent_t i;
 
-    if (gc->demotion_cursor == NULL) { 
-        if (list_empty(&gc->cache_use)) { 
-            DMDEBUG("lru_extent: Empty list");
-            return NULL;
+    i = gc->demotion_cursor;    /* start from last position */
+    do {
+        /* advance cursor, wrap if the end is reached */
+        if (++i == gc->disks[CACHE_DISK].capacity) 
+            i = 0;
+        DMDEBUG("lru_extent: cursor at %llu", i);
+
+        ext = gc->cache_extents + i;
+        if (ext->vext == NULL) 
+            continue;       /* skip free extent */
+
+        if (ext->vext->state & (VES_ACCESS | VES_MIGRATE)) {
+            DMDEBUG("lru_extent: Extent %llu accessed", ext2id(gc, ext));
+            ext->vext->state &= ~VES_ACCESS;        /* clear access bit */
+        } else {
+            gc->demotion_cursor = i;
+            return ext;
         }
-        gc->demotion_cursor = list_first_entry(&gc->cache_use, 
-                struct extent, list);
-    }
-    ext = gc->demotion_cursor;
-    while (ext->vext->state & (VES_ACCESS | VES_MIGRATE)) { 
-        DMDEBUG("lru_extent: Extent %llu accessed", ext2id(gc, ext));
-        ext->vext->state ^= VES_ACCESS;     /* clear access bit */
-        ext = next_extent(&gc->cache_use, ext);
-        if (ext == gc->demotion_cursor) {   /* end of iteration */ 
-            DMDEBUG("lru_extent: No demotion candidate");
-            return NULL;
-        }
-    }
-    next = next_extent(&gc->cache_use, ext);    /* advance lru cursor */
-    gc->demotion_cursor = (next == ext) ? NULL : next;
-    return ext;
+    } while (i != gc->demotion_cursor);
+
+    DMDEBUG("lru_extent: No demotion candidate");
+    return NULL;
 }
 
 /*

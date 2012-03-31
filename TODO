@@ -21,6 +21,7 @@
 	- reliability optimization with reliability aware policy
 	- extent overhead optimization
 	- explore workloads with different IO patterns 
+    - finer-grain locks
 8. Paper submission. 
 	- By May 10, write a report summarizing what has been
 	  done so far 

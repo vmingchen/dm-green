@@ -30,13 +30,16 @@
 #include <linux/bitmap.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
+#include <linux/version.h>
 
 #include <linux/device-mapper.h>
 
 #define DM_MSG_PREFIX "green"
 
-/* Define this macro if compile before Linux 3.0 */
-#undef OLD_KERNEL
+/* Define OLD_KERNEL on kernel before Linux 2.6.26 */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,26)
+#define OLD_KERNEL
+#endif
 
 #ifdef OLD_KERNEL
 #ifdef CONFIG_64BIT
@@ -48,7 +51,7 @@
 
 /* Magic for persistent green header */
 #define GREEN_MAGIC 0x45614567
-#define GREEN_VERSION 54
+#define GREEN_VERSION 59
 #define GREEN_DAEMON "kgreend"
 
 /* The first disk is cache disk. */
@@ -90,10 +93,10 @@
 #define MAX_SECTORS ((BIO_MAX_PAGES - 2) * (PAGE_SIZE >> SECTOR_SHIFT))
 
 /* When free extents are less than EXT_MIN_THRESHOLD, demotion is triggered */
-#define EXT_MIN_THRESHOLD 4
+#define EXT_MIN_THRESHOLD 16
 
 /* The total number of free extents on the cache disk after demotion */
-#define EXT_MAX_THRESHOLD 8
+#define EXT_MAX_THRESHOLD 64
 
 /* 
  * Borrowed from dm_array_too_big, defined in device-mapper.h 
@@ -170,7 +173,7 @@ struct green_c {
 
     struct vextent *table;          /* mapping table, sequential storage */
 
-    struct extent *cache_extents;   /* physical extents on cache disk, sequential storage */
+    struct extent *cache_extents;   /* physical extents on cache disk */
     struct list_head cache_free;    /* free extents on cache disk */
     struct list_head cache_use;     /* in-use extents on cache disk */
 
@@ -180,8 +183,8 @@ struct green_c {
     struct dm_io_client *io_client;
     struct dm_kcopyd_client *kcp_client; /* data copy in device mapper */
 
-    struct work_struct demotion_work;    /* work of evicting cache extent */
-    struct extent *demotion_cursor;
+    struct work_struct demotion_work;   /* work of evicting cache extent */
+    extent_t demotion_cursor;           /* WSClock algorithm cursor */
     bool demotion_running; 
 };
 
