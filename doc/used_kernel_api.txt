@@ -45,6 +45,9 @@ create/destroy a workqueue:
     struct workqueue_struct *create_workqueue(const char *name);
     void destroy_workqueue(struct workqueue_struct *wq);
 
+map kernel thread id to thread work function: 
+	INIT_WORK(struct work_struct *work, (void)(* work.fn)(struct work_struct *w)); 
+
 submit work to workqueue:
 
     int queue_work(struct workqueue_struct *wq, struct work_struct *work);
@@ -52,6 +55,9 @@ submit work to workqueue:
 flush workqueue:
 
     void flush_workqueue(struct workqueue_struct *wq);
+
+flush work: 
+	void flush_work(struct work_struct *work); 
 
 # list (list.h)
 
