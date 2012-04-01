@@ -79,7 +79,7 @@
 #endif
 #define bitmap_size(sz) dm_div_up(sz, BYTE_SIZE * sizeof(unsigned long)) * sizeof(unsigned long)
 
-#define extent_size(gc) (gc->header.ext_size)
+#define extent_size(gc) (gc->header.ext_size)	/* how many sectors each extent has */
 #define vdisk_size(gc) (gc->header.capacity)
 #define cache_size(gc) (gc->disks[CACHE_DISK].capacity)
 #define cache_free_nr(gc) (gc->disks[CACHE_DISK].free_nr)
@@ -136,14 +136,15 @@ struct green_header_disk {
 } __packed; /* packed for block device IO */
 
 /* Virtual extent states */
-#define VES_PRESENT 0x01 		/* put in cache bit */
-#define VES_ACCESS  0x02		/* dirty bit */
+#define VES_PRESENT 0x01 		/* map present bit */
+#define VES_ACCESS  0x02		/* access bit */
 #define VES_MIGRATE 0x04		/* replace bit */
 #define VES_PROMOTE 0x08		/* pre-fetch bit */
 
 /* Virtual extent in memory */
 struct vextent {
     extent_t eid;               /* physical extent id */
+	/* TODO: move folowing fields to struct extent */
     uint32_t state;             /* extent states and flags */
     uint32_t counter;           /* how many times are accessed */
     uint64_t tick;              /* timestamp of latest access */
@@ -182,7 +183,7 @@ struct green_c {
 
     struct vextent *table;          /* mapping table, sequential storage */
 
-    struct extent *cache_extents;   /* physical extents on cache disk, sequential storage */
+    struct extent *cache_extents;   /* physical extents management on cache disk, sequential storage */
     struct list_head cache_free;    /* free extents on cache disk */
     struct list_head cache_use;     /* in-use extents on cache disk */
 
@@ -197,7 +198,8 @@ struct green_c {
     bool demotion_running; 
 };
 
-/* TODO: 
+/* 
+ * TODO: 
  * The term for cache replacement is called eviction, not
  * demotion. For now, just keep it this way. But, I'd like to add a
  * todo to remind myself later. 

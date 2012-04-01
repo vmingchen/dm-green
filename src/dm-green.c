@@ -19,34 +19,39 @@
 
 static struct workqueue_struct *kgreend_wq;
 
-/*
- * Set a single bit of bitmap.
- */
+/* Set a single bit of bitmap */
 static inline void green_bm_set(unsigned long *bitmap, int pos) 
 {
 #ifdef OLD_KERNEL
     unsigned long *p;
 
     p = bitmap + pos / BITS_PER_LONG;
-    *p |= (unsigned long)(1 << (pos % BITS_PER_LONG));
+    *p |= (unsigned long)(1 << (BITS_PER_LONG - 1 - (pos % BITS_PER_LONG)));
 #else
     bitmap_set(bitmap, pos, 1);
 #endif
 }
 
-/*
- * Clear a single bit of bitmap.
- */
+/* Clear a single bit of bitmap */
 static inline void green_bm_clear(unsigned long *bitmap, int pos)
 {
 #ifdef OLD_KERNEL
     unsigned long *p;
 
     p = bitmap + pos / BITS_PER_LONG;
-    *p &= (unsigned long)(~(1 << (pos % BITS_PER_LONG)));
+    *p &= (unsigned long)(~(1 << (BITS_PER_LONG - 1 - (pos % BITS_PER_LONG))));
 #else
     bitmap_clear(bitmap, pos, 1);
 #endif
+}
+
+/* Check a single bit of bitmap: set or not */
+static inline unsigned long green_bm_check(unsigned long *bitmap, int pos)
+{
+    unsigned long *p;
+
+    p = bitmap + pos / BITS_PER_LONG;
+    return *p & (unsigned long)(1 << (BITS_PER_LONG - 1 - (pos % BITS_PER_LONG)));
 }
 
 static struct green_c *alloc_context(struct dm_target *ti, 
@@ -144,9 +149,7 @@ static inline void extent_from_disk(struct vextent *core,
     core->counter = le32_to_cpu(disk->counter);
 }
 
-/*
- * Get a mapped disk and check if it is sufficiently large.
- */
+/* Get a mapped disk and check if it is sufficiently large */
 static int get_mdisk(struct dm_target *ti, struct green_c *gc, 
         unsigned idisk, char **argv)
 {
@@ -168,17 +171,25 @@ static int get_mdisk(struct dm_target *ti, struct green_c *gc,
 #endif
         return -ENXIO;
 
-    /* device capacity should be large enough for extents and metadata */
-    dev_size = gc->disks[idisk].dev->bdev->bd_inode->i_size >> SECTOR_SHIFT;
-    if (dev_size < len + header_size() + table_size(gc)) 
-        return -ENOSPC;
+	/* device capacity should be large enough for extents and metadata */
+	if(idisk == CACHE_DISK) {
+		/* bd_inode (inode of bdev) field will die. It relies on kernel version. */
+		dev_size = gc->disks[idisk].dev->bdev->bd_inode->i_size >> SECTOR_SHIFT;
+		if (dev_size < len + header_size() + table_size(gc) + bitmap_size(vdisk_size(gc))) 
+			return -ENOSPC;
+	}
+	else {
+		/* bd_inode (inode of bdev) field will die. It relies on kernel version. */
+		dev_size = gc->disks[idisk].dev->bdev->bd_inode->i_size >> SECTOR_SHIFT;
+		if (dev_size < len)
+			return -ENOSPC;
+
+	}
 
     return 0;
 }
 
-/*
- * Put disk devices.
- */
+/* Put disk devices */
 static void put_disks(struct green_c *gc, int ndisk)
 {
     int i;
@@ -188,9 +199,7 @@ static void put_disks(struct green_c *gc, int ndisk)
     }
 }
 
-/*
- * Get all disk devices and check if disk size matches.
- */
+/* Get all disk devices and check if disk size matches */
 static int get_disks(struct green_c *gc, char **argv)
 {
     int r = 0;
@@ -216,25 +225,22 @@ static int get_disks(struct green_c *gc, char **argv)
     return r;
 }
 
-/*
- * Check if physical extent 'ext' is on cache disk.
- */
+/* Check if physical extent 'ext' is on cache disk */
 static inline bool on_cache(struct green_c *gc, extent_t eid)
 {
     return eid < cache_size(gc);
 }
 
-/*
- * Return physical extent id from extent pointer.
- */
+/* Return physical extent id from extent pointer */
 static inline extent_t ext2id(struct green_c *gc, struct extent *ext)
 {
 	/* array offset */
     return (ext - gc->cache_extents);
 }
 
-/*
- * Return virtual extent id from vextent pointer.
+/* 
+ * Return virtual extent id from vextent pointer, vext is got from
+ * gc->cache_extents[xx].vext
  */
 static inline extent_t vext2id(struct green_c *gc, struct vextent *vext)
 {
@@ -243,7 +249,8 @@ static inline extent_t vext2id(struct green_c *gc, struct vextent *vext)
 
 /*
  * Return physical disk id and offset of physical extent. Note, parameters
- * passed in as pointers will be changed in this function.
+ * passed in as pointers will be changed in this function. Otherwise,
+ * it will cause sectors mismatch. 
  *
  * 'eid': [IN/OUT] extent id before/after the virtual to physical translation.
  * 'idisk': [OUT] physical disk id.
@@ -270,9 +277,7 @@ static inline struct extent *next_extent(struct list_head *head,
         : list_first_entry(head, struct extent, list);
 }
 
-/*
- * Return the previous extent in a *non-empty* list.
- */
+/* Return the previous extent in a *non-empty* list */
 static inline struct extent *prev_extent(struct list_head *head,
         struct extent *ext)
 {
@@ -281,10 +286,8 @@ static inline struct extent *prev_extent(struct list_head *head,
         : list_entry(head->prev, struct extent, list);
 }
 
-/*
- * Get a cache extent.
- */
-static inline int get_cache(struct green_c *gc, extent_t *eid)
+/* Get a cache extent */
+static inline int get_from_cache(struct green_c *gc, extent_t *eid)
 {
     struct extent *first;
 
@@ -300,15 +303,13 @@ static inline int get_cache(struct green_c *gc, extent_t *eid)
 
     green_bm_set(gc->bitmap, *eid);
 
-    DMDEBUG("get_cache: get %llu (%llu extents left)", 
+    DMDEBUG("get_from_cache: get %llu (%llu extents left)", 
             *eid, gc->disks[CACHE_DISK].free_nr);
 
     return 0;
 }
 
-/*
- * Put a cache extent.
- */
+/* Free a cache extent */
 static inline void put_cache(struct green_c *gc, extent_t eid)
 {
     struct extent *ext;
@@ -325,14 +326,13 @@ static inline void put_cache(struct green_c *gc, extent_t eid)
     DMDEBUG("put_cache: %llu cache extents left", gc->disks[CACHE_DISK].free_nr);
 }
 
-/*
- * Get a physical extent. 
- */
+/* Get a physical extent */
 static int get_extent(struct green_c *gc, extent_t *eid, bool cache)
 {
     unsigned i;
 
-    if (cache && get_cache(gc, eid) == 0) 
+	/* Look for free spot from Cache first */
+    if (cache && get_from_cache(gc, eid) == 0) 
         return 0;
 
     for (i = CACHE_DISK+1; i < fdisk_nr(gc); ++i) {
@@ -349,9 +349,7 @@ static int get_extent(struct green_c *gc, extent_t *eid, bool cache)
     return -ENOSPC;
 }
 
-/*
- * Put a physcial extent.
- */
+/* Free a physcial extent */
 static void put_extent(struct green_c *gc, extent_t eid)
 {
     unsigned i;
@@ -360,7 +358,8 @@ static void put_extent(struct green_c *gc, extent_t eid)
     for (i = 0; eid >= gc->disks[i].capacity + gc->disks[i].offset; ++i)
         ;
 
-    if (i == CACHE_DISK) {   /* cache disk */
+	/* if free extent from Cache */
+    if (i == CACHE_DISK) {   
         put_cache(gc, eid);
     } else { 
         gc->disks[i].free_nr++;
@@ -368,8 +367,10 @@ static void put_extent(struct green_c *gc, extent_t eid)
     }
 }
 
-/*
- * Wrapper function for new dm_io API.
+/* 
+ * Wrapper function for new dm_io API 
+ *
+ * NOTE: It makes a difference between sync and async IO. 
  */
 static int dm_io_sync_vm(unsigned num_regions, struct dm_io_region *where,
         int rw, void *data, unsigned long *error_bits, struct green_c *gc)
@@ -379,6 +380,8 @@ static int dm_io_sync_vm(unsigned num_regions, struct dm_io_region *where,
     iorq.bi_rw= rw;
     iorq.mem.type = DM_IO_VMA;
     iorq.mem.ptr.vma = data;
+
+	/* set notify.fn to be async IO. NULL means sync IO */
     iorq.notify.fn = NULL;
     iorq.client = gc->io_client;
 
@@ -668,6 +671,8 @@ bad_extents:
 static int load_bitmap(struct green_c *gc)
 {
     int r;
+	extent_t i; 
+	unsigned j,k; 
 	unsigned long *bitmap; 
 
 	r = alloc_bitmap(gc, false); 
@@ -688,6 +693,19 @@ static int load_bitmap(struct green_c *gc)
 
 	memcpy(gc->bitmap, bitmap, bitmap_size(vdisk_size(gc))); 
 
+	i = 0;
+	for (j = 0; j < fdisk_nr(gc); ++j) {
+		gc->disks[j].free_nr = gc->disks[j].capacity;
+		for (k = 0; k < gc->disks[j].capacity; ++k) {
+			if (green_bm_check(gc->bitmap, i)) {
+				gc->disks[j].free_nr--;
+				DMDEBUG("extent %llu is set in bitmap", i);
+			}
+			++i;
+		}
+	}
+	BUG_ON(i != vdisk_size(gc));
+
     vfree(bitmap);
     return 0;
 
@@ -701,8 +719,7 @@ bad_bitmap:
 
 static int build_bitmap(struct green_c *gc, bool zero)
 {
-    extent_t i; 
-    unsigned j, k, size = bitmap_size(vdisk_size(gc));
+    unsigned j, size = bitmap_size(vdisk_size(gc));
     
     gc->bitmap = (unsigned long *)vmalloc(size);
     if (!gc->bitmap) {
@@ -716,9 +733,10 @@ static int build_bitmap(struct green_c *gc, bool zero)
             gc->disks[j].free_nr = gc->disks[j].capacity;
     } 
 	/* 
-	 * build_bitmap should be very easy, not sure why necessary for
-	 * the below code.
+	 * The following else {} code is not called in current design. 
+	 * Instead, load_bitmap takes care of them. 
 	 */
+#if 0
 	else {
         i = 0;
         for (j = 0; j < fdisk_nr(gc); ++j) {
@@ -734,6 +752,7 @@ static int build_bitmap(struct green_c *gc, bool zero)
         }
         BUG_ON(i != vdisk_size(gc));
     }
+#endif
 
     for (j = 0; j < fdisk_nr(gc); ++j) {
         DMDEBUG("free extent on disk %d: %llu", j, gc->disks[j].free_nr);
@@ -750,39 +769,35 @@ static void clear_table(struct green_c *gc)
         gc->table[i].state &= ~VES_ACCESS;
 }
 
-/*
- * Map virtual extent 'veid' to physcial extent 'eid'.
- */
+/* Map virtual extent 'veid' to physcial extent 'eid' */
 static void map_extent(struct green_c *gc, extent_t veid, extent_t eid)
 {
     gc->table[veid].eid = eid;
     gc->table[veid].state |= VES_PRESENT;
+
+	/* If the physical extent is mapped to Cache */
     if (on_cache(gc, eid)) {
-		/* lack workload knowledge */
+		/* map from Cache extent to virtual extent */
         gc->cache_extents[eid].vext = gc->table + veid;
     }
 }
 
-/*
- * Map bio's request onto physcial extent eid.
- */
-static void map_bio(struct green_c *gc, struct bio *bio, extent_t eid)
+/* Update bio's request onto physcial extent eid */
+static void update_bio(struct green_c *gc, struct bio *bio, extent_t eid)
 {
-	/* 
-	 * It is unclear why normal bio access is handled by promotion
-	 * worker as well. 
-	 */
-
     unsigned idisk;
     struct dm_target *ti = gc->ti;
     sector_t offset;          /* sector offset within extent */
 
-	/* BUG? should be (bio->bi_sector - ti->begin) % extent_size(gc) */
+#if 0
     offset = ((bio->bi_sector - ti->begin) & (extent_size(gc) - 1));
+#endif
+    offset = (bio->bi_sector - ti->begin) % extent_size(gc);
 
     extent_on_disk(gc, &eid, &idisk);
     bio->bi_bdev = gc->disks[idisk].dev->bdev;
     bio->bi_sector = ti->begin + (eid << gc->ext_shift) + offset;
+
     /* Limit IO within an extent as it is fine to get less than wanted. */
     bio->bi_size = min(bio->bi_size, 
             (unsigned int)to_bytes(extent_size(gc) - offset));
@@ -814,7 +829,7 @@ static void promote_callback(int read_err, unsigned long write_err,
         gc->table[pinfo->veid].state ^= VES_PROMOTE;
         spin_unlock(&(gc->lock));
     } else { 
-        /* update new mapping */
+        /* update mapping table */
         DMDEBUG("promote: extent %llu is remapped to extent %llu", 
                 pinfo->veid, pinfo->peid);
         spin_lock(&(gc->lock));
@@ -824,7 +839,7 @@ static void promote_callback(int read_err, unsigned long write_err,
         spin_unlock(&(gc->lock));
     }
     /* resubmit bio */
-    map_bio(gc, pinfo->bio, eid);
+    update_bio(gc, pinfo->bio, eid);
     generic_make_request(pinfo->bio);
 
     kfree(pinfo);
@@ -835,9 +850,8 @@ static void promote_callback(int read_err, unsigned long write_err,
  * might schedule delayed operation and callback. Upon any failure, it
  * simply gives up. 
  *
- * FIXME: promote_extent is called when holding the spin lock.
  */
-static bool promote_extent(struct green_c *gc, struct bio *bio)
+static void promote_extent(struct green_c *gc, struct bio *bio)
 {
     struct dm_io_region src, dst;
     extent_t veid, peid, eid;
@@ -845,9 +859,10 @@ static bool promote_extent(struct green_c *gc, struct bio *bio)
     struct promote_info *pinfo;
 
     DMDEBUG("promote_extent: promoting");
-    if (get_cache(gc, &peid) < 0) { 
+    if (get_from_cache(gc, &peid) < 0) { 
+		/* FIXME: if cache is full, do cache replacement */
         DMDEBUG("promote_extent: no extent on cache disk");
-        return false;        /* no free cache extent */
+        return;        /* no free cache extent */
     }
 
     /* use GFP_ATOMIC because it is holding a spinlock */
@@ -855,9 +870,10 @@ static bool promote_extent(struct green_c *gc, struct bio *bio)
             sizeof(struct promote_info), GFP_ATOMIC);
     if (!pinfo) {
         DMERR("promote_extent: Could not allocate memory");
-        return false;        /* out of memory */
+        return;        /* out of memory */
     }
 
+	/* build source place */
     veid = ((bio->bi_sector) >> gc->ext_shift);
     gc->table[veid].state |= VES_PROMOTE;
     eid = gc->table[veid].eid;
@@ -866,10 +882,12 @@ static bool promote_extent(struct green_c *gc, struct bio *bio)
     src.sector = eid << gc->ext_shift;
     src.count = extent_size(gc);
 
+	/* build cache place */
     dst.bdev = gc->disks[CACHE_DISK].dev->bdev;
     dst.sector = peid << gc->ext_shift;
     dst.count = extent_size(gc);
 
+	/* build context */
     pinfo->gc = gc;
     pinfo->bio = bio;
     pinfo->veid = veid;
@@ -879,7 +897,7 @@ static bool promote_extent(struct green_c *gc, struct bio *bio)
     dm_kcopyd_copy(gc->kcp_client, &src, 1, &dst, 0, 
             (dm_kcopyd_notify_fn)promote_callback, pinfo);
 
-    return true;
+    return;
 }
 
 /*
@@ -920,7 +938,8 @@ static void demote_callback(int read_err, unsigned long write_err,
     else {
         DMDEBUG("demote_callback: extent %u is remapped to extent %llu", 
                 (unsigned int)(ext->vext - gc->table), deid);
-        ext->vext->state ^= VES_MIGRATE;
+        ext->vext->state ^= VES_MIGRATE;  /* TODO: not clear why a second "bit clearing" */
+		/* update mapping table for dest physical extent */
         ext->vext->eid = deid;
         put_extent(gc, seid);
         run_low = (cache_free_nr(gc) < EXT_MAX_THRESHOLD);
@@ -935,7 +954,7 @@ static void demote_callback(int read_err, unsigned long write_err,
 }
 
 /*
- * Return a least-recently-used extent on cache disk, NULL if not exist.
+ * Return a least-recently-used physical extent on cache disk, NULL if not exist.
  *
  * NOTE: This is in fact a WSClock cache replacement algorithm, not an 
  * exact LRU algorithm. 
@@ -972,13 +991,11 @@ static struct extent *lru_extent(struct green_c *gc)
         }
     }
     next = next_extent(&gc->cache_use, ext);    /* advance lru cursor */
-    gc->demotion_cursor = (next == ext) ? NULL : next;
+    gc->demotion_cursor = ((next == ext) ? NULL : next);
     return ext;
 }
 
-/*
- * Demote extents using WSClock algorithm.
- */
+/* Demote extents using WSClock algorithm */
 static void demote_extent(struct green_c *gc)
 {
     struct dm_io_region src, dst;
@@ -1046,9 +1063,7 @@ static void demotion_work(struct work_struct *work)
     demote_extent(gc);
 }
 
-/*
- * Build LRU list and free list of extents on cache disk.
- */
+/* Build free and used lists of extents on cache disk */
 static int build_cache(struct green_c *gc)
 {
     size_t size; 
@@ -1073,10 +1088,7 @@ static int build_cache(struct green_c *gc)
     for (veid = 0; veid < vdisk_size(gc); ++veid) {
         if (!(gc->table[veid].state & VES_PRESENT))
             continue;
-		/* 
-		 * Currently, build_cache is only called in green_ctr.
-		 * Unnecessary for the following code.
-		 */
+		/* If mapping exists */
         eid = gc->table[veid].eid;
         if (on_cache(gc, eid)) { 
             gc->cache_extents[eid].vext = gc->table + veid;
@@ -1216,6 +1228,7 @@ static int green_ctr(struct dm_target *ti, unsigned int argc, char **argv)
         }
     }
 
+	/* First use or use after loaded from disk */
     r = build_cache(gc);
     if (r < 0) {
         DMDEBUG("building cache extents");
@@ -1277,43 +1290,64 @@ static int green_map(struct dm_target *ti, struct bio *bio,
             (long long unsigned int)(bio->bi_sector - ti->begin), veid);
     spin_lock(&gc->lock);
     gc->table[veid].state |= VES_ACCESS;
+#if 0
     gc->table[veid].tick = jiffies_64;
+#endif
+    gc->table[veid].tick = get_jiffies_64();
     gc->table[veid].counter++;
 
 	/* if the mapping table is setup already */
     if (gc->table[veid].state & VES_PRESENT) {
         eid = gc->table[veid].eid;
         DMDEBUG("map: virtual %llu -> physical %llu", veid, eid);
-		/* if mapping table indicates access to none-cache disks */
+		/* cache miss */
         if (!on_cache(gc, eid)) {
-            if (gc->table[veid].state & VES_PROMOTE) {  
-                /* If the extent is under promotion, postpone the IO request */
-                gc->table[veid].counter--;      /* undo counter */
-                spin_unlock(&gc->lock);
-                return DM_MAPIO_REQUEUE;
-            }
-            if (bio_data_dir(bio) == READ && promote_extent(gc, bio)) {
-                /*
-                 * Try to promote extent on read. It will schedule callback
-                 * function to resubmit the bio no matter success or failure.
-                 */
-                spin_unlock(&gc->lock);
-                return DM_MAPIO_SUBMITTED;
-            } 
             /* 
              * If the operation is writing on an extent outside of the cache
              * disk, we will not try to promote it as an effort to minimize the
              * eraze-write cycles on cache disk (SSD). No matter we promote the
-             * extent or not, the host disk need to spin up. Anyway, if it is
+             * extent or not, the host disk needs to spin up. Anyway, if it is
              * read soon, it will then be promoted. This policy is inspired by a
              * paper titled "Extending SSD Lifetimes with Disk-Based Write
              * Caches". 
              *
              * In this case, nothing needs to be done here. It falls through. 
+			 *
+			 * NOTE: When a cold data is accessed, it becomes hot.
+			 * Considering data locality, it has to be moved to Cache. 
+			 * The above policy trades performance for the reliability
+			 * of SSD.  
              */
-        } 
-    } 
-	/* How the mapping table is built here lacks workload knowledge */
+            /* If the extent is under promotion, postpone the IO request */
+            if (gc->table[veid].state & VES_PROMOTE) {  
+				/* TODO: 
+				 * 1. spin up disk
+				 * 2. replace Cache extent
+				 * 3. update mapping table 
+				 */
+                gc->table[veid].counter--;      /* undo counter */
+                spin_unlock(&gc->lock);
+                return DM_MAPIO_REQUEUE;
+            }
+			/*
+			 * Try to promote extent on read. It will schedule callback
+			 * function to resubmit the bio no matter success or fail.
+			 */
+            if (bio_data_dir(bio) == READ) {
+				/* TODO: ditto or merge the two "if" branches */
+				promote_extent(gc, bio); 
+                spin_unlock(&gc->lock);
+                return DM_MAPIO_SUBMITTED;
+            } 
+        }/* end of cache miss */ 
+		/* If cache hits, then performance benefits from Design */
+		else {
+			/* FIXME: set cache extent state to be accessed */
+			/* Empty for performance benefit */
+		}
+    }/* end of existed mapping */
+
+	/* If the mapping is not present yet, get one free physical extent */
 	else {
         BUG_ON(get_extent(gc, &eid, true) < 0);   /* out of space */
         map_extent(gc, veid, eid);
@@ -1322,7 +1356,7 @@ static int green_map(struct dm_target *ti, struct bio *bio,
             && !gc->demotion_running;
     spin_unlock(&gc->lock);
 
-    map_bio(gc, bio, eid);
+    update_bio(gc, bio, eid);
 
 	/* 
 	 * demotion/promotion before cache is full makes simple IO access 
@@ -1330,7 +1364,7 @@ static int green_map(struct dm_target *ti, struct bio *bio,
 	 * increase system overhead, especially in our case, the workload 
 	 * is in block level, and is IO intensive. 
 	 * 
-	 * TODO: demotion/promotion only when cache is full in the first 
+	 * NOTE: demotion/promotion only when cache is full in the first 
 	 * place. Start with easy things first and add complexity gradually. 
 	 */
 
@@ -1338,6 +1372,8 @@ static int green_map(struct dm_target *ti, struct bio *bio,
 		/* remember to flush_work */
         queue_work(kgreend_wq, &gc->demotion_work);
     }
+
+	/* TODO: spin down/up disks properly for power benefit */
 
     return DM_MAPIO_REMAPPED;
 }
