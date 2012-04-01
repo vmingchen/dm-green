@@ -1,4 +1,5 @@
 [DONE] 1. Deploy linux kernel 3.0 (or above) on gr3.
+
 2. Code review for GreenDM. 
 	- basic comments [DONE]
 	- kernel control of user program to spin down/up disk
@@ -6,23 +7,33 @@
 	  pdflush does
 	- merge disks reliability concern into implementation 
 	- extend vs. sector tradeoff
-    - add special mechanism for disk initialization
+    - add special mechanism for disk initialization [DONE]
+
 [DONE] 3. Documentation for software stack. 
+
 4. Trace analysis and preparation (online vs. offline)
+	- Only offline study for CSE595 considering the time limit
+
 [REVISE] 5. Review on the cache design and implementation. 
+
 6. Evaluation of different workloads (web server, file server,
    database server, email server, etc) with three different approaches
-	- Naive sectors mapping without knowledge about workload
-	- Offline trace analysis based 
-	- Online trace analysis based
-7. Optimization. 
+	- Naive sectors mapping without knowledge about workload [CSE595]
+	- Offline trace analysis based [CSE595]
+	- Online trace analysis based  [NOT CSE595]
+
+7. Optimization. [NOT CSE595 <-- Time limit]
 	- IO by-passing
 	- sequential pre-fetch by trace analysis
 	- reliability optimization with reliability aware policy
 	- extent overhead optimization
 	- explore workloads with different IO patterns 
+	- Two levels Cache (RAM)
+	- etc. 
+
 8. Paper submission. 
 	- By May 10, write a report summarizing what has been
 	  done so far 
 	- Extend the work with more domain knowledge and optimization
-	  techniques, and submit as one potential paper. 
+	  techniques, submit as one potential paper, and carefully 
+	  distinguish from massive other approaches. 
