@@ -389,9 +389,9 @@ static inline void locate_header(struct dm_io_region *where,
         struct green_c *gc, unsigned idisk)
 {
 	/* dm_io_region coupled with dm_io_memory  */
-    where->bdev = gc->disks[idisk].dev->bdev;
-    where->sector = gc->disks[idisk].capacity << gc->ext_shift;
-    where->count = header_size();
+    where->bdev = gc->disks[idisk].dev->bdev;	
+    where->sector = gc->disks[idisk].capacity << gc->ext_shift; /* starting sector */
+    where->count = header_size(); 				/* how many sectors the header needs */
     BUG_ON(where->count > MAX_SECTORS);
 }
 
@@ -449,22 +449,47 @@ static int sync_table(struct green_c *gc, struct vextent_disk *extents,
     return 0;
 }
 
+static int sync_bitmap(struct green_c *gc, unsigned long * bitmap, 
+        unsigned idisk, int rw)
+{
+    int r;
+    unsigned long bits;
+    struct dm_io_region where;
+    sector_t index, offset, size = bitmap_size(vdisk_size(gc));
+    void *data = (void*)bitmap;
+
+    where.bdev = gc->disks[idisk].dev->bdev;
+    offset = (gc->disks[idisk].capacity << gc->ext_shift) + header_size() + table_size(gc); 
+    for (index = 0; index < size; index += where.count) {
+        where.sector = offset + index;
+        where.count = (size - index) < MAX_SECTORS 
+            ? (size - index) : MAX_SECTORS;
+        r = dm_io_sync_vm(1, &where, rw, data, &bits, gc); 
+        if (r < 0) {
+            DMERR("sync_bitmap: Unable to sync bitmap");
+            vfree(bitmap);
+            return r;
+        }
+        data += (where.count << SECTOR_SHIFT);
+    }
+
+    return 0;
+}
+
 /*
- * Dump metadata to all disks.
+ * Dump metadata to SSD. 
  *
- * TODO: For performance boost, all metadata should be dumped to most
+ * For performance boost, all metadata should be dumped to most
  * efficient device (SSD), especially under the condition that the
  * flush exhibits the periodic feature. 
  *
- * Another issue is the bitmap, which has to be dumped to disk as
- * well. 
  */
 static int dump_metadata(struct green_c *gc)
 {
     int r;
-    unsigned i;
     extent_t veid;
     struct vextent_disk *extents;
+	unsigned long *bitmap; 
 
     extents = (struct vextent_disk *)vmalloc(table_size(gc));
     if (!extents) {
@@ -480,20 +505,40 @@ static int dump_metadata(struct green_c *gc)
         }
     }
 
+	bitmap = (unsigned long *)vmalloc(bitmap_size(vdisk_size(gc))); 
+	if(!bitmap) {
+		DMERR("dump_metadata: Unable to allocate memory"); 
+		return -ENOMEM; 
+	}
+
+	/* bitmap_size(...) returns size in units of Byte */
+	memcpy(bitmap, gc->bitmap, bitmap_size(vdisk_size(gc))); 
+
+	/* only flush metadata to SSD */
+#if 0
     for (i = 0; i < fdisk_nr(gc); ++i) {
-        r = dump_header(gc, i);
+#endif
+        r = dump_header(gc, CACHE_DISK);
         if (r < 0) {
-            DMERR("dump_metadata: Fail to dump header to disk %u", i);
+            DMERR("dump_metadata: Fail to dump header to disk %u", CACHE_DISK);
             return r;
         }
-        r = sync_table(gc, extents, i, WRITE);
+        r = sync_table(gc, extents, CACHE_DISK, WRITE);
         if (r < 0) {
-            DMERR("dump_metadata: Fail to dump table to disk %u", i);
+            DMERR("dump_metadata: Fail to dump mapping table to disk %u", CACHE_DISK);
             return r;
         }
+        r = sync_bitmap(gc, bitmap, CACHE_DISK, WRITE);
+        if (r < 0) {
+            DMERR("dump_metadata: Fail to dump bitmap to disk %u", CACHE_DISK);
+            return r;
+        }
+#if 0
     }
+#endif
 
     vfree(extents);
+	vfree(bitmap); 
     return 0;
 }
 
@@ -558,6 +603,22 @@ static int alloc_table(struct green_c *gc, bool zero)
     return 0;
 }
 
+static int alloc_bitmap(struct green_c *gc, bool zero)
+{
+    gc->bitmap = (unsigned long *)vmalloc(bitmap_size(vdisk_size(gc)));
+    if (!(gc->bitmap)) {
+        DMERR("alloc_bitmap: Unable to allocate memory");
+        return -ENOMEM;
+    }
+    if (zero) {
+		/* zero out means no state for every reachable virtual extent */
+        memset(gc->bitmap, 0, bitmap_size(vdisk_size(gc)));
+    }
+    DMDEBUG("alloc_bitmap: bitmap created");
+
+    return 0;
+}
+
 /*
  * Load metadata, which is saved in each disk right after extents data. 
  * Metadata format: <header> [<eid> <state> <counter>]+
@@ -592,6 +653,7 @@ static int load_metadata(struct green_c *gc)
     }
 
     vfree(extents);
+	
     return 0;
 
 bad_sync:
@@ -599,6 +661,41 @@ bad_sync:
 bad_extents:
     vfree(gc->table);
     gc->table = NULL;
+    return r;
+}
+
+/* load bitmap information from SSD */
+static int load_bitmap(struct green_c *gc)
+{
+    int r;
+	unsigned long *bitmap; 
+
+	r = alloc_bitmap(gc, false); 
+	if(r < 0) 
+		return r; 
+
+    bitmap = (unsigned long *)vmalloc(bitmap_size(vdisk_size(gc)));
+    if (!bitmap) {
+        DMERR("load_bitmap: Unable to allocate memory");
+        r = -ENOMEM;
+        goto bad_bitmap;
+    }
+
+    /* Load table from 1st disk, which is considered as cache disk */
+    r = sync_bitmap(gc, bitmap, 0, READ);
+    if (r < 0) 
+        goto bad_sync;
+
+	memcpy(gc->bitmap, bitmap, bitmap_size(vdisk_size(gc))); 
+
+    vfree(bitmap);
+    return 0;
+
+bad_sync:
+    vfree(bitmap);
+bad_bitmap:
+	vfree(gc->bitmap); 
+	gc->bitmap = NULL; 
     return r;
 }
 
@@ -1112,7 +1209,7 @@ static int green_ctr(struct dm_target *ti, unsigned int argc, char **argv)
             ti->error = "Fail to load metadata";
             goto bad_metadata;
         }
-        r = build_bitmap(gc, false);
+        r = load_bitmap(gc);
         if (r < 0) {
             ti->error = "Fail to build bitmap";
             goto bad_bitmap;
@@ -1315,5 +1412,5 @@ static void __exit green_exit(void)
 module_init(green_init);
 module_exit(green_exit);
 
-MODULE_DESCRIPTION(DM_NAME " green target");
+MODULE_DESCRIPTION(DM_NAME " A green multi-disk target");
 MODULE_LICENSE("GPL");

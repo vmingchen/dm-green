@@ -30,13 +30,16 @@
 #include <linux/bitmap.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
+#include <linux/version.h>
 
 #include <linux/device-mapper.h>
 
 #define DM_MSG_PREFIX "green"
 
 /* Define this macro if compile before Linux 3.0 */
-#define OLD_KERNEL
+#if	LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
+  #define OLD_KERNEL
+#endif
 
 #ifdef OLD_KERNEL
 #ifdef CONFIG_64BIT
@@ -57,6 +60,9 @@
 /* SECTOR_SHIFT is defined in device-mapper.h as 9 */
 #define SECTOR_SIZE (1 << SECTOR_SHIFT)
 
+/* Every Byte has 8 bits */
+#define BYTE_SIZE 8
+
 /* Given size x, how many sectors it contains */
 #define count_sector(x) (((x) + SECTOR_SIZE - 1) >> SECTOR_SHIFT)
 
@@ -68,7 +74,10 @@
     count_sector(gc->header.capacity * sizeof(struct vextent_disk))
 
 /* Return size of bitmap array in unit of unsigned long; round up to the ceiling */
+#if 0
 #define bitmap_size(sz) dm_round_up(sz, sizeof(unsigned long))
+#endif
+#define bitmap_size(sz) dm_div_up(sz, BYTE_SIZE * sizeof(unsigned long)) * sizeof(unsigned long)
 
 #define extent_size(gc) (gc->header.ext_size)
 #define vdisk_size(gc) (gc->header.capacity)
@@ -114,7 +123,7 @@ struct green_header {
     uint32_t version;
     uint32_t ndisk;
     uint32_t ext_size;
-    extent_t capacity;          /* capacity in extent */
+    extent_t capacity;          /* capacity in unit of extents */
 };
 
 /* Header on disk, followed by metadata of mapping table */
@@ -124,13 +133,13 @@ struct green_header_disk {
     __le32 ndisk;
     __le32 ext_size;
     __le64 capacity;
-} __packed;
+} __packed; /* packed for block device IO */
 
 /* Virtual extent states */
-#define VES_PRESENT 0x01
-#define VES_ACCESS  0x02
-#define VES_MIGRATE 0x04
-#define VES_PROMOTE 0x08
+#define VES_PRESENT 0x01 		/* put in cache bit */
+#define VES_ACCESS  0x02		/* dirty bit */
+#define VES_MIGRATE 0x04		/* replace bit */
+#define VES_PROMOTE 0x08		/* pre-fetch bit */
 
 /* Virtual extent in memory */
 struct vextent {
@@ -145,7 +154,7 @@ struct vextent_disk {
     __le64 eid;
     __le32 state;
     __le32 counter;
-} __packed;
+} __packed; /* packed for block device IO */
 
 /* Memory structure for physical extent on cache disk */
 struct extent {
@@ -167,7 +176,7 @@ struct green_c {
 
     struct green_header header;
     uint32_t flags;
-    uint32_t ext_shift;
+    uint32_t ext_shift; 			/* how many sectors each extent has */
 
     struct mapped_disk *disks;      /* mapped disks, sequential storage */
 
@@ -188,7 +197,13 @@ struct green_c {
     bool demotion_running; 
 };
 
-/* Information passed between promotion function and its callback */
+/* TODO: 
+ * The term for cache replacement is called eviction, not
+ * demotion. For now, just keep it this way. But, I'd like to add a
+ * todo to remind myself later. 
+ */
+
+/* Context information passed between promotion function and its callback */
 struct promote_info {
     struct green_c *gc;
     struct bio      *bio;   /* bio to submit after migration */
@@ -196,7 +211,7 @@ struct promote_info {
     extent_t        peid;   /* destinate cache extent of the promotion */
 };
 
-/* Information passed between demotion function and its callback */
+/* Context information passed between demotion function and its callback */
 struct demote_info {
     struct green_c *gc;
     struct extent   *pext;      /* physical extent to demote */
