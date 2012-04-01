@@ -1,13 +1,8 @@
 [DONE] 1. Handle Linux Kernel Version issue
         - several device mapper APIs depends on the Linux Kernel Version
 [DONE] 2. Separate header file and code
-       3. Preallocate promote_info and demote_info, avoid frequent memory allocation
-        - Maybe use 'struct kmem_cache'
-       4. Look into MAX_SECTORS limit to see if it still applies
-       5. Look into 'union map_info *map_context' argument
-       6. Zhichao's position talk at GRC 2012
-[ING]  7. master branch should be clean, simple, and bug-free. Any
+[DONE] 3. Zhichao's position talk at GRC 2012
+[ING]  4. master branch should be clean, simple, and bug-free. Any
 	      additional functionality can add to other experimental
 	      branches and merge to the master branch when they are stable
 	      enough. 
-       8. Implement the merge interface for grouping adjacent IO requests
