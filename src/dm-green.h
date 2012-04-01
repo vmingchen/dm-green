@@ -51,7 +51,7 @@
 
 /* Magic for persistent green header */
 #define GREEN_MAGIC 0x45614567
-#define GREEN_VERSION 59
+#define GREEN_VERSION 60
 #define GREEN_DAEMON "kgreend"
 
 /* The first disk is cache disk. */
@@ -63,10 +63,11 @@
 /* Given size x, how many sectors it contains */
 #define count_sector(x) (((x) + SECTOR_SIZE - 1) >> SECTOR_SHIFT)
 
-/* Return metadata's size in unit of sector */
+/* Return metadata's size in sector */
 #define header_size() \
     count_sector(sizeof(struct green_header_disk))
 
+/* Size of mapping table metadata in sector */
 #define table_size(gc) \
     count_sector(gc->header.capacity * sizeof(struct vextent_disk))
 

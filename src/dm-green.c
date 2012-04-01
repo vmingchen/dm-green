@@ -466,7 +466,7 @@ static int dump_metadata(struct green_c *gc)
     extent_t veid;
     struct vextent_disk *extents;
 
-    extents = (struct vextent_disk *)vmalloc(table_size(gc));
+    extents = (struct vextent_disk *)vmalloc(table_size(gc) * SECTOR_SIZE);
     if (!extents) {
         DMERR("dump_metadata: Unable to allocate memory");
         return -ENOMEM;
@@ -484,17 +484,18 @@ static int dump_metadata(struct green_c *gc)
         r = dump_header(gc, i);
         if (r < 0) {
             DMERR("dump_metadata: Fail to dump header to disk %u", i);
-            return r;
+            goto out;
         }
         r = sync_table(gc, extents, i, WRITE);
         if (r < 0) {
             DMERR("dump_metadata: Fail to dump table to disk %u", i);
-            return r;
+            goto out;
         }
     }
 
+out:
     vfree(extents);
-    return 0;
+    return r;
 }
 
 /*
@@ -572,7 +573,7 @@ static int load_metadata(struct green_c *gc)
     if (r < 0)
         return r;
 
-    extents = (struct vextent_disk*)vmalloc(table_size(gc));
+    extents = (struct vextent_disk*)vmalloc(table_size(gc) * SECTOR_SIZE);
     if (!extents) {
         DMERR("load_metadata: Unable to allocate memory");
         r = -ENOMEM;
