@@ -70,6 +70,7 @@
 #define header_size() \
     count_sector(sizeof(struct green_header_disk))
 
+/* Return size of mapping table in unit of sector */
 #define table_size(gc) \
     count_sector(gc->header.capacity * sizeof(struct vextent_disk))
 
@@ -104,8 +105,10 @@
  */
 #define EXT_MIN_THRESHOLD 1
 
-/* The total number of free extents on the cache disk after demotion */
-#define EXT_MAX_THRESHOLD 8
+/* The total number of free extents on the cache disk after demotion. 
+ * Initalized to 1 mimic CPU Cache. 
+ */
+#define EXT_MAX_THRESHOLD 1
 
 /* 
  * Borrowed from dm_array_too_big, defined in device-mapper.h 

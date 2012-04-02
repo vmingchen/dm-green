@@ -494,7 +494,7 @@ static int dump_metadata(struct green_c *gc)
     struct vextent_disk *extents;
 	unsigned long *bitmap; 
 
-    extents = (struct vextent_disk *)vmalloc(table_size(gc));
+    extents = (struct vextent_disk *)vmalloc(table_size(gc) * SECTOR_SIZE);
     if (!extents) {
         DMERR("dump_metadata: Unable to allocate memory");
         return -ENOMEM;
@@ -524,25 +524,26 @@ static int dump_metadata(struct green_c *gc)
         r = dump_header(gc, CACHE_DISK);
         if (r < 0) {
             DMERR("dump_metadata: Fail to dump header to disk %u", CACHE_DISK);
-            return r;
+			goto free; 
         }
         r = sync_table(gc, extents, CACHE_DISK, WRITE);
         if (r < 0) {
             DMERR("dump_metadata: Fail to dump mapping table to disk %u", CACHE_DISK);
-            return r;
+			goto free; 
         }
         r = sync_bitmap(gc, bitmap, CACHE_DISK, WRITE);
         if (r < 0) {
             DMERR("dump_metadata: Fail to dump bitmap to disk %u", CACHE_DISK);
-            return r;
+			goto free; 
         }
 #if 0
     }
 #endif
 
+free: 
     vfree(extents);
 	vfree(bitmap); 
-    return 0;
+    return r;
 }
 
 /*
@@ -636,7 +637,7 @@ static int load_metadata(struct green_c *gc)
     if (r < 0)
         return r;
 
-    extents = (struct vextent_disk*)vmalloc(table_size(gc));
+    extents = (struct vextent_disk*)vmalloc(table_size(gc) * SECTOR_SIZE);
     if (!extents) {
         DMERR("load_metadata: Unable to allocate memory");
         r = -ENOMEM;
