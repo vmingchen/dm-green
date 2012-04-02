@@ -118,7 +118,7 @@
 	((num) > (UINT_MAX - (fixed)) / (obj))
 
 /* extent id type */
-typedef uint64_t extent_t; 
+typedef int64_t extent_t;	/* less than zero means invalid extent id */
 
 /* Header in memory, contained in green context (green_c) */
 struct green_header {

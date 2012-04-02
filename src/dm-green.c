@@ -331,7 +331,7 @@ static int get_extent(struct green_c *gc, extent_t *eid, bool cache)
 {
     unsigned i;
 
-	/* Look for free spot from Cache first */
+	/* Look for free spot from Cache first, if cache is set */
     if (cache && get_from_cache(gc, eid) == 0) 
         return 0;
 
@@ -785,103 +785,6 @@ static void update_bio(struct green_c *gc, struct bio *bio, extent_t eid)
 }
 
 /*
- * Callback of promote_extent. It should release resources allocated by
- * promote_extent properly upon either success or failure.
- *
- * Moreover, this a pending IO request of this promotion. It should be issued 
- * no matter the promotion succeeds or fails.
- */
-static void promote_callback(int read_err, unsigned long write_err,
-        void *context)
-{
-    struct promote_info *pinfo = (struct promote_info *)context;
-    struct green_c *gc = pinfo->gc;
-    extent_t eid;
-
-    if (read_err || write_err) {
-		if (read_err)
-			DMERR("promote_callback: Read error.");
-		else
-			DMERR("promote_callback: Write error.");
-        /* undo promote */
-        spin_lock(&(gc->lock));
-        put_cache(gc, pinfo->peid);
-        eid = gc->table[pinfo->veid].eid;          /* the old physical extent */
-        gc->table[pinfo->veid].state ^= VES_PROMOTE;
-        spin_unlock(&(gc->lock));
-    } else { 
-        /* update mapping table */
-        DMDEBUG("promote: extent %llu is remapped to extent %llu", 
-                pinfo->veid, pinfo->peid);
-        spin_lock(&(gc->lock));
-        put_extent(gc, gc->table[pinfo->veid].eid); /* release old extent */
-        eid = gc->table[pinfo->veid].eid = pinfo->peid; /* the new extent */
-        gc->table[pinfo->veid].state ^= VES_PROMOTE;
-        spin_unlock(&(gc->lock));
-    }
-    /* resubmit bio */
-    update_bio(gc, pinfo->bio, eid);
-    generic_make_request(pinfo->bio);
-
-    kfree(pinfo);
-}
-
-/*
- * Promote virtual extent 'veid'. This function returns immediately, but it
- * might schedule delayed operation and callback. Upon any failure, it
- * simply gives up. 
- *
- */
-static void promote_extent(struct green_c *gc, struct bio *bio)
-{
-    struct dm_io_region src, dst;
-    extent_t veid, peid, eid;
-    unsigned idisk;
-    struct promote_info *pinfo;
-
-    DMDEBUG("promote_extent: promoting");
-    if (get_from_cache(gc, &peid) < 0) { 
-		/* FIXME: if cache is full, do cache replacement */
-        DMDEBUG("promote_extent: no extent on cache disk");
-        return;        /* no free cache extent */
-    }
-
-    /* use GFP_ATOMIC because it is holding a spinlock */
-    pinfo = (struct promote_info *)kmalloc(
-            sizeof(struct promote_info), GFP_ATOMIC);
-    if (!pinfo) {
-        DMERR("promote_extent: Could not allocate memory");
-        return;        /* out of memory */
-    }
-
-	/* build source place */
-    veid = ((bio->bi_sector) >> gc->ext_shift);
-    gc->table[veid].state |= VES_PROMOTE;
-    eid = gc->table[veid].eid;
-    extent_on_disk(gc, &eid, &idisk);
-    src.bdev = gc->disks[idisk].dev->bdev;
-    src.sector = eid << gc->ext_shift;
-    src.count = extent_size(gc);
-
-	/* build cache place */
-    dst.bdev = gc->disks[CACHE_DISK].dev->bdev;
-    dst.sector = peid << gc->ext_shift;
-    dst.count = extent_size(gc);
-
-	/* build context */
-    pinfo->gc = gc;
-    pinfo->bio = bio;
-    pinfo->veid = veid;
-    pinfo->peid = peid;
-
-	/* pinfo is the context passed to the callback routine */
-    dm_kcopyd_copy(gc->kcp_client, &src, 1, &dst, 0, 
-            (dm_kcopyd_notify_fn)promote_callback, pinfo);
-
-    return;
-}
-
-/*
  * Callback when an extent being evictd has been copied to other disk. 
  */
 static void evict_callback(int read_err, unsigned long write_err, 
@@ -978,8 +881,8 @@ static struct extent *lru_extent(struct green_c *gc)
     return ext;
 }
 
-/* Demote extents using WSClock algorithm */
-static void evict_extent(struct green_c *gc)
+/* Evict extents using WSClock algorithm */
+static extent_t evict_extent(struct green_c *gc)
 {
     struct dm_io_region src, dst;
     struct extent *ext;
@@ -990,10 +893,10 @@ static void evict_extent(struct green_c *gc)
     dinfo = kmalloc(sizeof(struct evict_info), GFP_KERNEL);
     if (!dinfo) {
         DMDEBUG("evict_extent: Could not allocate memory");
-        return ;
+        return (extent_t)(-1);
     }
 
-    DMDEBUG("evict_extent: Demoting");
+    DMDEBUG("evict_extent: Eviction");
     spin_lock(&gc->lock);
     ext = lru_extent(gc);
     if (ext == NULL) { 
@@ -1008,6 +911,7 @@ static void evict_extent(struct green_c *gc)
         DMDEBUG("evict_extent: No space on non-cache disk");
         goto quit_evict;
     }
+	/* TODO: spin up disk */
     ext->vext->state |= VES_MIGRATE;
     gc->eviction_running = true;
     spin_unlock(&gc->lock);
@@ -1017,7 +921,7 @@ static void evict_extent(struct green_c *gc)
     dinfo->pext = ext;
     dinfo->seid = seid;
     dinfo->deid = deid;
-    DMDEBUG("evict_extent: Demoting extent %llu from %llu to %llu", 
+    DMDEBUG("evict_extent: Evict extent %llu from %llu to %llu", 
             vext2id(gc, ext->vext), seid, deid);
 
     src.bdev = gc->disks[CACHE_DISK].dev->bdev;
@@ -1032,20 +936,133 @@ static void evict_extent(struct green_c *gc)
 
     dm_kcopyd_copy(gc->kcp_client, &src, 1, &dst, 0,
             (dm_kcopyd_notify_fn)evict_callback, dinfo);
-    return ;
+	/* TODO: spin down to save power */
+    return seid;
 
 quit_evict:
     spin_unlock(&gc->lock);
     kfree(dinfo);
+	return (extent_t)(-1); 
 }
 
 static void eviction_work(struct work_struct *work)
 {
     struct green_c *gc;
+	extent_t peid; 
 
     gc = container_of(work, struct green_c, eviction_work);
-    evict_extent(gc);
+    peid = evict_extent(gc);
+	if(peid < 0) {
+		DMERR("eviction_work: evict_extent error"); 
+	}
+	return; 
 }
+
+/*
+ * Callback of promote_extent. It should release resources allocated by
+ * promote_extent properly upon either success or failure.
+ *
+ * Moreover, this a pending IO request of this promotion. It should be issued 
+ * no matter the promotion succeeds or fails.
+ */
+static void promote_callback(int read_err, unsigned long write_err,
+        void *context)
+{
+    struct promote_info *pinfo = (struct promote_info *)context;
+    struct green_c *gc = pinfo->gc;
+    extent_t eid;
+
+    if (read_err || write_err) {
+		if (read_err)
+			DMERR("promote_callback: Read error.");
+		else
+			DMERR("promote_callback: Write error.");
+        /* undo promote */
+        spin_lock(&(gc->lock));
+        put_cache(gc, pinfo->peid);
+        eid = gc->table[pinfo->veid].eid;          /* the old physical extent */
+        gc->table[pinfo->veid].state ^= VES_PROMOTE;
+        spin_unlock(&(gc->lock));
+    } else { 
+        /* update mapping table */
+        DMDEBUG("promote: extent %llu is remapped to extent %llu", 
+                pinfo->veid, pinfo->peid);
+        spin_lock(&(gc->lock));
+        put_extent(gc, gc->table[pinfo->veid].eid); /* release old extent */
+        eid = gc->table[pinfo->veid].eid = pinfo->peid; /* the new extent */
+        gc->table[pinfo->veid].state ^= VES_PROMOTE;
+        spin_unlock(&(gc->lock));
+    }
+    /* resubmit bio */
+    update_bio(gc, pinfo->bio, eid);
+    generic_make_request(pinfo->bio);
+
+    kfree(pinfo);
+}
+
+/*
+ * Promote virtual extent 'veid'. This function returns immediately, but it
+ * might schedule delayed operation and callback. Upon any failure, it
+ * simply gives up. 
+ *
+ */
+static void promote_extent(struct green_c *gc, struct bio *bio)
+{
+    struct dm_io_region src, dst;
+    extent_t veid, peid, eid;
+    unsigned idisk;
+    struct promote_info *pinfo;
+
+    DMDEBUG("promote_extent: promoting");
+    if (get_from_cache(gc, &peid) < 0) { 
+        DMDEBUG("promote_extent: no extent on cache disk");
+		/* If cache is full, do cache replacement */
+		peid = evict_extent(gc); 
+		if(peid < 0) {
+			DMERR("promote_extent: evict_extent error"); 
+			return; 
+		}
+    }
+
+    /* use GFP_ATOMIC because it is holding a spinlock */
+    pinfo = (struct promote_info *)kmalloc(
+            sizeof(struct promote_info), GFP_ATOMIC);
+    if (!pinfo) {
+        DMERR("promote_extent: Could not allocate memory");
+        return;        /* out of memory */
+    }
+
+	/* TODO: spin up disk */
+
+	/* build source place */
+    veid = ((bio->bi_sector) >> gc->ext_shift);
+    gc->table[veid].state |= VES_PROMOTE;
+    eid = gc->table[veid].eid;
+    extent_on_disk(gc, &eid, &idisk);
+    src.bdev = gc->disks[idisk].dev->bdev;
+    src.sector = eid << gc->ext_shift;
+    src.count = extent_size(gc);
+
+	/* build cache place */
+    dst.bdev = gc->disks[CACHE_DISK].dev->bdev;
+    dst.sector = peid << gc->ext_shift;
+    dst.count = extent_size(gc);
+
+	/* build context */
+    pinfo->gc = gc;
+    pinfo->bio = bio;
+    pinfo->veid = veid;
+    pinfo->peid = peid;
+
+	/* pinfo is the context passed to the callback routine */
+    dm_kcopyd_copy(gc->kcp_client, &src, 1, &dst, 0, 
+            (dm_kcopyd_notify_fn)promote_callback, pinfo);
+
+	/* TODO: spin down disk */
+
+    return;
+}
+
 
 /* Build free and used lists of extents on cache disk */
 static int build_cache(struct green_c *gc)
@@ -1307,6 +1324,7 @@ static int green_map(struct dm_target *ti, struct bio *bio,
 			 * The above policy trades performance for the reliability
 			 * of SSD.  
              */
+		#if 0
             /* If the extent is under promotion, postpone the IO request */
             if (gc->table[veid].state & VES_PROMOTE) {  
 				/* TODO: 
@@ -1328,13 +1346,17 @@ static int green_map(struct dm_target *ti, struct bio *bio,
                 spin_unlock(&gc->lock);
                 return DM_MAPIO_SUBMITTED;
             } 
+		#endif
+			promote_extent(gc, bio); 
+
+			spin_unlock(&gc->lock);
+			return DM_MAPIO_SUBMITTED;
         }/* end of cache miss */ 
 		/* If cache hits, then performance benefits from Design */
 		else {
-			/* In the beginning: cache extent state is set to be accessed */
+			/* In the beginning: cache extent state is already set to be accessed */
 		}
     }/* end of existed mapping */
-
 	/* If the mapping is not present yet, get one free physical extent */
 	else {
         BUG_ON(get_extent(gc, &eid, true) < 0);   /* out of space */
@@ -1345,16 +1367,6 @@ static int green_map(struct dm_target *ti, struct bio *bio,
     spin_unlock(&gc->lock);
 
     update_bio(gc, bio, eid);
-
-	/* 
-	 * eviction/promotion before cache is full makes simple IO access 
-	 * complex, and makes the debug process complex as well. It also 
-	 * increase system overhead, especially in our case, the workload 
-	 * is in block level, and is IO intensive. 
-	 * 
-	 * NOTE: eviction/promotion only when cache is full in the first 
-	 * place. Start with easy things first and add complexity gradually. 
-	 */
 
     if (run_eviction) {              /* schedule extent eviction */
 		/* remember to flush_work */
