@@ -86,7 +86,7 @@ static struct green_c *alloc_context(struct dm_target *ti,
     gc->io_client = NULL;
     gc->kcp_client = NULL;
     gc->cache_extents = NULL;
-    gc->demotion_cursor = NULL;
+    gc->eviction_cursor = NULL;
 
     return gc;
 }
@@ -115,7 +115,7 @@ static void free_context(struct green_c *gc)
 static inline void header_to_disk(struct green_header *core, 
         struct green_header_disk *disk)
 {   
-    /* big/little endian issue */
+    /* FIXME: does the big/little endian issue even exist? When? */
     disk->magic = cpu_to_le32(core->magic);
     disk->version = cpu_to_le32(core->version);
     disk->ndisk = cpu_to_le32(core->ndisk);
@@ -458,7 +458,7 @@ static int sync_bitmap(struct green_c *gc, unsigned long * bitmap,
     int r;
     unsigned long bits;
     struct dm_io_region where;
-    sector_t index, offset, size = bitmap_size(vdisk_size(gc));
+    sector_t index, offset, size = count_sector(bitmap_size(vdisk_size(gc)));
     void *data = (void*)bitmap;
 
     where.bdev = gc->disks[idisk].dev->bdev;
@@ -514,7 +514,7 @@ static int dump_metadata(struct green_c *gc)
 		return -ENOMEM; 
 	}
 
-	/* bitmap_size(...) returns size in units of Byte */
+	/* TODO: endian issue for bitmap */
 	memcpy(bitmap, gc->bitmap, bitmap_size(vdisk_size(gc))); 
 
 	/* only flush metadata to SSD */
@@ -692,6 +692,7 @@ static int load_bitmap(struct green_c *gc)
     if (r < 0) 
         goto bad_sync;
 
+	/* TODO: endian issue for bitmap */
 	memcpy(gc->bitmap, bitmap, bitmap_size(vdisk_size(gc))); 
 
 	i = 0;
@@ -733,27 +734,6 @@ static int build_bitmap(struct green_c *gc, bool zero)
         for (j = 0; j < fdisk_nr(gc); ++j)
             gc->disks[j].free_nr = gc->disks[j].capacity;
     } 
-	/* 
-	 * The following else {} code is not called in current design. 
-	 * Instead, load_bitmap takes care of them. 
-	 */
-#if 0
-	else {
-        i = 0;
-        for (j = 0; j < fdisk_nr(gc); ++j) {
-            gc->disks[j].free_nr = gc->disks[j].capacity;
-            for (k = 0; k < gc->disks[j].capacity; ++k) {
-                if (gc->table[i].state & VES_PRESENT) {
-                    green_bm_set(gc->bitmap, i);
-                    gc->disks[j].free_nr--;
-                    DMDEBUG("extent %llu is present", i);
-                }
-                ++i;
-            }
-        }
-        BUG_ON(i != vdisk_size(gc));
-    }
-#endif
 
     for (j = 0; j < fdisk_nr(gc); ++j) {
         DMDEBUG("free extent on disk %d: %llu", j, gc->disks[j].free_nr);
@@ -902,12 +882,12 @@ static void promote_extent(struct green_c *gc, struct bio *bio)
 }
 
 /*
- * Callback when an extent being demoted has been copied to other disk. 
+ * Callback when an extent being evictd has been copied to other disk. 
  */
-static void demote_callback(int read_err, unsigned long write_err, 
+static void evict_callback(int read_err, unsigned long write_err, 
         void *context)
 {
-    struct demote_info *dinfo = (struct demote_info *)context;
+    struct evict_info *dinfo = (struct evict_info *)context;
     struct green_c *gc;
     struct extent *ext;
     struct extent *next, *prev;
@@ -921,37 +901,39 @@ static void demote_callback(int read_err, unsigned long write_err,
 
     next = next_extent(&gc->cache_use, ext);
     prev = prev_extent(&gc->cache_use, ext);
-    DMDEBUG("demote_callback: ext %llu -> %llu, next (%llu), prev (%llu)",
+    DMDEBUG("evict_callback: ext %llu -> %llu, next (%llu), prev (%llu)",
             seid, deid, ext2id(gc, next), ext2id(gc, prev));
 
     spin_lock(&gc->lock);
+#if 0
     ext->vext->state ^= VES_MIGRATE;
+#endif
     if (read_err || write_err || (ext->vext->state & VES_ACCESS)) {
-        /* undo demotion in case of error or extent is accessed */
+        /* undo eviction in case of error or extent is accessed */
 		if (read_err)
-			DMERR("demote_callback: Read error.");
+			DMERR("evict_callback: Read error.");
 		else if (write_err)
-			DMERR("demote_callback: Write error.");
+			DMERR("evict_callback: Write error.");
         else
-            DMDEBUG("demote_callback: cancel demotion because of access");
+            DMDEBUG("evict_callback: cancel eviction because of access");
         put_extent(gc, deid);
     } 
     else {
-        DMDEBUG("demote_callback: extent %u is remapped to extent %llu", 
+        DMDEBUG("evict_callback: extent %u is remapped to extent %llu", 
                 (unsigned int)(ext->vext - gc->table), deid);
-        ext->vext->state ^= VES_MIGRATE;  /* TODO: not clear why a second "bit clearing" */
+        ext->vext->state ^= VES_MIGRATE;  
 		/* update mapping table for dest physical extent */
         ext->vext->eid = deid;
         put_extent(gc, seid);
         run_low = (cache_free_nr(gc) < EXT_MAX_THRESHOLD);
     }
-    gc->demotion_running = false;
+    gc->eviction_running = false;
     spin_unlock(&gc->lock);
     kfree(dinfo);
 
-    /* schedule more demotion */
+    /* schedule more eviction */
     if (run_low) 
-        queue_work(kgreend_wq, &gc->demotion_work);
+        queue_work(kgreend_wq, &gc->eviction_work);
 }
 
 /*
@@ -973,61 +955,61 @@ static struct extent *lru_extent(struct green_c *gc)
 {
     struct extent *ext, *next;
 
-    if (gc->demotion_cursor == NULL) { 
+    if (gc->eviction_cursor == NULL) { 
         if (list_empty(&gc->cache_use)) { 
             DMDEBUG("lru_extent: Empty list");
             return NULL;
         }
-        gc->demotion_cursor = list_first_entry(&gc->cache_use, 
+        gc->eviction_cursor = list_first_entry(&gc->cache_use, 
                 struct extent, list);
     }
-    ext = gc->demotion_cursor;
+    ext = gc->eviction_cursor;
     while (ext->vext->state & (VES_ACCESS | VES_MIGRATE)) { 
         DMDEBUG("lru_extent: Extent %llu accessed", ext2id(gc, ext));
         ext->vext->state ^= VES_ACCESS;     /* clear access bit */
         ext = next_extent(&gc->cache_use, ext);
-        if (ext == gc->demotion_cursor) {   /* end of iteration */ 
-            DMDEBUG("lru_extent: No demotion candidate");
+        if (ext == gc->eviction_cursor) {   /* end of iteration */ 
+            DMDEBUG("lru_extent: No eviction candidate");
             return NULL;
         }
     }
     next = next_extent(&gc->cache_use, ext);    /* advance lru cursor */
-    gc->demotion_cursor = ((next == ext) ? NULL : next);
+    gc->eviction_cursor = ((next == ext) ? NULL : next);
     return ext;
 }
 
 /* Demote extents using WSClock algorithm */
-static void demote_extent(struct green_c *gc)
+static void evict_extent(struct green_c *gc)
 {
     struct dm_io_region src, dst;
     struct extent *ext;
     extent_t seid, deid, tmp;
     unsigned idisk;
-    struct demote_info *dinfo;
+    struct evict_info *dinfo;
 
-    dinfo = kmalloc(sizeof(struct demote_info), GFP_KERNEL);
+    dinfo = kmalloc(sizeof(struct evict_info), GFP_KERNEL);
     if (!dinfo) {
-        DMDEBUG("demote_extent: Could not allocate memory");
+        DMDEBUG("evict_extent: Could not allocate memory");
         return ;
     }
 
-    DMDEBUG("demote_extent: Demoting");
+    DMDEBUG("evict_extent: Demoting");
     spin_lock(&gc->lock);
     ext = lru_extent(gc);
     if (ext == NULL) { 
-        DMDEBUG("demote_extent: Nothing to demote");
-        goto quit_demote;
+        DMDEBUG("evict_extent: Nothing to evict");
+        goto quit_evict;
     }
     seid = ext2id(gc, ext);
-    DMDEBUG("demote_extent: LRU extent is %llu", seid);
+    DMDEBUG("evict_extent: LRU extent is %llu", seid);
 
 	/* Get one free extent as the dest place */
     if (get_extent(gc, &deid, false) < 0) { /* no space on disk */
-        DMDEBUG("demote_extent: No space on non-cache disk");
-        goto quit_demote;
+        DMDEBUG("evict_extent: No space on non-cache disk");
+        goto quit_evict;
     }
     ext->vext->state |= VES_MIGRATE;
-    gc->demotion_running = true;
+    gc->eviction_running = true;
     spin_unlock(&gc->lock);
 
     BUG_ON(seid != ext->vext->eid || !on_cache(gc, seid) || on_cache(gc, deid));
@@ -1035,7 +1017,7 @@ static void demote_extent(struct green_c *gc)
     dinfo->pext = ext;
     dinfo->seid = seid;
     dinfo->deid = deid;
-    DMDEBUG("demote_extent: Demoting extent %llu from %llu to %llu", 
+    DMDEBUG("evict_extent: Demoting extent %llu from %llu to %llu", 
             vext2id(gc, ext->vext), seid, deid);
 
     src.bdev = gc->disks[CACHE_DISK].dev->bdev;
@@ -1049,20 +1031,20 @@ static void demote_extent(struct green_c *gc)
     dst.count = extent_size(gc);
 
     dm_kcopyd_copy(gc->kcp_client, &src, 1, &dst, 0,
-            (dm_kcopyd_notify_fn)demote_callback, dinfo);
+            (dm_kcopyd_notify_fn)evict_callback, dinfo);
     return ;
 
-quit_demote:
+quit_evict:
     spin_unlock(&gc->lock);
     kfree(dinfo);
 }
 
-static void demotion_work(struct work_struct *work)
+static void eviction_work(struct work_struct *work)
 {
     struct green_c *gc;
 
-    gc = container_of(work, struct green_c, demotion_work);
-    demote_extent(gc);
+    gc = container_of(work, struct green_c, eviction_work);
+    evict_extent(gc);
 }
 
 /* Build free and used lists of extents on cache disk */
@@ -1240,8 +1222,13 @@ static int green_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
     clear_table(gc);
 	/* map kernel thread id to thread work function */
-    INIT_WORK(&gc->demotion_work, demotion_work);
-    gc->demotion_running = false;
+    INIT_WORK(&gc->eviction_work, eviction_work);
+    gc->eviction_running = false;
+
+	/* TODO: 
+	 * spin down disk when the green context is created for
+	 * power benefit. 
+	 */
 
     return 0;
 
@@ -1286,7 +1273,7 @@ static int green_map(struct dm_target *ti, struct bio *bio,
 
 	/* bio->bi_sector is based on virtual sector specified in argv */
     extent_t eid, veid = (bio->bi_sector - ti->begin) >> gc->ext_shift;
-    bool run_demotion = false;
+    bool run_eviction = false;
 
     DMDEBUG("%lu: map(sector %llu -> extent %llu)", jiffies, 
             (long long unsigned int)(bio->bi_sector - ti->begin), veid);
@@ -1344,8 +1331,7 @@ static int green_map(struct dm_target *ti, struct bio *bio,
         }/* end of cache miss */ 
 		/* If cache hits, then performance benefits from Design */
 		else {
-			/* FIXME: set cache extent state to be accessed */
-			/* Empty for performance benefit */
+			/* In the beginning: cache extent state is set to be accessed */
 		}
     }/* end of existed mapping */
 
@@ -1354,28 +1340,26 @@ static int green_map(struct dm_target *ti, struct bio *bio,
         BUG_ON(get_extent(gc, &eid, true) < 0);   /* out of space */
         map_extent(gc, veid, eid);
     }
-    run_demotion = (cache_free_nr(gc) < EXT_MIN_THRESHOLD) 
-            && !gc->demotion_running;
+    run_eviction = (cache_free_nr(gc) < EXT_MIN_THRESHOLD) 
+            && !gc->eviction_running;
     spin_unlock(&gc->lock);
 
     update_bio(gc, bio, eid);
 
 	/* 
-	 * demotion/promotion before cache is full makes simple IO access 
+	 * eviction/promotion before cache is full makes simple IO access 
 	 * complex, and makes the debug process complex as well. It also 
 	 * increase system overhead, especially in our case, the workload 
 	 * is in block level, and is IO intensive. 
 	 * 
-	 * NOTE: demotion/promotion only when cache is full in the first 
+	 * NOTE: eviction/promotion only when cache is full in the first 
 	 * place. Start with easy things first and add complexity gradually. 
 	 */
 
-    if (run_demotion) {              /* schedule extent demotion */
+    if (run_eviction) {              /* schedule extent eviction */
 		/* remember to flush_work */
-        queue_work(kgreend_wq, &gc->demotion_work);
+        queue_work(kgreend_wq, &gc->eviction_work);
     }
-
-	/* TODO: spin down/up disks properly for power benefit */
 
     return DM_MAPIO_REMAPPED;
 }

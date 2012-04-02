@@ -100,12 +100,12 @@
 #define MAX_SECTORS ((BIO_MAX_PAGES - 2) * (PAGE_SIZE >> SECTOR_SHIFT))
 
 /* 
- * When free extents are less than EXT_MIN_THRESHOLD, demotion is
+ * When free extents are less than EXT_MIN_THRESHOLD, eviction is
  * triggered. Initialized to 1 for a simple cache replacement algo
  */
 #define EXT_MIN_THRESHOLD 1
 
-/* The total number of free extents on the cache disk after demotion. 
+/* The total number of free extents on the cache disk after eviction. 
  * Initalized to 1 mimic CPU Cache. 
  */
 #define EXT_MAX_THRESHOLD 1
@@ -196,17 +196,10 @@ struct green_c {
     struct dm_io_client *io_client;
     struct dm_kcopyd_client *kcp_client; /* data copy in device mapper */
 
-    struct work_struct demotion_work;    /* work of evicting cache extent */
-    struct extent *demotion_cursor;
-    bool demotion_running; 
+    struct work_struct eviction_work;    /* work of evicting cache extent */
+    struct extent *eviction_cursor;
+    bool eviction_running; 
 };
-
-/* 
- * TODO: 
- * The term for cache replacement is called eviction, not
- * demotion. For now, just keep it this way. But, I'd like to add a
- * todo to remind myself later. 
- */
 
 /* Context information passed between promotion function and its callback */
 struct promote_info {
@@ -216,10 +209,10 @@ struct promote_info {
     extent_t        peid;   /* destinate cache extent of the promotion */
 };
 
-/* Context information passed between demotion function and its callback */
-struct demote_info {
+/* Context information passed between eviction function and its callback */
+struct evict_info {
     struct green_c *gc;
-    struct extent   *pext;      /* physical extent to demote */
+    struct extent   *pext;      /* physical extent to evict */
     extent_t        seid;       /* source physical extent id */
     extent_t        deid;       /* dest physical extent id */
 };
