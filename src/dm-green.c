@@ -1020,6 +1020,7 @@ static void demote_extent(struct green_c *gc)
     seid = ext2id(gc, ext);
     DMDEBUG("demote_extent: LRU extent is %llu", seid);
 
+	/* Get one free extent as the dest place */
     if (get_extent(gc, &deid, false) < 0) { /* no space on disk */
         DMDEBUG("demote_extent: No space on non-cache disk");
         goto quit_demote;
