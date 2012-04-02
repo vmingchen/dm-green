@@ -990,6 +990,7 @@ static void promote_callback(int read_err, unsigned long write_err,
         spin_lock(&(gc->lock));
         put_extent(gc, gc->table[pinfo->veid].eid); /* release old extent */
         eid = gc->table[pinfo->veid].eid = pinfo->peid; /* the new extent */
+		gc->cache_extents[eid].vext = gc->table + pinfo->veid;  /* cache management */
         gc->table[pinfo->veid].state ^= VES_PROMOTE;
         spin_unlock(&(gc->lock));
     }
