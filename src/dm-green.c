@@ -1367,13 +1367,14 @@ static int green_map(struct dm_target *ti, struct bio *bio,
     spin_unlock(&gc->lock);
 
     update_bio(gc, bio, eid);
+    generic_make_request(bio);
 
     if (run_eviction) {              /* schedule extent eviction */
 		/* remember to flush_work */
         queue_work(kgreend_wq, &gc->eviction_work);
     }
 
-    return DM_MAPIO_REMAPPED;
+    return DM_MAPIO_SUBMITTED;
 }
 
 static int green_status(struct dm_target *ti, status_type_t type,
