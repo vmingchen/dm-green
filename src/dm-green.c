@@ -93,7 +93,7 @@ static struct green_c *alloc_context(struct dm_target *ti,
 
 static void free_context(struct green_c *gc)
 {
-    BUG_ON(!gc || !(gc->disks));
+    VERIFY(gc && (gc->disks));
 
     if (gc->table) {
         vfree(gc->table);
@@ -258,7 +258,7 @@ static inline extent_t vext2id(struct green_c *gc, struct vextent *vext)
 static inline void extent_on_disk(struct green_c *gc, extent_t *eid,
         unsigned *idisk)
 {
-    BUG_ON(*eid >= vdisk_size(gc));
+    VERIFY(*eid < vdisk_size(gc));
     *idisk = 0;
     while (*idisk < fdisk_nr(gc) && *eid >= gc->disks[*idisk].capacity) {
         *eid -= gc->disks[(*idisk)++].capacity;
@@ -314,7 +314,7 @@ static inline void put_cache(struct green_c *gc, extent_t eid)
 {
     struct extent *ext;
 
-    BUG_ON(eid >= cache_size(gc));
+    VERIFY(eid < cache_size(gc));
     ext = gc->cache_extents + eid;
     ext->vext = NULL;
     list_del(&ext->list);
@@ -354,7 +354,7 @@ static void put_extent(struct green_c *gc, extent_t eid)
 {
     unsigned i;
 
-    BUG_ON(eid >= vdisk_size(gc));
+    VERIFY(eid < vdisk_size(gc));
     for (i = 0; eid >= gc->disks[i].capacity + gc->disks[i].offset; ++i)
         ;
 
@@ -395,7 +395,7 @@ static inline void locate_header(struct dm_io_region *where,
     where->bdev = gc->disks[idisk].dev->bdev;	
     where->sector = gc->disks[idisk].capacity << gc->ext_shift; /* starting sector */
     where->count = header_size(); 				/* how many sectors the header needs */
-    BUG_ON(where->count > MAX_SECTORS);
+    VERIFY(where->count <= MAX_SECTORS);
 }
 
 /*
@@ -706,7 +706,7 @@ static int load_bitmap(struct green_c *gc)
 			++i;
 		}
 	}
-	BUG_ON(i != vdisk_size(gc));
+	VERIFY(i == vdisk_size(gc));
 
     vfree(bitmap);
     return 0;
@@ -916,7 +916,7 @@ static extent_t evict_extent(struct green_c *gc)
     gc->eviction_running = true;
     spin_unlock(&gc->lock);
 
-    BUG_ON(seid != ext->vext->eid || !on_cache(gc, seid) || on_cache(gc, deid));
+    VERIFY(seid == ext->vext->eid && on_cache(gc, seid) && !on_cache(gc, deid));
     dinfo->gc = gc;
     dinfo->pext = ext;
     dinfo->seid = seid;
@@ -1360,7 +1360,7 @@ static int green_map(struct dm_target *ti, struct bio *bio,
     }/* end of existed mapping */
 	/* If the mapping is not present yet, get one free physical extent */
 	else {
-        BUG_ON(get_extent(gc, &eid, true) < 0);   /* out of space */
+        VERIFY(get_extent(gc, &eid, true) >= 0);   /* out of space */
         map_extent(gc, veid, eid);
     }
     run_eviction = (cache_free_nr(gc) < EXT_MIN_THRESHOLD) 

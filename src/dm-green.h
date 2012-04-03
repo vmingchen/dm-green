@@ -49,6 +49,15 @@
 #endif /* CONFIG_64BIT */
 #endif
 
+/* Works like ASSERT() */
+#define VERIFY(x) do {\
+		if(unlikely((x))) {\
+			dump_stack();\
+			panic("VERIFY: assertion(%s) failed at %s (%d)\n",\
+				#x, __FILE__, __LINE__);\
+		}\
+}while(0)
+
 /* Magic for persistent green header */
 #define GREEN_MAGIC 0x45614567
 #define GREEN_VERSION 54
