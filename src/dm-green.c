@@ -115,7 +115,7 @@ static void free_context(struct green_c *gc)
 static inline void header_to_disk(struct green_header *core, 
         struct green_header_disk *disk)
 {   
-    /* FIXME: does the big/little endian issue even exist? When? */
+	/* always store into little endian format */
     disk->magic = cpu_to_le32(core->magic);
     disk->version = cpu_to_le32(core->version);
     disk->ndisk = cpu_to_le32(core->ndisk);
@@ -796,6 +796,7 @@ static void evict_callback(int read_err, unsigned long write_err,
     struct extent *next, *prev;
     extent_t seid, deid;
     bool run_low = false;
+	unsigned long flags; 
 
     gc = dinfo->gc;
     ext = dinfo->pext;
@@ -807,7 +808,7 @@ static void evict_callback(int read_err, unsigned long write_err,
     DMDEBUG("evict_callback: ext %llu -> %llu, next (%llu), prev (%llu)",
             seid, deid, ext2id(gc, next), ext2id(gc, prev));
 
-    spin_lock(&gc->lock);
+    spin_lock_irqsave(&gc->lock, flags);
 #if 0
     ext->vext->state ^= VES_MIGRATE;
 #endif
@@ -831,7 +832,7 @@ static void evict_callback(int read_err, unsigned long write_err,
         run_low = (cache_free_nr(gc) < EXT_MAX_THRESHOLD);
     }
     gc->eviction_running = false;
-    spin_unlock(&gc->lock);
+    spin_unlock_irqrestore(&gc->lock, flags);
     kfree(dinfo);
 
     /* schedule more eviction */
@@ -897,7 +898,6 @@ static extent_t evict_extent(struct green_c *gc)
     }
 
     DMDEBUG("evict_extent: Eviction");
-    spin_lock(&gc->lock);
     ext = lru_extent(gc);
     if (ext == NULL) { 
         DMDEBUG("evict_extent: Nothing to evict");
@@ -914,7 +914,6 @@ static extent_t evict_extent(struct green_c *gc)
 	/* TODO: spin up disk */
     ext->vext->state |= VES_MIGRATE;
     gc->eviction_running = true;
-    spin_unlock(&gc->lock);
 
     VERIFY(seid == ext->vext->eid && on_cache(gc, seid) && !on_cache(gc, deid));
     dinfo->gc = gc;
@@ -940,7 +939,6 @@ static extent_t evict_extent(struct green_c *gc)
     return seid;
 
 quit_evict:
-    spin_unlock(&gc->lock);
     kfree(dinfo);
 	return (extent_t)(-1); 
 }
@@ -971,6 +969,7 @@ static void promote_callback(int read_err, unsigned long write_err,
     struct promote_info *pinfo = (struct promote_info *)context;
     struct green_c *gc = pinfo->gc;
     extent_t eid;
+	unsigned long flags; 
 
     if (read_err || write_err) {
 		if (read_err)
@@ -978,21 +977,21 @@ static void promote_callback(int read_err, unsigned long write_err,
 		else
 			DMERR("promote_callback: Write error.");
         /* undo promote */
-        spin_lock(&(gc->lock));
+        spin_lock_irqsave(&(gc->lock), flags);
         put_cache(gc, pinfo->peid);
         eid = gc->table[pinfo->veid].eid;          /* the old physical extent */
         gc->table[pinfo->veid].state ^= VES_PROMOTE;
-        spin_unlock(&(gc->lock));
+        spin_unlock_irqrestore(&(gc->lock), flags);
     } else { 
         /* update mapping table */
         DMDEBUG("promote: extent %llu is remapped to extent %llu", 
                 pinfo->veid, pinfo->peid);
-        spin_lock(&(gc->lock));
+        spin_lock_irqsave(&(gc->lock), flags);
         put_extent(gc, gc->table[pinfo->veid].eid); /* release old extent */
         eid = gc->table[pinfo->veid].eid = pinfo->peid; /* the new extent */
 		gc->cache_extents[eid].vext = gc->table + pinfo->veid;  /* cache management */
         gc->table[pinfo->veid].state ^= VES_PROMOTE;
-        spin_unlock(&(gc->lock));
+        spin_unlock_irqrestore(&(gc->lock), flags);
     }
     /* resubmit bio */
     update_bio(gc, pinfo->bio, eid);
@@ -1244,7 +1243,7 @@ static int green_ctr(struct dm_target *ti, unsigned int argc, char **argv)
     gc->eviction_running = false;
 
 	/* TODO: 
-	 * spin down disk when the green context is created for
+	 * spin down disks when the green context is created for
 	 * power benefit. 
 	 */
 
@@ -1288,6 +1287,7 @@ static int green_map(struct dm_target *ti, struct bio *bio,
         union map_info *map_context)
 {
     struct green_c *gc = (struct green_c*)ti->private;
+	unsigned long flags; 
 
 	/* bio->bi_sector is based on virtual sector specified in argv */
     extent_t eid, veid = (bio->bi_sector - ti->begin) >> gc->ext_shift;
@@ -1295,7 +1295,7 @@ static int green_map(struct dm_target *ti, struct bio *bio,
 
     DMDEBUG("%lu: map(sector %llu -> extent %llu)", jiffies, 
             (long long unsigned int)(bio->bi_sector - ti->begin), veid);
-    spin_lock(&gc->lock);
+    spin_lock_irqsave(&gc->lock, flags);
     gc->table[veid].state |= VES_ACCESS;
 #if 0
     gc->table[veid].tick = jiffies_64;
@@ -1334,7 +1334,7 @@ static int green_map(struct dm_target *ti, struct bio *bio,
 				 * 3. update mapping table 
 				 */
                 gc->table[veid].counter--;      /* undo counter */
-                spin_unlock(&gc->lock);
+                spin_unlock_irqrestore(&gc->lock);
                 return DM_MAPIO_REQUEUE;
             }
 			/*
@@ -1344,13 +1344,13 @@ static int green_map(struct dm_target *ti, struct bio *bio,
             if (bio_data_dir(bio) == READ) {
 				/* TODO: ditto or merge the two "if" branches */
 				promote_extent(gc, bio); 
-                spin_unlock(&gc->lock);
+                spin_unlock_irqrestore(&gc->lock);
                 return DM_MAPIO_SUBMITTED;
             } 
 		#endif
 			promote_extent(gc, bio); 
 
-			spin_unlock(&gc->lock);
+			spin_unlock_irqrestore(&gc->lock, flags);
 			return DM_MAPIO_SUBMITTED;
         }/* end of cache miss */ 
 		/* If cache hits, then performance benefits from Design */
@@ -1365,7 +1365,7 @@ static int green_map(struct dm_target *ti, struct bio *bio,
     }
     run_eviction = (cache_free_nr(gc) < EXT_MIN_THRESHOLD) 
             && !gc->eviction_running;
-    spin_unlock(&gc->lock);
+    spin_unlock_irqrestore(&gc->lock, flags);
 
     update_bio(gc, bio, eid);
     generic_make_request(bio);
