@@ -51,7 +51,7 @@
 
 /* Works like ASSERT() */
 #define VERIFY(x) do {\
-		if(!unlikely((x))) {\
+		if(unlikely((x))) {\
 			dump_stack();\
 			panic("VERIFY: assertion(%s) failed at %s (%d)\n",\
 				#x, __FILE__, __LINE__);\
