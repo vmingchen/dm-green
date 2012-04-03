@@ -88,7 +88,7 @@ static struct green_c *alloc_context(struct dm_target *ti,
 
 static void free_context(struct green_c *gc)
 {
-    BUG_ON(!gc || !(gc->disks));
+    VERIFY(gc && gc->disks);
 
     if (gc->table) {
         vfree(gc->table);
@@ -251,7 +251,7 @@ static inline extent_t vext2id(struct green_c *gc, struct vextent *vext)
 static inline void extent_on_disk(struct green_c *gc, extent_t *eid,
         unsigned *idisk)
 {
-    BUG_ON(*eid >= vdisk_size(gc));
+    VERIFY(*eid < vdisk_size(gc));
     *idisk = 0;
     while (*idisk < fdisk_nr(gc) && *eid >= gc->disks[*idisk].capacity) {
         *eid -= gc->disks[(*idisk)++].capacity;
@@ -313,7 +313,7 @@ static inline void put_cache(struct green_c *gc, extent_t eid)
 {
     struct extent *ext;
 
-    BUG_ON(eid >= cache_size(gc));
+    VERIFY(eid < cache_size(gc));
     ext = gc->cache_extents + eid;
     ext->vext = NULL;
     list_del(&ext->list);
@@ -356,7 +356,7 @@ static void put_extent(struct green_c *gc, extent_t eid)
 {
     unsigned i;
 
-    BUG_ON(eid >= vdisk_size(gc));
+    VERIFY(eid < vdisk_size(gc));
     for (i = 0; eid >= gc->disks[i].capacity + gc->disks[i].offset; ++i)
         ;
 
@@ -392,7 +392,7 @@ static inline void locate_header(struct dm_io_region *where,
     where->bdev = gc->disks[idisk].dev->bdev;
     where->sector = gc->disks[idisk].capacity << gc->ext_shift;
     where->count = header_size();
-    BUG_ON(where->count > MAX_SECTORS);
+    VERIFY(where->count <= MAX_SECTORS);
 }
 
 /*
@@ -461,12 +461,12 @@ static int sync_table(struct green_c *gc, struct vextent_disk *extents,
  */
 static int dump_metadata(struct green_c *gc)
 {
-    int r;
+    int r = 0;
     unsigned i;
     extent_t veid;
     struct vextent_disk *extents;
 
-    extents = (struct vextent_disk *)vmalloc(table_size(gc) * SECTOR_SIZE);
+    extents = (struct vextent_disk *)vmalloc(table_size(gc) << SECTOR_SHIFT);
     if (!extents) {
         DMERR("dump_metadata: Unable to allocate memory");
         return -ENOMEM;
@@ -573,7 +573,7 @@ static int load_metadata(struct green_c *gc)
     if (r < 0)
         return r;
 
-    extents = (struct vextent_disk*)vmalloc(table_size(gc) * SECTOR_SIZE);
+    extents = (struct vextent_disk*)vmalloc(table_size(gc) << SECTOR_SHIFT);
     if (!extents) {
         DMERR("load_metadata: Unable to allocate memory");
         r = -ENOMEM;
@@ -636,7 +636,7 @@ static int build_bitmap(struct green_c *gc, bool zero)
                 ++i;
             }
         }
-        BUG_ON(i != vdisk_size(gc));
+        VERIFY(i == vdisk_size(gc));
         /*
         j = 0;
         k = gc->disks[j].capacity;
@@ -724,6 +724,7 @@ static void promote_callback(int read_err, unsigned long write_err,
     struct promote_info *pinfo = (struct promote_info *)context;
     struct green_c *gc = pinfo->gc;
     struct vextent *vext = gc->table + pinfo->veid;
+    unsigned long flags;
 
     if (read_err || write_err) {
 		if (read_err)
@@ -731,22 +732,21 @@ static void promote_callback(int read_err, unsigned long write_err,
 		else
 			DMERR("promote_callback: Write error.");
         /* undo promote */
-        spin_lock(&(gc->lock));
+        spin_lock_irqsave(&(gc->lock), flags);
         put_cache(gc, pinfo->peid);
         vext->state &= ~VES_PROMOTE;
-        spin_unlock(&(gc->lock));
+        spin_unlock_irqrestore(&gc->lock, flags);
     } else { 
         /* update new mapping */
-        BUG_ON(on_cache(gc, vext->eid) || !on_cache(gc, pinfo->peid));
+        VERIFY(!on_cache(gc, vext->eid) && on_cache(gc, pinfo->peid));
         DMDEBUG("promote_callback: extent %llu is remapped from %llu to %llu", 
                 pinfo->veid, vext->eid, pinfo->peid);
-        spin_lock(&(gc->lock));
+        spin_lock_irqsave(&(gc->lock), flags);
         put_extent(gc, vext->eid);      /* release old extent */
         gc->cache_extents[pinfo->peid].vext = vext;
         vext->eid = pinfo->peid;        /* the new extent */
         vext->state &= ~VES_PROMOTE;
-
-        spin_unlock(&(gc->lock));
+        spin_unlock_irqrestore(&gc->lock, flags);
     }
     /* resubmit bio */
     map_bio(gc, pinfo->bio, vext->eid);
@@ -780,6 +780,7 @@ static bool promote_extent(struct green_c *gc, struct bio *bio)
             sizeof(struct promote_info), GFP_ATOMIC);
     if (!pinfo) {
         DMERR("promote_extent: Could not allocate memory");
+        put_cache(gc, peid);
         return false;        /* out of memory */
     }
 
@@ -819,6 +820,7 @@ static void demote_callback(int read_err, unsigned long write_err,
     struct extent *next, *prev;
     extent_t seid, deid;
     bool run_low = false;
+    unsigned long flags;
 
     gc = dinfo->gc;
     ext = dinfo->pext;
@@ -838,22 +840,22 @@ static void demote_callback(int read_err, unsigned long write_err,
 			DMERR("demote_callback: Write error.");
         else
             DMDEBUG("demote_callback: cancel demotion because of access");
-        spin_lock(&gc->lock);
+        spin_lock_irqsave(&gc->lock, flags);
         ext->vext->state &= ~VES_MIGRATE;
         put_extent(gc, deid);
         gc->demotion_running = false;
-        spin_unlock(&gc->lock);
+        spin_unlock_irqrestore(&gc->lock, flags);
     } 
     else {
         DMDEBUG("demote_callback: extent %u is remapped to extent %llu", 
                 (unsigned int)(ext->vext - gc->table), deid);
-        spin_lock(&gc->lock);
+        spin_lock_irqsave(&gc->lock, flags);
         ext->vext->state &= ~VES_MIGRATE;
         put_extent(gc, seid);
         ext->vext->eid = deid;
         run_low = (cache_free_nr(gc) < EXT_MAX_THRESHOLD);
         gc->demotion_running = false;
-        spin_unlock(&gc->lock);
+        spin_unlock_irqrestore(&gc->lock, flags);
     }
     kfree(dinfo);
 
@@ -916,6 +918,7 @@ static void demote_extent(struct green_c *gc)
     extent_t seid, deid, tmp;
     unsigned idisk;
     struct demote_info *dinfo;
+    unsigned long flags;
 
     dinfo = kmalloc(sizeof(struct demote_info), GFP_KERNEL);
     if (!dinfo) {
@@ -924,7 +927,7 @@ static void demote_extent(struct green_c *gc)
     }
 
     DMDEBUG("demote_extent: Demoting");
-    spin_lock(&gc->lock);
+    spin_lock_irqsave(&gc->lock, flags);
     ext = lru_extent(gc);
     if (ext == NULL) { 
         DMDEBUG("demote_extent: Nothing to demote");
@@ -939,9 +942,9 @@ static void demote_extent(struct green_c *gc)
     }
     ext->vext->state |= VES_MIGRATE;
     gc->demotion_running = true;
-    spin_unlock(&gc->lock);
+    spin_unlock_irqrestore(&gc->lock, flags);
 
-    BUG_ON(seid != ext->vext->eid || !on_cache(gc, seid) || on_cache(gc, deid));
+    VERIFY(seid == ext->vext->eid && on_cache(gc, seid) && !on_cache(gc, deid));
     dinfo->gc = gc;
     dinfo->pext = ext;
     dinfo->seid = seid;
@@ -964,7 +967,7 @@ static void demote_extent(struct green_c *gc)
     return ;
 
 quit_demote:
-    spin_unlock(&gc->lock);
+    spin_unlock_irqrestore(&gc->lock, flags);
     kfree(dinfo);
 }
 
@@ -1192,14 +1195,14 @@ static int green_map(struct dm_target *ti, struct bio *bio,
         union map_info *map_context)
 {
     struct green_c *gc = (struct green_c*)ti->private;
-
 	/* bio->bi_sector is based on virtual sector specified in argv */
     extent_t eid, veid = (bio->bi_sector - ti->begin) >> gc->ext_shift;
     bool run_demotion = false;
+    unsigned long flags;
 
     DMDEBUG("%lu: map(sector %llu -> extent %llu)", jiffies, 
             (long long unsigned int)(bio->bi_sector - ti->begin), veid);
-    spin_lock(&gc->lock);
+    spin_lock_irqsave(&gc->lock, flags);
     gc->table[veid].state |= VES_ACCESS;
     gc->table[veid].tick = jiffies_64;
     gc->table[veid].counter++;
@@ -1207,13 +1210,12 @@ static int green_map(struct dm_target *ti, struct bio *bio,
 	/* if the mapping table is setup already */
     if (gc->table[veid].state & VES_PRESENT) {
         eid = gc->table[veid].eid;
-        DMDEBUG("map: virtual %llu -> physical %llu", veid, eid);
 		/* if mapping table indicates access to none-cache disks */
         if (!on_cache(gc, eid)) {
             if (gc->table[veid].state & VES_PROMOTE) {  
                 /* If the extent is under promotion, postpone the IO request */
                 gc->table[veid].counter--;      /* undo counter */
-                spin_unlock(&gc->lock);
+                spin_unlock_irqrestore(&gc->lock, flags);
                 return DM_MAPIO_REQUEUE;
             }
             if (bio_data_dir(bio) == READ && promote_extent(gc, bio)) {
@@ -1221,7 +1223,7 @@ static int green_map(struct dm_target *ti, struct bio *bio,
                  * Try to promote extent on read. It will schedule callback
                  * function to resubmit the bio no matter success or failure.
                  */
-                spin_unlock(&gc->lock);
+                spin_unlock_irqrestore(&gc->lock, flags);
                 return DM_MAPIO_SUBMITTED;
             } 
             /* 
@@ -1239,13 +1241,14 @@ static int green_map(struct dm_target *ti, struct bio *bio,
     } 
 	/* How the mapping table is built here lacks workload knowledge */
 	else {
-        BUG_ON(get_extent(gc, &eid, true) < 0);   /* out of space */
+        VERIFY(get_extent(gc, &eid, true) == 0);   /* otherwise out of space */
         map_extent(gc, veid, eid);
     }
     run_demotion = (cache_free_nr(gc) < EXT_MIN_THRESHOLD) 
             && !gc->demotion_running;
-    spin_unlock(&gc->lock);
+    spin_unlock_irqrestore(&gc->lock, flags);
 
+    DMDEBUG("map: virtual %llu -> physical %llu", veid, eid);
     map_bio(gc, bio, eid);
 
 	/* 

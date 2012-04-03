@@ -71,7 +71,7 @@
 #define table_size(gc) \
     count_sector(gc->header.capacity * sizeof(struct vextent_disk))
 
-/* Return size of bitmap array in unit of unsigned long; round up to the ceiling */
+/* Return size of bitmap array in unit of bytes; round up */
 #define bitmap_size(sz) dm_round_up(sz, sizeof(unsigned long))
 
 #define extent_size(gc) (gc->header.ext_size)
@@ -105,6 +105,15 @@
  */
 #define array_too_big(fixed, obj, num) \
 	((num) > (UINT_MAX - (fixed)) / (obj))
+
+/* Like ASSERT() but always compiled in. From flashcache. */
+#define VERIFY(x) do { \
+	if (unlikely(!(x))) { \
+		dump_stack(); \
+		panic("VERIFY: assertion (%s) failed at %s (%d)\n", \
+		      #x,  __FILE__ , __LINE__);		    \
+	} \
+} while(0)
 
 /* extent id type */
 typedef uint64_t extent_t; 
