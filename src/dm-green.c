@@ -511,6 +511,7 @@ static int dump_metadata(struct green_c *gc)
 	bitmap = (unsigned long *)vmalloc(bitmap_size(vdisk_size(gc))); 
 	if(!bitmap) {
 		DMERR("dump_metadata: Unable to allocate memory"); 
+        vfree(extents);
 		return -ENOMEM; 
 	}
 
@@ -770,10 +771,11 @@ static void update_bio(struct green_c *gc, struct bio *bio, extent_t eid)
     struct dm_target *ti = gc->ti;
     sector_t offset;          /* sector offset within extent */
 
-#if 0
+#ifdef OLD_KERNEL
+    offset = (bio->bi_sector - ti->begin) % extent_size(gc);
+#else
     offset = ((bio->bi_sector - ti->begin) & (extent_size(gc) - 1));
 #endif
-    offset = (bio->bi_sector - ti->begin) % extent_size(gc);
 
     extent_on_disk(gc, &eid, &idisk);
     bio->bi_bdev = gc->disks[idisk].dev->bdev;
