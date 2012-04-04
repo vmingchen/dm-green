@@ -379,6 +379,7 @@ static int dm_io_sync_vm(unsigned num_regions, struct dm_io_region *where,
     iorq.bi_rw= rw;
     iorq.mem.type = DM_IO_VMA;
     iorq.mem.ptr.vma = data;
+    /* set notify.fn to be async IO. NULL means sync IO */
     iorq.notify.fn = NULL;
     iorq.client = gc->io_client;
 
@@ -456,8 +457,6 @@ static int sync_table(struct green_c *gc, struct vextent_disk *extents,
  * efficient device (SSD), especially under the condition that the
  * flush exhibits the periodic feature. 
  *
- * Another issue is the bitmap, which has to be dumped to disk as
- * well. 
  */
 static int dump_metadata(struct green_c *gc)
 {
@@ -618,12 +617,7 @@ static int build_bitmap(struct green_c *gc, bool zero)
     if (zero) {
         for (j = 0; j < fdisk_nr(gc); ++j)
             gc->disks[j].free_nr = gc->disks[j].capacity;
-    } 
-	/* 
-	 * build_bitmap should be very easy, not sure why necessary for
-	 * the below code.
-	 */
-	else {
+    } else {
         i = 0;
         for (j = 0; j < fdisk_nr(gc); ++j) {
             gc->disks[j].free_nr = gc->disks[j].capacity;
@@ -637,25 +631,6 @@ static int build_bitmap(struct green_c *gc, bool zero)
             }
         }
         VERIFY(i == vdisk_size(gc));
-        /*
-        j = 0;
-        k = gc->disks[j].capacity;
-        gc->disks[j].free_nr = k;
-        for (i = 0; i < vdisk_size(gc); ++i) {
-            if (k == 0) { 
-                DMDEBUG("free extent on disk %lu: %llu", 
-                        j, gc->disks[j].free_nr);
-                k = gc->disks[++j].capacity;
-                gc->disks[j].free_nr = k;
-            }
-            if (gc->table[i].state & VES_PRESENT) {
-                bitmap_set(gc->bitmap, i, 1);
-                gc->disks[j].free_nr--;
-                DMDEBUG("extent %d is present", i);
-            }
-            --k;
-        }
-        */
     }
 
     for (j = 0; j < fdisk_nr(gc); ++j) {
@@ -700,7 +675,6 @@ static void map_bio(struct green_c *gc, struct bio *bio, extent_t eid)
     struct dm_target *ti = gc->ti;
     sector_t offset;          /* sector offset within extent */
 
-	/* BUG? should be (bio->bi_sector - ti->begin) % extent_size(gc) */
     offset = ((bio->bi_sector - ti->begin) & (extent_size(gc) - 1));
 
     extent_on_disk(gc, &eid, &idisk);
@@ -1001,7 +975,6 @@ static int build_cache(struct green_c *gc)
         list_add_tail(&(gc->cache_extents[eid].list), &gc->cache_free);
     }
 
-	/* initially, use list empty; after redirecting, list rearrange */
     INIT_LIST_HEAD(&gc->cache_use);
     for (veid = 0; veid < vdisk_size(gc); ++veid) {
         if (!(gc->table[veid].state & VES_PRESENT))
@@ -1110,7 +1083,6 @@ static int green_ctr(struct dm_target *ti, unsigned int argc, char **argv)
     if (r < 0) {
         DMDEBUG("no useable metadata on disk");
 
-		/* BUG: in case of check error, no further allocation required */
         /* 
          * This happens when it is the first time the disk is used. However, the
          * current manner of processing is too simple. We should add some
@@ -1250,16 +1222,6 @@ static int green_map(struct dm_target *ti, struct bio *bio,
 
     DMDEBUG("map: virtual %llu -> physical %llu", veid, eid);
     map_bio(gc, bio, eid);
-
-	/* 
-	 * demotion/promotion makes simple IO access complex, and makes
-	 * the debug process complex as well. It also increase system
-	 * overhead, especially in our case, the workload is in block
-	 * level, and is IO intensive. 
-	 * 
-	 * Disable demotion/promotion in the first place. Start with easy
-	 * things first and add complexity gradually. 
-	 */
 
     if (run_demotion) {              /* schedule extent demotion */
 		/* remember to flush_work */

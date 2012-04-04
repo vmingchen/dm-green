@@ -71,8 +71,10 @@
 #define table_size(gc) \
     count_sector(gc->header.capacity * sizeof(struct vextent_disk))
 
-/* Return size of bitmap array in unit of bytes; round up */
-#define bitmap_size(sz) dm_round_up(sz, sizeof(unsigned long))
+#define BYTE_SIZE 8
+/* Return size of bitmap array in byte; round up */
+#define bitmap_size(sz) \
+    dm_div_up(sz, BYTE_SIZE * sizeof(unsigned long)) * sizeof(unsigned long)
 
 #define extent_size(gc) (gc->header.ext_size)
 #define vdisk_size(gc) (gc->header.capacity)
