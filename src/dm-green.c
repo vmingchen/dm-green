@@ -685,6 +685,48 @@ static void map_bio(struct green_c *gc, struct bio *bio, extent_t eid)
             (unsigned int)to_bytes(extent_size(gc) - offset));
 }
 
+static struct promote_info *alloc_promote_info(struct green_c *gc)
+{
+    struct promote_info *pinfo;
+
+    /* 
+     * Use GFP_ATOMIC as because it changes the green context gc and must be
+     * holding the spinlock. 
+     *
+     * TODO: use memcache or other mechnism to avoid frequent allocation
+     */
+    pinfo = (struct promote_info *)kmalloc(
+            sizeof(struct promote_info), GFP_ATOMIC);
+    if (!pinfo) 
+        return NULL;
+
+    bio_list_init(&pinfo->pending_bio_queue);
+
+    list_add_tail(&pinfo->list, &gc->promotion_list);
+
+    return pinfo;
+}
+
+static void free_promote_info(struct promote_info *pinfo) 
+{
+    VERIFY(pinfo && bio_list_empty(&pinfo->pending_bio_queue));
+    list_del(&pinfo->list);
+    kfree(pinfo);
+}
+
+static void submit_pending_bios(struct green_c *gc, 
+        struct promote_info *pinfo)
+{
+    struct vextent *vext = gc->table + pinfo->veid;
+    struct bio *bio;
+
+    while (!bio_list_empty(&pinfo->pending_bio_queue)) {
+        bio = bio_list_pop(&pinfo->pending_bio_queue);
+        map_bio(gc, bio, vext->eid);
+        generic_make_request(bio);
+    }
+}
+
 /*
  * Callback of promote_extent. It should release resources allocated by
  * promote_extent properly upon either success or failure.
@@ -700,33 +742,27 @@ static void promote_callback(int read_err, unsigned long write_err,
     struct vextent *vext = gc->table + pinfo->veid;
     unsigned long flags;
 
+    VERIFY(!on_cache(gc, vext->eid) && on_cache(gc, pinfo->peid));
+    spin_lock_irqsave(&(gc->lock), flags);
+    vext->state &= ~VES_PROMOTE;
     if (read_err || write_err) {
 		if (read_err)
 			DMERR("promote_callback: Read error.");
 		else
 			DMERR("promote_callback: Write error.");
-        /* undo promote */
-        spin_lock_irqsave(&(gc->lock), flags);
+        /* undo promotion */
         put_cache(gc, pinfo->peid);
-        vext->state &= ~VES_PROMOTE;
-        spin_unlock_irqrestore(&gc->lock, flags);
     } else { 
         /* update new mapping */
-        VERIFY(!on_cache(gc, vext->eid) && on_cache(gc, pinfo->peid));
         DMDEBUG("promote_callback: extent %llu is remapped from %llu to %llu", 
                 pinfo->veid, vext->eid, pinfo->peid);
-        spin_lock_irqsave(&(gc->lock), flags);
         put_extent(gc, vext->eid);      /* release old extent */
         gc->cache_extents[pinfo->peid].vext = vext;
         vext->eid = pinfo->peid;        /* the new extent */
-        vext->state &= ~VES_PROMOTE;
-        spin_unlock_irqrestore(&gc->lock, flags);
     }
-    /* resubmit bio */
-    map_bio(gc, pinfo->bio, vext->eid);
-    generic_make_request(pinfo->bio);
-
-    kfree(pinfo);
+    submit_pending_bios(gc, pinfo);
+    free_promote_info(pinfo);
+    spin_unlock_irqrestore(&gc->lock, flags);
 }
 
 /*
@@ -749,14 +785,13 @@ static bool promote_extent(struct green_c *gc, struct bio *bio)
         return false;        /* no free cache extent */
     }
 
-    /* use GFP_ATOMIC because it is holding a spinlock */
-    pinfo = (struct promote_info *)kmalloc(
-            sizeof(struct promote_info), GFP_ATOMIC);
+    pinfo = alloc_promote_info(gc); 
     if (!pinfo) {
         DMERR("promote_extent: Could not allocate memory");
         put_cache(gc, peid);
         return false;        /* out of memory */
     }
+    bio_list_add(&pinfo->pending_bio_queue, bio);
 
     veid = ((bio->bi_sector) >> gc->ext_shift);
     gc->table[veid].state |= VES_PROMOTE;
@@ -771,7 +806,6 @@ static bool promote_extent(struct green_c *gc, struct bio *bio)
     dst.count = extent_size(gc);
 
     pinfo->gc = gc;
-    pinfo->bio = bio;
     pinfo->veid = veid;
     pinfo->peid = peid;
 
@@ -1126,6 +1160,7 @@ static int green_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	/* map kernel thread id to thread work function */
     INIT_WORK(&gc->demotion_work, demotion_work);
     gc->demotion_running = false;
+    INIT_LIST_HEAD(&gc->promotion_list);
 
     return 0;
 
@@ -1163,6 +1198,22 @@ static void green_dtr(struct dm_target *ti)
     free_context(gc);
 }
 
+/*
+ * Add bio to the pending_bio_queue on extent which is under promotion.
+ */
+static void queue_bio(struct green_c *gc, struct bio *bio, extent_t veid)
+{
+    struct promote_info *pinfo = NULL;
+
+    list_for_each_entry(pinfo, &gc->promotion_list, list) {
+        if (pinfo->veid == veid)
+            break;
+    }
+
+    VERIFY(pinfo && pinfo->veid == veid);
+    bio_list_add(&pinfo->pending_bio_queue, bio);
+}
+
 static int green_map(struct dm_target *ti, struct bio *bio,
         union map_info *map_context)
 {
@@ -1172,7 +1223,8 @@ static int green_map(struct dm_target *ti, struct bio *bio,
     bool run_demotion = false;
     unsigned long flags;
 
-    DMDEBUG("%lu: map(sector %llu -> extent %llu)", jiffies, 
+    DMDEBUG("%lu: map %s %u (sector %llu -> extent %llu)", jiffies, 
+            bio_data_dir(bio) == READ ? "Read" : "Write", bio->bi_size,
             (long long unsigned int)(bio->bi_sector - ti->begin), veid);
     spin_lock_irqsave(&gc->lock, flags);
     gc->table[veid].state |= VES_ACCESS;
@@ -1186,9 +1238,9 @@ static int green_map(struct dm_target *ti, struct bio *bio,
         if (!on_cache(gc, eid)) {
             if (gc->table[veid].state & VES_PROMOTE) {  
                 /* If the extent is under promotion, postpone the IO request */
-                gc->table[veid].counter--;      /* undo counter */
+                queue_bio(gc, bio, veid);
                 spin_unlock_irqrestore(&gc->lock, flags);
-                return DM_MAPIO_REQUEUE;
+                return DM_MAPIO_SUBMITTED;
             }
             if (bio_data_dir(bio) == READ && promote_extent(gc, bio)) {
                 /*
@@ -1220,7 +1272,6 @@ static int green_map(struct dm_target *ti, struct bio *bio,
             && !gc->demotion_running;
     spin_unlock_irqrestore(&gc->lock, flags);
 
-    DMDEBUG("map: virtual %llu -> physical %llu", veid, eid);
     map_bio(gc, bio, eid);
 
     if (run_demotion) {              /* schedule extent demotion */

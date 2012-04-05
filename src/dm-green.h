@@ -51,7 +51,7 @@
 
 /* Magic for persistent green header */
 #define GREEN_MAGIC 0x45614567
-#define GREEN_VERSION 60
+#define GREEN_VERSION 66
 #define GREEN_DAEMON "kgreend"
 
 /* The first disk is cache disk. */
@@ -189,23 +189,26 @@ struct green_c {
     struct list_head cache_free;    /* free extents on cache disk */
     struct list_head cache_use;     /* in-use extents on cache disk */
 
-    unsigned long *bitmap;      /* bitmap of extent, '0' for free extent */
-    spinlock_t lock;            /* protect table, free and bitmap */
+    unsigned long *bitmap;          /* bitmap of extent, '0' for free extent */
+    spinlock_t lock;                /* protect table, free and bitmap */
 
     struct dm_io_client *io_client;
-    struct dm_kcopyd_client *kcp_client; /* data copy in device mapper */
+    struct dm_kcopyd_client *kcp_client;    /* data copy in device mapper */
 
-    struct work_struct demotion_work;   /* work of evicting cache extent */
-    extent_t demotion_cursor;           /* WSClock algorithm cursor */
+    struct work_struct demotion_work;       /* work of evicting cache extent */
+    extent_t demotion_cursor;               /* WSClock algorithm cursor */
     bool demotion_running; 
+
+    struct list_head promotion_list;        /* list of promotion_info */
 };
 
 /* Information passed between promotion function and its callback */
 struct promote_info {
     struct green_c *gc;
-    struct bio      *bio;   /* bio to submit after migration */
     extent_t        veid;   /* virtual extent to promote */
-    extent_t        peid;   /* destinate cache extent of the promotion */
+    extent_t        peid;   /* destinate cache extent */
+    struct bio_list pending_bio_queue;  /* bios to submit after promotion */
+    struct list_head    list;           /* promote_info list */
 };
 
 /* Information passed between demotion function and its callback */
