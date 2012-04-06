@@ -51,7 +51,7 @@
 
 /* Magic for persistent green header */
 #define GREEN_MAGIC 0x45614567
-#define GREEN_VERSION 66
+#define GREEN_VERSION 68
 #define GREEN_DAEMON "kgreend"
 
 /* The first disk is cache disk. */

@@ -853,14 +853,13 @@ static void demote_callback(int read_err, unsigned long write_err,
         put_extent(gc, deid);
         gc->demotion_running = false;
         spin_unlock_irqrestore(&gc->lock, flags);
-    } 
-    else {
+    } else {
         DMDEBUG("demote_callback: extent %u is remapped to extent %llu", 
                 (unsigned int)(ext->vext - gc->table), deid);
         spin_lock_irqsave(&gc->lock, flags);
         ext->vext->state &= ~VES_MIGRATE;
-        put_extent(gc, seid);
         ext->vext->eid = deid;
+        put_extent(gc, seid);   /* ext->vext is set to NULL */
         run_low = (cache_free_nr(gc) < EXT_MAX_THRESHOLD);
         gc->demotion_running = false;
         spin_unlock_irqrestore(&gc->lock, flags);
@@ -1162,6 +1161,11 @@ static int green_ctr(struct dm_target *ti, unsigned int argc, char **argv)
     gc->demotion_running = false;
     INIT_LIST_HEAD(&gc->promotion_list);
 
+    /* prevent io from acrossing extent */
+    ti->split_io = ext_size;
+    ti->num_flush_requests = ndisk;
+    ti->num_discard_requests = ndisk;
+
     return 0;
 
 /* free memory reversely */
@@ -1222,6 +1226,14 @@ static int green_map(struct dm_target *ti, struct bio *bio,
     extent_t eid, veid = (bio->bi_sector - ti->begin) >> gc->ext_shift;
     bool run_demotion = false;
     unsigned long flags;
+	unsigned target_request_nr;
+
+    if (bio->bi_rw & REQ_FLUSH) {
+        target_request_nr = map_context->target_request_nr;
+        VERIFY(target_request_nr < fdisk_nr(gc));
+        bio->bi_bdev = gc->disks[target_request_nr].dev->bdev;
+        return DM_MAPIO_REMAPPED;
+    }
 
     DMDEBUG("%lu: map %s %u (sector %llu -> extent %llu)", jiffies, 
             bio_data_dir(bio) == READ ? "Read" : "Write", bio->bi_size,
