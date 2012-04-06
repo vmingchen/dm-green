@@ -1244,6 +1244,11 @@ static int green_ctr(struct dm_target *ti, unsigned int argc, char **argv)
     INIT_WORK(&gc->eviction_work, eviction_work);
     gc->eviction_running = false;
 
+    /* prevent io from acrossing extent */
+    ti->split_io = ext_size;
+    ti->num_flush_requests = ndisk;
+    ti->num_discard_requests = ndisk;
+
 	/* TODO: 
 	 * spin down disks when the green context is created for
 	 * power benefit. 
@@ -1294,6 +1299,14 @@ static int green_map(struct dm_target *ti, struct bio *bio,
 	/* bio->bi_sector is based on virtual sector specified in argv */
     extent_t eid, veid = (bio->bi_sector - ti->begin) >> gc->ext_shift;
     bool run_eviction = false;
+	unsigned target_request_nr;
+
+    if (bio->bi_rw & REQ_FLUSH) {
+        target_request_nr = map_context->target_request_nr;
+        VERIFY(target_request_nr < fdisk_nr(gc));
+        bio->bi_bdev = gc->disks[target_request_nr].dev->bdev;
+        return DM_MAPIO_REMAPPED;
+    }
 
     DMDEBUG("%lu: map(sector %llu -> extent %llu)", jiffies, 
             (long long unsigned int)(bio->bi_sector - ti->begin), veid);
