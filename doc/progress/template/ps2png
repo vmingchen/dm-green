@@ -1,0 +1,30 @@
+#!/bin/sh
+#ps2png script by Ian Hutchinson 1999; use at your own risk.
+#You need Ghostscript and the netpbm utilities installed.
+#
+# This version checks for arguments without exec and also lets you specify
+# a geometry and DPI using environment variables.
+#
+if [ $# -lt 2 ] ; then
+       echo " Usage: ps2png <file.ps> <file.gif> [<icon.gif>]" 1>&2
+       echo " Export the variables DPI to change the resolution, and GEOMETRY" 1>&2
+       echo " to change the size of the png output." 1>&2
+       exit 1
+else
+    echo "Calling ghostscript to convert, please wait ..." >&2
+    filein=$1
+    [ -z "$GEOMETRY" ] && GEOMETRY="600x600"
+    [ -z "$DPI" ] && DPI="150"
+# The following uses the internal gs driver but does no cropping etc.
+#    gs -sDEVICE=png256 -sOutputFile=$2 -sNOPAUSE -q $filein -c showpage -c quit
+    gs -r$DPI -sDEVICE=ppmraw -sOutputFile=- -sNOPAUSE -q $filein -c showpage -c quit | pnmcrop| pnmmargin -white 10 | pnmtopng >$2
+    convert -geometry "$GEOMETRY>" $2 $2
+    shift 2
+    if [ $# -eq 1 ] ;then
+# Make an icon file.
+       gs -sDEVICE=ppmraw -sOutputFile=- -sNOPAUSE -r12 -q $filein -c showpage -c quit | pnmcrop|  pnmtopng >$1
+       convert -geometry "$GEOMETRY>" $1 $1
+    fi
+fi
+
+

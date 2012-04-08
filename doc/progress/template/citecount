@@ -1,0 +1,26 @@
+: # *-*-perl-*-*
+    eval 'exec perl -S  $0 "$@"'
+    if $running_under_some_shell;
+
+%counts = ();
+$total = $unique = 0;
+
+while (<>) {
+	$line = $_;
+	$line =~ s/^(?<!\\)\%.*//g;
+	while ($line =~ /^.*\\cite\{(.*?)\}(.*)$/) {
+		$citelist = $1;
+		@cites = split(/,/, $citelist);	
+		foreach $cite (@cites) {
+			$counts{$cite}++;
+			$total++;
+		}
+		$line = $2;
+	}
+}
+
+foreach $cite (sort keys %counts) {
+	$unique++;
+	print "$cite: " . $counts{$cite} . "\n";
+}
+print "$total total citations ($unique unique).\n"

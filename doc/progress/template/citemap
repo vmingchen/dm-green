@@ -1,0 +1,43 @@
+# The format of this file is old citation name,newcitation name, you should
+# have one mapping per line.  It is legal to have multiple old citations map to
+# a new citation.
+douglas98slic,ghormley98slic
+ezk.misc:Blaze93,blaze93cfs
+posix-acl,freenix03acl
+halcrow:ols,ols04halcrow
+USENIX:Kleiman86,usenix86kleiman
+wright05tos,tos06unionfs
+amino-article,tos06amino
+ezk.misc:Zadok98b,cucs98usenetfs
+ezk.misc:Zadok98a,cucs98cryptfs
+ezk.misc:Zadok99,linuxexpo99stackable
+ezk.misc:Zadok99a,usenix99linux
+ezk.misc:Zadok99b,cucs99stacksec
+ezk.misc:Zadok2000fist,usenix00fist
+ezk.misc:Zadok2001sca,usenix01sca
+ezk.misc:Zadok92,usenix92hotreplace
+ezk.misc:Zadok97,cucs97hotreplace
+lj04wright:unionfs,lj04unionfs
+lj03zadok:stk,lj03stackable
+lj03zadok:amd,lj03amd
+autoconfiscating,freenix02amd
+usenix:Zadok93a,usenix93hlfsd
+USENIX:Pendry95,usenix95unionmounts
+ifs,oracleifs
+pacfil:acm87,sosp87pacfil
+sosp:engler95,sosp95exokernel
+sosp:Liedtke95,sosp95liedtke
+sosp:bershad95,sosp95bershad
+provos-usec03,usesec03systrace
+santry:sosp99,sosp99santry
+strunkselfsecuring,osdi2000strunk
+osdi:yu2000,osdi2000yu
+hpatterson:snapmirror,fast02snapmirror
+miller02security,miller02nassecurity
+venti:fast02,fast02venti
+bdbmanual:bdb_manual
+bdbmanualdeadlock:bdb_manual_deadlock
+usenix2004cornell,freenix04cornell
+mazieres99separating,sosp99mazieres
+freenix02journaling,freenix02bryant
+sosp05_zhou,sosp05hibernator

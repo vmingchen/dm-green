@@ -1,0 +1,222 @@
+# vim:filetype=perl
+
+use Text::BibTeX;
+use strict;
+
+# The default format for each type of entry.
+our %formats = (
+	"book" => "%A. %t. %U. %m %y. %?N%>.",
+	"manual" => "%A. %t, %e, %m %y. %?N%>.",
+	"article" => "%A. %t. %j, %?v%<(%?n%>), %m %y. %?N%>.",
+	"techreport" => "%A. %t. Technical Report %n, %i, %m %y. %?N%>.",
+	"inproceedings" => "%A. %t. In %T, %<p%<p%<.%< %*p%>, %l, %m %y. %*U%>. %?N%>.",
+	"mastersthesis" => "%A. %t. Master's thesis, %s, %m %y. %?N%>.",
+	"phdthesis" => "%A. %t. Ph.D. thesis, %s, %m %y. %?N%>.",
+	"unpublished" => "%A. %t. %?m %?y%>. %?N%>.",
+);
+
+our ($biblinks, $bibhtml) = (1, 0);
+
+# The default conversions
+my %conversions = (
+	"a" => "AUTHOR",
+	"t" => "TITLE",
+	"T" => "BOOKTITLE",
+	"y" => "YEAR",
+	"j" => "JOURNAL",
+	"m" => "MONTH",
+	"e" => "EDITION",
+	"i" => "INSTITUTION",
+	"s" => "SCHOOL",
+	"n" => "NUMBER",
+	"v" => "VOLUME",
+	"N" => "NOTE",
+	"P" => "PRIVATENOTE",
+	"l" => "ADDRESS", # Think 'l'ocation
+	"p" => "PAGES",
+	"U" => "PUBLISHER",
+	# These keys are semi-magic
+	"c" => "count",
+	"k" => "key",
+	"Y" => "type",
+	"A" => "AUTHOR", # This adds authormap support to authors
+	"O" => "NOTE", # This is the note, but ignore links
+);
+
+sub readmappings {
+	my ($file, $mappings, $citemappings) = @_;
+	open(MAPFILE, $file) || die "Could not open map $_: $!\n";
+	while (<MAPFILE>) {
+		chomp;
+		my $restrict = "";
+		if (/^cite=(.*?):(.*)$/) {
+			$restrict = $1;
+			$_ = $2;
+		}
+		my ($k, $v) = split(/=/, $_, 2);
+		die "$file:$. does not have a key and value!" if (!defined($k) || !defined($v));
+		if ($restrict) {
+			if (!defined($$citemappings{$restrict})) {
+				$$citemappings{$restrict} = ();
+			}
+			$$citemappings{$restrict}{$k} = $v;
+		} else {
+			$$mappings{$k} = $v;
+		}
+	}
+	close(MAPFILE);
+}
+
+# So that you can have [1] ...
+my $counter = 0;
+
+# Print according to printf-like formats.
+sub pretty_print {
+	my ($key, $bibliography, $citemappings, $mappings, $format) = @_;
+	my $output = "";
+
+	my $entry = $$bibliography{$key};
+
+	$counter++;
+
+	if ($entry->exists("crossref")) {
+		my $crossentry = $$bibliography{$entry->get("crossref")};
+		if (!defined($crossentry)) {
+			printf STDERR "Could not find cross-reference %s for %s.\n", $entry->get("crossref"), $entry->key();
+			die;
+		}
+		$entry->delete("crossref");
+		foreach ($crossentry->fieldlist) {
+			$entry->set($_, $crossentry->get($_));
+		}
+	}
+
+	my $potential_txt = "";
+	my $lastfound = 0;
+	while ($format =~ /(.*?)%([\?\<\>\*]?)(.)(.*)$/) {
+		$output .= $1;
+		my $optional = $2;
+		my $dowarn = 0;
+		my $origconv = $3;
+		my $conversion;
+		$format = $4;
+		if ($2 eq "<") {
+			$potential_txt .= $3;
+			next;
+		} elsif ($2 eq ">") {
+			$output .= "$3" if ($lastfound);
+			next;
+		} elsif ($2 eq "?") {
+			$optional = 1;
+			$dowarn = 0;
+		} elsif ($2 eq "*") {
+			$optional = 1;
+			$dowarn = 1;
+		}
+		$conversion = lc($conversions{$3});
+
+		my $txt;
+
+		if (!$conversion) {
+			die "No conversion defined for $3.\n";
+		}
+
+		if ($conversion eq "type") {
+			$txt = $entry->type;
+		} elsif ($conversion eq "key") {
+			$txt = $entry->key;
+		} elsif ($conversion eq "count") {
+			$txt = $counter;
+		} elsif (($conversion eq "author") && ($origconv eq "A")) {
+			my @authors = $entry->split('author');
+			map { s/{//g; } (@authors);
+			map { s/}//g; } (@authors);
+			@authors = map { (defined($$citemappings{$entry->key}{"author:$_"}) ? $$citemappings{$entry->key}{"author:$_"} : $_ ) } (@authors);
+			@authors = map { (defined($$mappings{"author:$_"}) ? $$mappings{"author:$_"} : $_ ) } (@authors);
+			my $lastauthor;
+			if ($#authors > 0) {
+				$lastauthor = pop(@authors);
+			}
+			$txt = join(", ",  @authors);
+			if ($lastauthor) {
+				$txt .= "," if ($#authors > 0);
+				$txt .= " and $lastauthor";
+			}
+		} else {
+			if (!$entry->exists($conversion)) {
+				$lastfound = 0;
+				$potential_txt = "";
+				if ($dowarn) {
+					warn "Entry " . $entry->key . " does not have " . $conversion . "\n";
+				}
+				if ($optional) {
+					next;
+				}
+				die "Entry " . $entry->key . " does not have " . $conversion . "\n";
+			}
+			$output .= $potential_txt;
+			$potential_txt = "";
+			$txt = $entry->get($conversion);
+			if ((!$biblinks) && ($origconv eq "O")) {
+				$txt =~ s/\\url\{.*?\}//g;
+			}
+			if (defined($$citemappings{$entry->key}{$conversion . ":" . $txt})) {
+				$txt = $$citemappings{$entry->key}{$conversion . ":" . $txt};
+			} elsif (defined($$mappings{$conversion . ":" . $txt})) {
+				$txt = $$mappings{$conversion . ":" . $txt};
+			}
+			if ($bibhtml) {
+				$txt =~ s/{\\bf (.*?)\}/<b>$1<\/b>/g;
+			} else {
+				$txt =~ s/{\\bf (.*?)\}/$1/g;
+			}
+			$txt =~ s/\\url\{www.(.*?)\}/<a href="http:\/\/www.$1">www.$1<\/a>/g if ($bibhtml);
+			$txt =~ s/\\url\{ftp.(.*?)\}/<a href="ftp:\/\/ftp.$1">ftp.$1<\/a>/g if ($bibhtml);
+			$txt =~ s/\\url\{(.*?)\}/<a href="$1">$1<\/a>/g if ($bibhtml);
+			$txt =~ s/{//g;
+			$txt =~ s/}//g;
+			if ($txt ne "") {
+				$lastfound = 1;
+			} else {
+				$lastfound = 0;
+			}
+		}
+		$output .= "<span class='bib-$conversion'>" if ($bibhtml);
+		$output .= $txt;
+		$output .= "</span>" if ($bibhtml);
+	}
+	$output .= $format;
+
+	return $output;
+}
+
+# The Text::BibTeX::Entry->write method doesn't print things out how we like
+sub print_bibtex {
+	my ($FH, $key, $bibliography, $dojoin) = @_;
+
+	my $entry = $$bibliography{$key};
+
+	if ($dojoin) {
+		if ($entry->exists("crossref")) {
+			my $crossentry = $$bibliography{$entry->get("crossref")};
+			if (!defined($crossentry)) {
+				printf STDERR "Could not find cross-reference %s for %s.\n", $entry->get("crossref"), $entry->key();
+				die;
+			}
+			$entry->delete("crossref");
+			foreach ($crossentry->fieldlist) {
+				$entry->set($_, $crossentry->get($_));
+			}
+		}
+	}
+
+	printf $FH "@%s{%s,\n", uc($entry->type), $entry->key;
+	foreach ($entry->fieldlist) {
+		next if ($_ eq "privatenote");
+		printf OFILE "  %-15s\"%s\",\n", uc($_) . " =", $entry->get($_);
+	}
+	printf $FH "}\n";
+	printf $FH "\n";
+}
+
+1;

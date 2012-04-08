@@ -1,0 +1,244 @@
+This is pdfTeX, Version 3.1415926-1.40.10 (TeX Live 2009/Debian) (format=latex 2011.7.7)  8 APR 2012 16:57
+entering extended mode
+ %&-line parsing enabled.
+**main.tex
+(./main.tex
+LaTeX2e <2009/09/24>
+Babel <v3.8l> and hyphenation patterns for english, usenglishmax, dumylang, noh
+yphenation, loaded.
+(./template/usetex-v1.cls
+Document Class: usetex-v1 2002/10/31 v1.2 usetex Usenix article class
+(/usr/share/texmf-texlive/tex/latex/base/article.cls
+Document Class: article 2007/10/19 v1.4h Standard LaTeX document class
+(/usr/share/texmf-texlive/tex/latex/base/size10.clo
+File: size10.clo 2007/10/19 v1.4h Standard LaTeX file (size option)
+)
+\c@part=\count79
+\c@section=\count80
+\c@subsection=\count81
+\c@subsubsection=\count82
+\c@paragraph=\count83
+\c@subparagraph=\count84
+\c@figure=\count85
+\c@table=\count86
+\abovecaptionskip=\skip41
+\belowcaptionskip=\skip42
+\bibindent=\dimen102
+)
+(/usr/share/texmf-texlive/tex/latex/graphics/color.sty
+Package: color 2005/11/14 v1.0j Standard LaTeX Color (DPC)
+
+(/etc/texmf/tex/latex/config/color.cfg
+File: color.cfg 2007/01/18 v1.5 color configuration of teTeX/TeXLive
+)
+Package color Info: Driver file: dvips.def on input line 130.
+
+(/usr/share/texmf-texlive/tex/latex/graphics/dvips.def
+File: dvips.def 1999/02/16 v3.0i Driver-dependant file (DPC,SPQR)
+)
+(/usr/share/texmf-texlive/tex/latex/graphics/dvipsnam.def
+File: dvipsnam.def 1999/02/16 v3.0i Driver-dependant file (DPC,SPQR)
+))
+\hour=\count87
+\minute=\count88
+
+(/usr/share/texmf-texlive/tex/latex/psnfss/times.sty
+Package: times 2005/04/12 PSNFSS-v9.2a (SPQR) 
+)
+\@sectionaboveskip=\skip43
+\@sectionbelowskip=\skip44
+\@subsectionaboveskip=\skip45
+)
+(/usr/share/texmf-texlive/tex/latex/graphics/epsfig.sty
+Package: epsfig 1999/02/16 v1.7a (e)psfig emulation (SPQR)
+
+(/usr/share/texmf-texlive/tex/latex/graphics/graphicx.sty
+Package: graphicx 1999/02/16 v1.0f Enhanced LaTeX Graphics (DPC,SPQR)
+
+(./template/keyval.sty
+Package: keyval 1999/03/16 v1.13 key=value parser (DPC)
+\KV@toks@=\toks14
+)
+(/usr/share/texmf-texlive/tex/latex/graphics/graphics.sty
+Package: graphics 2009/02/05 v1.0o Standard LaTeX Graphics (DPC,SPQR)
+
+(/usr/share/texmf-texlive/tex/latex/graphics/trig.sty
+Package: trig 1999/03/16 v1.09 sin cos tan (DPC)
+)
+(/etc/texmf/tex/latex/config/graphics.cfg
+File: graphics.cfg 2009/08/28 v1.8 graphics configuration of TeX Live
+)
+Package graphics Info: Driver file: dvips.def on input line 91.
+)
+\Gin@req@height=\dimen103
+\Gin@req@width=\dimen104
+)
+\epsfxsize=\dimen105
+\epsfysize=\dimen106
+) (./template/url.sty
+\Urlmuskip=\muskip10
+Package: url 2005/06/27  ver 3.2  Verb mode for urls, etc.
+)
+(/usr/share/texmf-texlive/tex/latex/tools/tabularx.sty
+Package: tabularx 1999/01/07 v2.07 `tabularx' package (DPC)
+
+(/usr/share/texmf-texlive/tex/latex/tools/array.sty
+Package: array 2008/09/09 v2.4c Tabular extension package (FMi)
+\col@sep=\dimen107
+\extrarowheight=\dimen108
+\NC@list=\toks15
+\extratabsurround=\skip46
+\backup@length=\skip47
+)
+\TX@col@width=\dimen109
+\TX@old@table=\dimen110
+\TX@old@col=\dimen111
+\TX@target=\dimen112
+\TX@delta=\dimen113
+\TX@cols=\count89
+\TX@ftn=\toks16
+)
+(/usr/share/texmf-texlive/tex/latex/vmargin/vmargin.sty
+Package: vmargin 2004/07/15 V2.5 set document margins (VK)
+
+Package: vmargin 2004/07/15 V2.5 set document margins (VK)
+\PaperWidth=\dimen114
+\PaperHeight=\dimen115
+) (/usr/share/texmf-texlive/tex/latex/cite/cite.sty
+LaTeX Info: Redefining \cite on input line 285.
+LaTeX Info: Redefining \nocite on input line 356.
+Package: cite 2009/08/29  v 5.2
+)
+(/usr/share/texmf-texlive/tex/latex/base/alltt.sty
+Package: alltt 1997/06/16 v2.0g defines alltt environment
+)
+(/usr/share/texmf-texlive/tex/latex/colortbl/colortbl.sty
+Package: colortbl 2001/02/13 v0.1j Color table columns (DPC)
+\everycr=\toks17
+\minrowclearance=\skip48
+)
+(/usr/share/texmf-texlive/tex/latex/tools/xspace.sty
+Package: xspace 2006/05/08 v1.12 Space after command names (DPC,MH)
+) (./main.aux)
+\openout1 = `main.aux'.
+
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 85.
+LaTeX Font Info:    ... okay on input line 85.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 85.
+LaTeX Font Info:    ... okay on input line 85.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 85.
+LaTeX Font Info:    ... okay on input line 85.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 85.
+LaTeX Font Info:    ... okay on input line 85.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 85.
+LaTeX Font Info:    ... okay on input line 85.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 85.
+LaTeX Font Info:    ... okay on input line 85.
+LaTeX Font Info:    Try loading font information for OT1+ptm on input line 85.
+
+(/usr/share/texmf-texlive/tex/latex/psnfss/ot1ptm.fd
+File: ot1ptm.fd 2001/06/04 font definitions for OT1/ptm.
+)
+LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <14.4> not available
+(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 154.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <12> on input line 154.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <8> on input line 154.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <6> on input line 154.
+LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <10> not available
+(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 154.
+ (./abstract.tex
+LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <12> not available
+(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 1.
+
+Underfull \hbox (badness 1102) in paragraph at lines 20--36
+\OT1/ptm/m/n/10 for-mance, our multi-disk sys-tem tries to map more
+ []
+
+) (./intro.tex
+Underfull \vbox (badness 3209) has occurred while \output is active []
+
+ [1
+
+
+])
+(./design.tex
+File: figures/dm.eps Graphic file (type eps)
+ <figures/dm.eps>
+LaTeX Font Info:    Try loading font information for OMS+ptm on input line 49.
+
+(/usr/share/texmf-texlive/tex/latex/psnfss/omsptm.fd
+File: omsptm.fd 
+)
+LaTeX Font Info:    Font shape `OMS/ptm/m/n' in size <10> not available
+(Font)              Font shape `OMS/cmsy/m/n' tried instead on input line 49.
+
+Underfull \hbox (badness 1067) in paragraph at lines 49--54
+[]\OT1/ptm/b/n/10 Save en-ergy by al-low-ing disks to spin/power
+ []
+
+[2] [3]
+File: figures/rw.eps Graphic file (type eps)
+ <figures/rw.eps>) (./eval.tex) (./related.tex [4]) (./conclusion.tex)
+(./main.bbl
+Missing character: There is no ’ in font ptmri7t!
+
+Underfull \hbox (badness 10000) in paragraph at lines 100--104
+\OT1/ptm/m/n/10 www.storageio.com/DownloadItems/CMG/MSP
+ []
+
+[5]
+Underfull \hbox (badness 10000) in paragraph at lines 120--125
+[]\OT1/ptm/m/n/10 Andy Soon.  Green & be-yond: Data
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 120--125
+\OT1/ptm/m/n/10 cen-ter ac-tions to in-crease busi-ness re-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 120--125
+\OT1/ptm/m/n/10 spon-sive-ness and re-duce costs, 2009.
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 120--125
+\OT1/ptm/m/n/10 http://www.slideshare.net/IBMAsean/green-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 120--125
+\OT1/ptm/m/n/10 beyond-data-center-actions-to-increase-business-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 135--139
+[]\OT1/ptm/m/n/10 Vadim Tkachenko.  Flash-cache:
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 135--139
+\OT1/ptm/m/n/10 First ex-per-i-ments, May 2010.
+ []
+
+
+Overfull \hbox (50.6655pt too wide) in paragraph at lines 135--139
+\OT1/ptm/m/n/10 http://www.mysqlperformanceblog.com/2010/05/10/flashcache-
+ []
+
+) [6
+
+] (./main.aux) ) 
+Here is how much of TeX's memory you used:
+ 1428 strings out of 495062
+ 18283 string characters out of 1182645
+ 71405 words of memory out of 3000000
+ 4586 multiletter control sequences out of 15000+50000
+ 11605 words of font info for 33 fonts, out of 3000000 for 9000
+ 29 hyphenation exceptions out of 8191
+ 34i,9n,21p,372b,247s stack positions out of 5000i,500n,10000p,200000b,50000s
+
+Output written on main.dvi (6 pages, 39784 bytes).

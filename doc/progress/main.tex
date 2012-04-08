@@ -1,0 +1,189 @@
+\documentclass[10pt,workingdraft]{usetex-v1}
+%\documentclass[10pt,workingdraft]{usetex-v1}
+
+\usepackage{epsfig}
+\usepackage{url}
+\usepackage{times}
+%\usepackage{subfigure}
+\usepackage{tabularx}
+%\usepackage{scalefnt}
+%\usepackage{endnotes}
+%\usepackage{footnote}
+%\usepackage{multirow}
+%\usepackage{amsmath}
+%\usepackage{amssymb}
+%\usepackage{booktabs}
+%\usepackage{listings}
+\usepackage{vmargin}
+\usepackage{cite}
+\usepackage{alltt}
+%\usepackage{psfrag}
+%\usepackage{boxedminipage}
+\usepackage{colortbl}
+\usepackage{xspace}
+%\usepackage{program}
+
+
+%\numberwithin{equation}{section}
+% space b/t list \item's
+\newcommand{\smallitemsep}      {\setlength{\itemsep}{-0.5ex}}
+%\newcommand{\smallitemsep}     {}
+
+\newcommand{\stt}[1]            {\texttt{\small #1}}
+
+% space b/t captions and their floats
+\newcommand{\captionsep}        {\vspace{-1.00em}}
+\newcommand{\tabcaptionsep}     {\vspace{-0.50em}}
+%\newcommand{\captionsep}       {}
+% size of caption font
+%\newcommand{\captionfont}      \tiny
+\newcommand{\captionfont}       \itshape
+\newcommand{\capfont}           \small
+%\newcommand{\capfont}          {}
+
+\newcommand{\etal}{\emph{et al.}}
+
+% make tables narrower in width so they fit better in twocolumn formats
+\addtolength{\tabcolsep}{-0.5\tabcolsep}
+% less space between rows of tables
+\renewcommand{\arraystretch}{0.95}
+%% space between columns in twocolumn mode
+%\addtolength{\columnsep}{-0.1\columnsep}
+
+\newenvironment{consistifyoff}[0]{}      {}
+
+\newenvironment{ezbox}[1]%
+{
+ \footnotesize
+ \begin{center}
+ \begin{boxedminipage}[t]{#1}
+ \begin{alltt}
+}
+{
+ \end{alltt}
+ \end{boxedminipage}
+ \end{center}
+}
+
+\newenvironment{smalltt}%
+{
+\vspace{-0.5em}
+\footnotesize
+\begin{alltt}
+}
+{
+\end{alltt}
+\vspace{-0.5em}
+}
+
+%\lstset{language=C, basicstyle=\ttfamily\small}
+\hyphenation{vnode}
+
+% redefine \url font to normal font
+\def\UrlFont{\sl\footnotesize}
+
+\begin{document}
+
+\title{Green Multi-Disk Device Mapper Target}
+
+\author{
+    \authname{Ming Chen and Rajesh Aavuty}
+    \authname{Zhichao Li and Erez Zadok}
+    \authaddr{Stony Brook University}
+}
+
+\setpapersize{USletter}
+% % \setmarginsrb{leftmargin}{topmargin}{rightmargin}{bottommargin}%
+% %    {headheight}{headsep}{footheight}{footskip}
+\setmarginsrb{25mm}{25mm}{25mm}{15mm}{0mm}{0mm}{10mm}{10mm}
+
+\pagestyle{plain}
+
+%\newcommand{\stt}[1]                    {\texttt{\small #1}}
+%\def\gtilda{\kern -.15em\lower .7ex\hbox{\~{}}\kern .04em}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% SQUEEZE SOME SPACES
+%\addtolength{\parskip}{4.5\parskip}
+%\setlength{\partopsep}{0mm}
+%\setlength{\topsep}{0mm}
+%\addtolength{\baselineskip}{-0.03\baselineskip}
+%\setlength{\parskip}{-0.5ex}
+%\renewcommand{\baselinestretch}{0.9}
+%\addtolength{\tabcolsep}{-0.5\tabcolsep}
+%\setlength{\topsep}{-2.0ex}
+%
+%% make tables narrower in width so they fit better in twocolumn formats
+%\addtolength{\tabcolsep}{-0.4\tabcolsep}
+%% less space between rows of tables
+%\renewcommand{\arraystretch}{0.95}
+%% allow up to 4 floats at top of page (default=2)
+\setcounter{topnumber}{4}
+\setcounter{dbltopnumber}{8}	% for double-floats
+%% allow up to 2 floats at bottom of page (default=1)
+\setcounter{bottomnumber}{2}
+%% allow up to 8 floats total per page (default=3)
+\setcounter{totalnumber}{8}
+
+% %% less space above/below floats that are at top/bottom of pages
+\addtolength{\floatsep}{-0.5\floatsep}
+\addtolength{\dblfloatsep}{-0.5\dblfloatsep}
+% %% less space above/below "h" floats that are in the middle of text
+\addtolength{\intextsep}{-0.5\intextsep}
+\addtolength{\textfloatsep}{-0.5\textfloatsep}
+\addtolength{\dbltextfloatsep}{-0.5\dbltextfloatsep}
+% smaller space around captions
+\addtolength{\abovecaptionskip}{-0.75\abovecaptionskip}
+
+%% Control floats
+\renewcommand{\topfraction}{1.0} % max percentage a float can take at top
+\renewcommand{\bottomfraction}{1.0} % max percentage float can take at bottom
+\renewcommand{\textfraction}{0.01} % min percentage text can take on page
+%\renewcommand{\textfraction}{0.5} % min percentage text can take on page
+\renewcommand{\floatpagefraction}{0.99} % min fraction of float page used
+\renewcommand{\dblfloatpagefraction}{0.99} % min fraction of float page used
+
+%% space between columns in twocolumn mode
+%\addtolength{\columnsep}{-0.1\columnsep}
+%% width of text on a page
+%\addtolength{\textwidth}{0.01\textwidth}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%\tableofcontents
+\maketitle
+
+\input{abstract}
+\input{intro}
+%\input{bg}
+\input{design}
+\input{eval}
+\input{related}
+\input{conclusion}
+%\input{ack}
+%\clearpage
+
+% \appendix
+% \input{appendix}
+
+\bibliographystyle{plain}
+\bibliography{template/master,smr,gos}
+%{\footnotesize \bibliography{template/master}}
+
+%\newpage
+
+\end{document}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% For Emacs:
+% Local variables:
+% fill-column: 70
+% End:
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% For vim:
+% vim:textwidth=70
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% LocalWords:
+
+% LocalWords:  Ankur Agrawal Benixon Arul Dhas Hospodor Yangwook Kang Rekha UC
+% LocalWords:  Pitchumani Sphurti Sortur USletter csrg smr

@@ -75,11 +75,11 @@ various situations.
 
 1. Smaller mapping table.
 
-If mapping is done in units of sector, the table will be as large as 8GB with 4-bytes
-entries. It is apparently prohibitive for an in-memory (otherwise, too slow if
-the mapping itself incurs extra IO). Extent is also used in LVM, where a
-typical size of extent is 4MB. Then the mapping becomes extent-wise and its size
-diminishes to 1MB in the above example. 
+If mapping is done in units of sector, the table will be as large as 8GB with
+4-bytes entries. It is apparently prohibitive for an in-memory (otherwise, too
+    slow if the mapping itself incurs extra IO). Extent is also used in LVM,
+  where a typical size of extent is 4MB. Then the mapping becomes extent-wise
+  and its size diminishes to 1MB in the above example. 
 
 2. More aggresive prefetch.
 

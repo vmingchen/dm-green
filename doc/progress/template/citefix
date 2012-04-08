@@ -1,0 +1,47 @@
+: # *-*-perl-*-*
+    eval 'exec perl -w -S  $0 "$@"'
+    if $running_under_some_shell;
+
+@citemaps = (
+		"./template/citemap",
+		$ENV{"HOME"} . "/proj/fsl/bib/citemap",
+		$ENV{"HOME"} . "/fsl/bib/citemap"
+		);
+my %mappings;
+my $citemap;
+my $foundmap = 0;
+
+foreach $citemap (@citemaps) {
+    if (open (CITEMAP, $citemap)) {
+	$foundmap++;
+	last;
+    }
+}
+die "no citemap file found" if (!$foundmap);
+
+while (<CITEMAP>) {
+    next if (/^#/);
+    chomp;
+    ($k, $v) = split(/,/, $_, 2);
+    print STDERR "$k -> $v\n";
+    $mappings{$k} = $v;
+}
+close(CITEMAP);
+
+while (<>) {
+    $line = $_;
+    while ($line =~ /^(.*)(\\cite|\\nocite)\{(.*?)\}(.*)$/) {
+	print $1;
+	$citelist = $3;
+	@cites = split(/,/, $citelist);
+	printf(STDOUT "%s{", $2);
+	print join(",", map { defined($mappings{$_}) ? $mappings{$_}: $_ } (@cites));
+	print "}";
+	$line = $4;
+    }
+    if ($line =~ /\n$/) {
+	print $line;
+    } else {
+	print $line . "\n";
+    }
+}

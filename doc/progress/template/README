@@ -1,0 +1,89 @@
+* Consistification
+
+This directory (CVSROOT/fsl/bib/) contains a perl script called "consistify"
+which can be run on any set of .tex files to catch many common mistakes and
+deviations from conventions.  It catches dozens of problems: read the file
+to see specifically (or run it on your .tex files, if you dare :-)
+
+I added Makefile rules to the four RPE documents (of May 2005) we've been
+working on to run this checker.  From now one, no one should commit any
+latex files or print them for anyone to review unless your tex files get
+through these three rules:
+
+1. pass a "make check"
+2. pass a spell check
+3. pass latex completely (no latex errors such as missing refs)
+
+This applies to any latex file being modified as of MayMay 1, 2005.  Such
+silly authoring mistakes are no longer acceptable.  I will return
+manuscripts back to their authors unread, for correction, if they contain
+any of these three problems.
+
+Note that the consistify script is still new and will probably have to be
+tweaked in over weeks and months.  I expect that we will add more and more
+checking rules to this file, to catch more things.  If you want to edit the
+consistify perl script, please do so, but be careful not to write rules that
+might cause false positives or mask out real problems -- ask me if you're
+not sure.
+
+There is a chance that consistify will produce false positives, things that
+aren't errors but are flagged as errors.  In that case, you can wrap the
+word that consistify complained about with an \mbox{} -- consistify won't
+complain about it any more (the \mbox{} construct in latex is an essential
+NOP).
+
+The format of errors printed by consistify is compliant with
+compiler-produced errors (or "grep -n"): file name, followed by line number,
+followed by the error message.  If you're using Emacs, you can use a split
+screen that shows the errors buffer in one half and puts the cursor on the
+exact file and line number of the file that has the problem.  For example,
+run these commands in emacs:
+
+    M-x compile
+    (type "check" and hit ENTER)
+    C-x `
+
+The last command "control-x <backtick>" is bound to the emacs command
+"next-error", which'll open the split screen mode for you.  You can then fix
+the problem in that line of text, then C-x ` again to move to the next line,
+repeatedly until they're all fixed.
+
+* Paper template
+
+You can use this directory as a template for your paper's Makefile and
+bibliography.  Use the following bit as the Makefile in your paper, but replace
+the bracketed text appropriately.  The first time you run make, the fsl/bib
+repository will be checked out.  After the first time you run make, the rules
+from templates/Rules.make will automatically build your paper.
+
+# The customizations for this particular paper
+NAME=	[Name of your tex file]
+VENUE=	[Where you are submitting]
+USENIX=1 [Only if you are submitting to Usenix.]
+CV=1	[Only if you are writing a CV.]
+ACM=1	[Only if you are submitting to an ACM journal.]
+SRCS=	[List of your source files]
+FIGS_EPS=$(wildcard data/*.eps)
+EXTRAS=	[If you have any additional targets that you need.]
+
+# Let the user have custom overrides, globally or for just this paper.
+-include $(HOME)/.paperdev.mk
+-include paperdev.mk
+
+# Use the default Make rules
+-include template/Rules.make
+
+# This causes a checkout to happen the first time you execute this script
+__checkout:
+ifeq ($(FSLCVS),)
+	cvs checkout fsl/bib
+else
+	cvs -d $(FSLCVS) checkout fsl/bib
+endif
+	mv fsl/bib template
+	rm -rf fsl
+	sed -e 's/fsl/template/' <CVS/Entries.Log >tmp.Entries.Log
+	mv tmp.Entries.Log CVS/Entries.Log
+	make -C . all
+
+[You can insert extra rules here.]

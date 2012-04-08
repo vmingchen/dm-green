@@ -1,0 +1,449 @@
+: # *-*-perl-*-*
+    eval 'exec perl -w -S  $0 "$@"'
+      if $running_under_some_shell;
+
+# consistify: check a set of latex sources consistent (FSL)
+# Erez Zadok <ezk@cs.sunysb.edu>, May 2005.
+# vim:shiftwidth=4
+
+# PATTERNS: modify at will.
+# Format: /pattern/modifiers (in 'single quotes'),
+#	  message (in "quotes")
+
+# Get rid of perl warning us about using this variable once
+$running_under_some_shell = $running_under_some_shell;
+
+# some common error messages
+$msg_emdash = "no spaces around an em-dash";
+$msg_unix = 'capitalize as \"Unix\"';
+$msg_contractions = "contractions not allowed";
+$msg_sex = "no single-person sex allowed---do it in plural";
+$msg_slash = "do not use slashes to imply choice";
+
+# Whole-line patterns and their error message (if matched)
+@whole_line_patterns =
+    (
+     # words that should end with a short space ("\ "), unless they are at
+     # the end of a sentence.  In that case, to distinguish them and pass
+     # this verifier, stick a "~" at the end after the period, and THEN two
+     # spaces.  For example "... and blah, etc.~  That means that..."
+     '/etc\.\s\S/i', 'put \"\\\\ \" after \"etc.\" (or two spaces)',
+     '/Ph\.D\.\s\S/i', 'put \"\\\\ \" after \"Ph.D.\" (or two spaces)',
+     '/M\.S\.\s\S/i', 'put \"\\\\ \" after \"M.S.\" (or two spaces)',
+     '/al\.\s\S/i', 'put \"\\\\ \" after \"et al.\" (or two spaces)', # "et al."
+
+     # no period after et
+     '/et\..al\./i', 'do not put \".\" after et in \"et al.\"',
+
+     # words that should have a comma afterward
+     '/(?!i\.e\.,)i\.e\./i', 'put comma after \"i.e.\"',
+     '/(?!e\.g\.,)e\.g\./i', 'put comma after \"e.g.\"',
+
+     # two hyphens between digits
+     '/[0-9]\-[0-9]/i', 'use two hyphens between digit ranges',
+
+     # no spaces around an em-dash "---"
+     '/\s\-\-\-/i', $msg_emdash,
+     '/\-\-\-\s/i', $msg_emdash,
+     '/^\-\-\-/i', $msg_emdash,
+     '/\-\-\-$/i', $msg_emdash,
+
+     # consistent spelling of certain words
+     '/filesystem/i', 'use two words, \"file system\"',
+
+     # before \cite{}-like commands, use ~, a non-breakable space (no orphans)
+     '/([^~]|^)\\\\cite/i', 'put ~ before \\\\cite{}',
+     '/([^~]|^)\\\\ref/i', 'put ~ before \\\\ref{}',
+     '/([^~]|^)\\\\pageref/i', 'put ~ before \\\\pageref{}',
+     '/^~\\\\cite/i', '~\\\\cite{} should not begin a line',
+     '/^~\\\\ref/i', '~\\\\ref{} should not begin a line',
+     '/^~\\\\pageref/i', '~\\\\pageref{} should not begin a line',
+     '/\s~\\\\cite/i', 'do not put space before ~\\\\cite{}',
+     '/\s~\\\\ref/i', 'do not put space before ~\\\\ref{}',
+     '/\s~\\\\pageref/i', 'do not put space before ~\\\\pageref{}',
+
+     # no empty citations (not caught by latex's warnings)
+     '/\\\\cite{}/', "Do you really want an empty \\cite?",
+
+     # avoid slashes to mean AND, OR, or XOR
+     '/and\/or/i', $msg_slash,
+     '/read\/write/i', $msg_slash,
+
+     # punctuation inside quotes
+     '/\'\',/', "move comma inside quotes",
+     '/\'\'\./', "move period inside quotes",
+
+     # historical conventions (useful for emacs)
+     '/\.\s\S/i', 'need two spaces after period (or a \"\\\\ \")',
+
+     # Only use -- for number ranges
+     # EZK: remove misleading rule. it's valid to say "file-system--related"
+#     '/(?!\\d--\\d)(?!---).(?!---)--.?/', 'Use -- only for number ranges.',
+#     '/^(?!---)--/', 'Use -- only for number ranges.',
+
+     # if there are remaining XXX's or FIXME's you should fix them
+     '/XXX((?:\:.*$)?)/', "leftover XXX in document\$1",
+     '/FIXME((?:\:.*$)?)/', "leftover FIXME in document\$1",
+     '/NOTE((?:{.*}{.*})?)/', "leftover NOTE in document\$1",
+
+     # '%' comments should be at the beginning of the line, to avoid
+     # confusion and mistakes with Emacs's M-q (fill-paragraph)
+     '/^[^\\\\]*[^\\\\%]%/', "put '%' comments at the beginning of the line only",
+
+     # \paragraph{Foo.} is bad because some styles already have one, and
+     # others distinguish the title text in a different way.
+     '/\\\\paragraph{[^}]*\\.}/', "do not use a period after a paragraph",
+
+     );
+
+
+# Single word patterns and their error message (if matched)
+@single_word_patterns =
+    (
+     # numbers should have commas every three digits
+     '/\b\d\d\d\d+\b/', "numbers should be comma-delimited, every 1000",
+     # negative numbers in \textrm should use en-dash ('-' is too short)
+     '/^\-\d+/', "use en-dash for negative numbers (e.g., --10)",
+
+     # capitalization nits
+     '/UNIX\.?/', $msg_unix,
+     '/unix\.?/', $msg_unix,
+     '/ph\.d\./', 'capitalize as \"Ph.D.\"',
+     '/m\.s\./', 'capitalize as \"M.S.\"',
+     '/^web\.?$/', 'capitalize as \"Web\"',
+     '/(?!Am-utils)(?i)am-utils$/', 'capitalize as \"Am-utils\".',
+     '/(?!Postmark)(?i)postmark$/', 'capitalize as \"Postmark\".',
+     '/(?!Unionfs)(?i)UnionFS$/', 'capitalize as \"Unionfs\".',
+
+     # words that need a period
+     '/^phd$/i', 'write as \"Ph.D.\"',
+     '/^ie\.?$/i', 'write as \"i.e.,\"',
+     '/^eg\.?$/i', 'write as \"e.g.,\"',
+
+     # no contraction
+     '/aren\'t\.?/i', $msg_contractions,
+     '/doesn\'t\.?/i', $msg_contractions,
+     '/don\'t\.?/i', $msg_contractions,
+     '/isn\'t\.?/i', $msg_contractions,
+     '/won\'t\.?/i', $msg_contractions,
+     '/shouldn\'t\.?/i', $msg_contractions,
+     '/can\'t\.?/i', $msg_contractions,
+     '/it\'s\.?/i', 'contractions not allowed.  Did you mean \"its\"?',
+
+     # single-person sex disallowed
+     '/^he\.?$/i', $msg_sex,
+     '/^she\.?$/i', $msg_sex,
+     '/^his\.?$/i', $msg_sex,
+     '/^her\.?$/i', $msg_sex,
+     '/^himself\.?$/i', $msg_sex,
+     '/^herself\.?$/i', $msg_sex,
+
+     # hyphenation rules
+     '/^metadata$/', 'hyphenate \"meta-data\"',
+     '/^microbenchmark(s?)\.?$/i', 'hyphenate \"micro-benchmark$1\".',
+     '/^macrobenchmark(s?)\.?$/i', 'hyphenate \"macro-benchmark$1\".',
+     '/^amutils$/', 'hyphenate \"am-utils\".',
+     '/^run-time$/', 'do not hyphenate \"runtime\"',
+     '/^time-line$/', 'do not hyphenate \"timeline\"',
+
+     # journalling with double "L" (there doesn't appear to be a consensus
+     # whether it should have one or two "L"s, but at least we'll be
+     # consistent in our use).
+     # --CHIP (presumably)
+     # This was a horrible consistify rule. There is consensus and has been
+     # since '87, its _journaling_. This has been fixed. Not fixing older
+     # papers.
+     # --RICK
+     # ditto modell{ing,ed}
+     '/^journalling$/i', 'use single-L \"journaling\"',
+     '/^journalled$/i', 'use single-L \"journaled\"',
+     '/^modelling$/i', 'use single-L \"modeling\"',
+     '/^modelled$/i', 'use single-L \"modeled\"',
+
+     # words you shouldn't use in scientific writing
+     # (this is a good idea as a warning, not an error)
+#     '/^very$/i', "scientific writing should be under-stated",
+
+     );
+
+# Double word patterns and their error message (if matched)
+# These are always matched as if the two words are delimited by a single space.
+@double_word_patterns =
+    (
+     # can not -> cannot (XXX: not sure if this is a good convention)
+     '/^can not$/', 'use \"cannot\"',
+
+     # often when I convert things from the future tense "will be", I end up
+     # with the incorrect "is be"
+     '/^is be$/', "Correctly conjugate your verbs.",
+
+     # capitalization rules
+      '/^section \\\\ref\{/', 'capitalize \"Section\"',
+      '/^figure \\\\ref\{/', 'capitalize \"Figure\"',
+      '/^table \\\\ref\{/', 'capitalize \"Table\"',
+      '/^chapter \\\\ref\{/', 'capitalize \"Chapter\"',
+
+     # hyphenation rules
+     '/(m)icro (b)enchmark(s?)/i', 'use \"$1icro-$2enchmark$3\"',
+     '/(m)acro (b)enchmark(s?)/i', 'use \"$1acro-$2enchmark$3\"',
+     '/(f)reespace/i', 'use \"$1ree-space\"',
+
+     # copyup
+     '/(c)opy up/i', 'use \"$1opyup\"',
+     '/(c)opy-up/i', 'use \"$1opyup\"',
+
+     # double words
+     '/^(\w+) \\1$/i', "repeated word",
+     );
+
+##############################################################################
+### Some papers want their own rules.
+if ( -f "consistify-local" ) {
+	require("consistify-local") || die "Can not require consistify-local:  $!\n";
+}
+
+##############################################################################
+### DO NOT MODIFY BELOW THIS LINE
+$flags = "bdhlwD";		# allowable getopts flags
+sub usage {
+    printf(STDERR "Usage: consistify [-$flags]\n");
+    printf(STDERR "\t-b: check the bibliography\n");
+    printf(STDERR "\t-d: check for double-word patterns\n");
+    printf(STDERR "\t-h: print usage\n");
+    printf(STDERR "\t-l: check for line patterns\n");
+    printf(STDERR "\t-w: check for single-word patterns\n");
+    printf(STDERR "\t-D: enable debug\n");
+    printf(STDERR "(Runs all checks of no options given.)\n");
+    exit(1);
+}
+
+use Getopt::Std;
+use vars qw/ $opt_b $opt_d $opt_h $opt_l $opt_w $opt_D /;
+getopts($flags) || usage();
+usage() if ($opt_h);
+
+# do all if none are specified
+$opt_b = $opt_d = $opt_l = $opt_w = 1
+    if (!$opt_b && !$opt_d && !$opt_l && !$opt_w);
+
+$debug = $opt_D;
+$errors = 0;			# start optimistically
+
+sub err
+{
+    my (@args) = @_;
+
+    $errors++;
+    printf(STDERR "%s:%d: ", $file, $lineno);
+    print(STDERR @args);
+    print(STDERR "\n");
+}
+
+sub worderr
+{
+    my ($word, @args) = @_;
+
+    $errors++;
+    printf(STDERR "%s:%d:%s: ", $file, $lineno, $word);
+    print(STDERR @args);
+    print(STDERR "\n");
+}
+
+sub chewbraces
+{
+    my $depth = shift;
+    my $str = shift;
+    my $i;
+
+    for ($i = 0; $i < length($str); $i++) {
+	$depth++ if (substr($str, $i, 1) eq "{");
+	$depth-- if (substr($str, $i, 1) eq "}");
+	die "$file:$lineno: Too many closing braces!" if ($depth < 0);
+	last if ($depth == 0);
+    }
+
+    die "Internal error: $i > length($str)\n" if ($i > length($str));
+    $i-- if ($i == length($str));
+    return ($depth, substr($str, $i + 1));
+}
+
+# We skip checking for mbox'ed regions.
+# This is how may mbox braces we are currently in.
+my $depth = 0;
+
+# What depth of unchecked environments we are in.
+my $nocheck = 0;
+
+foreach $file (@ARGV) {
+    # Open file for whole-line and single-word pattern checking.
+    open(FILE, $file) || die("$file: $!");
+    $lineno = 0;
+    $has_local_vars = 0;
+    while (($line = <FILE>)) {
+	chop $line;
+	$lineno++;
+
+	if ($nocheck) {
+		if ($line =~ /^\\end{consistifyoff}$/) {
+			$nocheck--;
+		}
+		next;
+	} elsif ($line =~ /^\\begin{consistifyoff}$/) {
+		$nocheck++;
+	}
+
+	# chew up mboxes
+	if ($depth > 0) {
+	    ($depth, $line) = chewbraces($depth, $line);
+	}
+	# Replace \mbox{...} with \mbox{}  This lets you ignore things.
+	# Replace \cline{2-3}, because it isn't a real range.
+	# Replace \input{model-unix}, because we don't want model-Unix
+	# Replace \label{model-unix}, because we don't want model-Unix
+	# Replace \ref{model-unix}, because we don't want model-Unix
+	# Replace \pageref{model-unix}, because we don't want model-Unix
+	while ($line =~ /^(.*?)\\(mbox|cline|input|label|pageref|ref){(?!})(.*)$/) {
+	    $save = $1;
+	    $type = $2;
+	    $rest = $3;
+	    ($depth, $rest) = chewbraces(1, $rest);
+	    $line = $save . "\\" . $type . "{}" . $rest;
+	}
+	# Replace \cite{posix-1000.3}, because we don't want posix-1,000.3
+	#	\cite{...} is replaced with \cite{DUMMYCITE}
+	#	This is different than the others, because we don't want
+	#	to have artificial empty citations get caught by other rules.
+	while ($line =~ /^(.*?)\\(cite){(?!DUMMYCITE})(.*)$/) {
+	    $save = $1;
+	    $type = $2;
+	    $rest = $3;
+	    ($depth, $rest) = chewbraces(1, $rest);
+	    $line = $save . "\\" . $type . "{DUMMYCITE}" . $rest;
+	}
+
+	# skip blanks lines
+	next if ($line =~ /^$/);
+
+	# check if we have emacs/vim local-vars
+	$has_local_vars |= 0x1
+	    if ($line =~ /^%\s+fill-column:\s70/);
+	$has_local_vars |= 0x2
+	    if ($line =~ /^%\s+vim:textwidth=70/);
+	# skip comments
+	next if ($line =~ /^%/);
+
+	# quick check for length of line
+	if ($line !~ m:^\\:  &&
+	    length($line) > 78  &&
+	    $line !~ m:\\cite: ) {
+	    err("line too long (use emacs M-q to fill paragraph)");
+	}
+	study($line);
+	# WHOLE-LINE PATTERN CHECKS
+	if ($opt_l) {
+	    @patts = @whole_line_patterns;
+	    while ($#patts >= 0) {
+		$patt = shift(@patts);
+		$errmsg = shift(@patts);
+		printf(STDERR "WLP: %d patt %s msg %s\n",
+		       $#patts, $patt, $errmsg)
+		    if $debug;
+		$cmd = sprintf("if (\$line =~ %s) { err(\"%s\"); }", $patt, $errmsg);
+		eval $cmd;
+	    }
+	}
+
+	# SINGLE WORD PATTERN CHECKS
+	if ($opt_w) {
+	    # Break line into words, then check each.
+	    # XXX: this word-break pattern could be better
+	    @words = split(/[\s,\(\)]/, $line);
+	    while ($#words >= 0) {
+		@patts = @single_word_patterns;
+		$word = shift(@words);
+		printf(STDERR "WORD \"%s\"\n", $word) if $debug;
+		study($word);
+		while ($#patts >= 0) {
+		    $patt = shift(@patts);
+		    $errmsg = shift(@patts);
+		    printf(STDERR "SWP %d patt %s msg %s\n",
+			   $#patts, $patt, $errmsg)
+			if $debug;
+		    $cmd = sprintf("if (\$word =~ %s) { worderr(\$word, \"%s\"); }", $patt, $errmsg);
+		    eval $cmd;
+		}
+	    }
+	}
+
+    }
+    close(FILE);
+    # Complain if after parsing this file we didn't see the emacs/vim local
+    # variable settings.
+    err("file is missing definitions from CVSROOT/fsl/bib/local-vars.tex")
+	if ($has_local_vars != 0x3);
+
+    $nocheck = 0;
+
+    # Open file for whole-line and double-word pattern checking.
+    # (The parsing is somewhat different that it cannot be easily merged
+    # with the whole-line & single-word testing.)
+    if ($opt_d) {
+	open(FILE, $file) || die("$file: $!");
+	$lineno = 0;
+	$lastword = $word = "";
+	while (($line = <FILE>)) {
+	    chop $line;
+	    $lineno++;
+	    # skip comments and blanks
+	    next if ($line =~ /^%/);
+	    next if ($line =~ /^$/);
+
+	    if ($nocheck) {
+		    if ($line =~ /^\\end{consistifyoff}$/) {
+			    $nocheck--;
+		    }
+		    next;
+	    } elsif ($line =~ /^\\begin{consistifyoff}$/) {
+		    $nocheck++;
+	    }
+
+	    # DOUBLE WORD PATTERN CHECKS
+	    # Break line into words, save last word (unless
+	    # end-of-sentence),	then check each pair.
+	    # Note that the pattern used in split will force words to
+	    # include the sentence-ending chars, which is want we want, so we
+	    # don't flag an incorrect error between the word that ends one
+	    # sentence and the word that starts the next: for example in
+	    #
+	    #	"He said that. That was the right thing to say."
+	    @words = split(/[\s~]/, $line);
+	    while ($#words >= 0) {
+		@patts = @double_word_patterns;
+		$lastword = $word;
+		$word = shift(@words);
+		printf(STDERR "WORD \"%s\"\n", $word) if $debug;
+ 		while ($#patts >= 0) {
+ 		    $patt = shift(@patts);
+ 		    $errmsg = shift(@patts);
+		    $tmp = sprintf("%s %s", $lastword, $word);
+ 		    printf(STDERR "DWP %d patt %s tmp %s msg %s\n",
+ 			   $#patts, $patt, $tmp, $errmsg)
+ 			if $debug;
+		    $cmd = sprintf("if (\$tmp =~ %s) { worderr(\$tmp, \"%s\"); }", $patt, $errmsg);
+ 		    eval $cmd;
+ 		}
+	    }
+	}
+	close(FILE);
+    }
+
+}				# end of "foreach file"
+
+# exit with the number of errors
+if ($errors) {
+    printf(STDERR "Note: use \\mbox{WORD} if script incorrectly flags WORD as bad.\n");
+    printf(STDERR "Note: use \\begin{consistifyoff} and \\end{consistifyoff} if script\n");
+    printf(STDERR "\tincorrectly flags a region as bad (DO NOT ABUSE THIS!)\n");
+    printf(STDERR "%d errors found.\n", $errors);
+}
+exit($errors < 256 ? $errors : 255);

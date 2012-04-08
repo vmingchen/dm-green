@@ -1,0 +1,68 @@
+\section{Related Work} 
+\label{related} 
+
+Our study provides a multi-disk (hybrid) system in the purpose of
+saving energy. To achieve that, we use energy-efficient disk as cache
+and perform data migration and grouping using information obtained
+from traces study. We discuss related work that covers the following
+aspects: save energy, hybrid disk, data grouping and workload trace
+study.
+
+\textbf{Save Energy}. Energy efficiency of storage systems is an
+interesting problem that is being actively researched.
+\cite{fast10fsgreen} studies the power consumption of servers when
+different workloads are running.  \cite{systor09greencomp} presents
+empirical analysis of how lossless compression influences power
+consumption of servers. \cite{fast12emc-energy} presents the first
+study of power consumption of really running enterprise-scale backup
+systems. A category of method to save energy is using data replication
+to decrease either disk head movement \cite{huangfs2,
+pred_data_grouping} or the number of active disks being used
+\cite{Weddle07paraid}. 
+
+\textbf{Hybrid disk}. \cite{Bisson07ahybrid, Debnath_SkimpyStash,
+Debnath_Bloomflash, flashcache_experiments} are studying hybrid disk
+models, where SSD is used as cache. Among them, only
+\cite{Bisson07ahybrid} is focusing on the energy efficiency aspect.
+Although \cite{Zhu04reducingenergy} is also studying power aware
+cache, their cache is in volatile RAM instead of non-volatile disk.
+\cite{slow_fast} is also a hybrid storage system that combines low and
+high speed disks to save energy.
+
+\textbf{Data grouping}. \cite{Wildani_grouping} presents data
+grouping of working set, however, it only contains analysis of offline
+traces. It is not implemented or experimented on real system. The
+Energy-Efficient File System (EEFS) groups files with high temporal
+access locality \cite{Li06highperformance}. \cite{pred_data_grouping}
+also performed predictive data grouping to reduce head movements for
+saving energy. \cite{migration04} used the fact that regularly only a
+small subset of data is accessed by a system, and migrated frequently
+accessed data to a small number of active disks, keeping the remaining
+disks off, which is a kind of data grouping.
+
+
+\textbf{Trace study}. Trace extraction is a popular method used by
+system researchers to analyze the system behavior. The analysis can be
+used to optimize several important features of the system like CPU and
+memory utilization, I/O throughput, latency, etc. Several reseachers
+have used trace analysis to find correlations between disk block
+accesses. Z. Li et al \cite{Li04c-miner} used data mining techniques
+to find block correlations. T. LI et al \cite{Li_model} used block
+traces to to run-time modeling to estimate the power consumption of
+servers. Douglas et al. \cite{Douglis_95} used efficient algorithms
+based on machine learning techniques on block traces to spin down
+disks and extend battery life in mobile computers. V. Torasov
+\cite{fast12t2m} used trace analysis to evaluate performance and
+energy efficiency in file system server workloads extensions.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% For Emacs:
+% Local variables:
+% fill-column: 70
+% End:
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% For Vim:
+% vim:textwidth=70
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% LocalWords:  SMR HDDs drive's SMRs

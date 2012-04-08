@@ -1,0 +1,76 @@
+#!/bin/sh
+# Rerun latex as many times as needed to resolve labels.   Exit with a
+# status code indicating how many real warnings there have been.
+#set -x
+
+# check if BSTINPUTS was set
+if test -z "${BSTINPUTS}"
+then
+	BSTINPUTS=.:/usr/local/tex/lib/texmf/bibtex/bst:/usr/local/refdbms/lib
+	export BSTINPUTS
+fi
+
+# If the user has not specified the latex command, use the default.
+if test -z "${LATEX_CMD}"
+then
+	LATEX_CMD=latex
+	export LATEX_CMD
+fi
+
+echo "YAY: $LATEX_CMD"
+
+trap "rm -f /tmp/rlok$$ /tmp/rlso$$ /tmp/rlwarn$$" 0 1 2 3 15
+
+# maximum allowed times to go through the loop
+max=5
+count=1
+while test $count -le $max
+do
+  if test $count -gt 1
+  then
+      echo "Re-running LaTeX"
+      echo "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
+  fi
+
+  count=`expr $count + 1`
+  rm -f /tmp/rlok$$
+  (
+      if "$LATEX_CMD" "$@"
+      then
+	  touch /tmp/rlok$$
+      fi
+  ) | tee /tmp/rlso$$
+  if test -f /tmp/rlok$$
+  then
+      :
+  else
+      rm -f /tmp/rlso$$
+      exit 1
+  fi
+  # if you see a "label" warning, then rerun latex
+  if grep -q '^LaTeX Warning: Label(s) may' /tmp/rlso$$
+  then
+      continue
+  fi
+  # count how many non-ignorable warnings we found, if any
+  grep '^LaTeX.*Warning:' /tmp/rlso$$ | \
+      grep -v 'LaTeX Warning: .* contains only floats.' | \
+      grep -v 'LaTeX Warning: Float too large for page.*' | \
+      grep -v 'LaTeX Warning: Marginpar on page .* moved.*' | \
+      grep -v 'LaTeX Font Warning: Some font shapes were not available, defaults substituted.*' | \
+      grep -v "LaTeX Warning: Empty .thebibliography. environment on input line" | \
+      grep -v 'LaTeX Font Warning: Font shape.*' | \
+      grep -v 'LaTeX Font Warning: Size substitutions.*' | \
+      cat > /tmp/rlwarn$$
+  ERR=`cat /tmp/rlwarn$$ | wc -l`
+  if test $ERR -gt 0
+  then
+      echo REAL LATEX WARNINGS TURNED INTO ERRORS:
+      cat /tmp/rlwarn$$
+  fi
+  rm -f /tmp/rlso$$ /tmp/rlwarn$$
+  exit $ERR
+done
+
+# if we get here, we exited abnormally (loop went $max times unsuccessfully)
+exit 1

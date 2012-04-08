@@ -1,0 +1,253 @@
+: # *-*-perl-*-*
+    eval 'exec perl -S  $0 "$@"'
+    if $running_under_some_shell;
+
+# vim:filetype=perl
+
+require "fslbib.lib";
+
+use Getopt::Long;
+use Data::Dumper;
+use Pod::Usage;
+use strict;
+
+my ($bibfile, $outfile, $multimode, $dojoin, $checkonly, $append, $printformat,
+    $useformat, $debug);
+our ($bibhtml, $biblinks);
+
+our %formats;
+my %mappings;
+my %citemappings;
+
+Getopt::Long::Configure("gnu_getopt", "noignore_case");
+die "Bad options: $!" unless GetOptions(
+	"d+" => \$debug,
+	"b|bibfile=s" => \$bibfile,
+	"o|outfile=s" => \$outfile,
+	"h|help" => sub { pod2usage(-exitval => 0, -verbose => 2); },
+	"m|multimode" => \$multimode,
+	"j|join" => \$dojoin,
+	"L|links!" => \$biblinks,
+	"n" => \$checkonly,
+	"p|prettyprint" => \$printformat,
+	"f|format=s" => \$useformat,
+	"a" => sub { $append = ">" },
+	"H|html" => \$bibhtml,
+	"authorname=s%" => sub { die "Authorname takes two arguments" if ($#_ != 2); $mappings{"author:" . $_[1]} = $_[2]; } ,
+	"mapfile=s" => sub { readmappings($_[1], \%mappings); },
+);
+
+print STDERR Dumper(\%mappings) if ($debug);
+print STDERR Dumper(\%citemappings) if ($debug);
+
+die "You must specify a bibliography file with -b!" if (!defined($bibfile));
+$outfile ||= "-";
+$append ||= "";
+
+if (!$biblinks) {
+	foreach (keys(%formats)) {
+		$formats{$_} =~ s/%N/%O/g;
+		$formats{$_} =~ s/%\?N/%\?O/g;
+	}
+}
+
+die "Append does not make sense with multimode!\n" if ($append ne "" && $multimode);
+die "HTML does not make sense without pretty printing!\n" if ($bibhtml && !$printformat);
+
+
+# What to find
+my @getcites = @ARGV;
+my @crossrefs;
+my @crosscites;
+# The actual entries
+my @entries;
+my %bibliography;
+
+if (!$checkonly) {
+	die "No citations to extract" if ($#getcites == -1);
+}
+
+my $bib = new Text::BibTeX::File($bibfile) || die "Could not open $bibfile: $!";
+
+while (my $entry = new Text::BibTeX::Entry($bib)) {
+	warn "$bibfile:$.: parse error." unless $entry->parse_ok;
+
+	my $found = 0;
+
+	# 1 is for a normal entry
+	# 2 is for a crossref
+	for (my $i = 0; $i <= $#getcites; $i++) {
+		if ($entry->key() eq $getcites[$i]) {
+			splice @getcites, $i, 1;
+			$found |= 1;
+			last;
+		}
+	}
+	for (my $i = 0; $i <= $#crossrefs; $i++) {
+		if ($entry->key() eq $crossrefs[$i]) {
+			splice @crossrefs, $i, 1;
+			$found |= 2;
+			last;
+		}
+	}
+	next if (!$found);
+
+	if ($entry->exists("crossref")) {
+		push(@crosscites, $entry->get("crossref"));
+		push(@crossrefs, $entry->get("crossref"));
+	}
+
+	$bibliography{$entry->key()} = $entry if ($found);
+	push(@entries, $entry->key()) if ($found & 1);
+}
+
+if ($#getcites >= 0) {
+	printf STDERR "Could not find %d citations: %s\n", $#getcites + 1, join(",", @getcites);
+	die;
+}
+if ($#crossrefs >= 0) {
+	printf STDERR "Could not find %d cross references: %s\n", $#crossrefs + 1, join(",", @getcites);
+	die;
+}
+
+if (!$multimode && !$checkonly) {
+	open(OFILE, ">$append$outfile") || die "Could not open $outfile: $!\n";
+}
+foreach (@entries) {
+	if ($multimode && !$checkonly) {
+		my $myoutfile = $bibliography{$_}->key() . ".bib";
+		open(OFILE, ">>$myoutfile") || die;
+	}
+	print_entry(\*OFILE, $_);
+	if ($multimode && !$checkonly) {
+		close(OFILE);
+	}
+}
+
+if (!$dojoin) {
+	foreach(@crosscites) {
+		if ($multimode && !$checkonly) {
+			my $myoutfile = $bibliography{$_}->key() . ".bib";
+			open(OFILE, ">>$myoutfile") || die;
+		}
+		print_entry(\*OFILE, $_);
+		if ($multimode && !$checkonly) {
+			close(OFILE);
+		}
+	}
+}
+if (!$multimode && !$checkonly) {
+	close(OFILE);
+}
+
+sub print_entry {
+	if ($checkonly) {
+		my $entry = $_[1];
+		if ($entry->exists("crossref")) {
+			my $crossentry = $bibliography{$entry->get("crossref")};
+			if (!defined($crossentry)) {
+				printf STDERR "Could not find cross-reference %s for %s.\n", $entry->get("crossref"), $entry->key();
+				die;
+			}
+		}
+	} elsif ($printformat)  {
+		my $format;
+		my ($FH, $key) = @_;
+		if ($citemappings{$key}{"format"}) {
+			$format = $citemappings{$key}{"format"};
+		} elsif ($mappings{"format"}) {
+			$format = $mappings{"format"};
+		} elsif ($useformat) {
+			$format = $useformat;
+		} else {
+			$format = $formats{$bibliography{$key}->type};
+		}
+		printf $FH "%s\n", pretty_print($key, \%bibliography, \%citemappings, \%mappings, $format);
+	} else {
+		print_bibtex(@_, \%bibliography, $dojoin);
+	}
+}
+
+
+# The rest of this script is destined for POD so that perldoc can easily read it.
+__END__
+
+=head1 NAME
+
+extractbib - Extract bibliography entries, and optionally remove cross references.
+
+=head1 SYNOPSIS
+
+B<extractbib> [B<-ahjmn>] [B<-[o]> I<outfile>] B<-b> I<bibliography> I<entry1> I<entry2> ...
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-a>
+
+Append to the output file instead of overwriting it.
+
+=item B<--authorname> I<old>=I<new>
+
+If an author's name is I<old> change it to I<new>.
+
+=item B<-b> I<bibliography>
+
+The name of the bibliography file to use.
+
+=item B<-h>
+
+=item B<-help>
+
+Display the manual page.
+
+=item B<-H>
+
+=item B<-html>
+
+Use HTML mode for pretty printing.  Each element from the bibliography is
+surrouneded by a <span> tag with a class of its type (e.g, 'bib-title' or
+'bib-author').  This can be used in conjunction with style sheets to italicize
+the titles, or for text substitution after the fact.
+
+=item B<-j>
+
+Join cross references.  This is useful for creating BibTeX entries to
+distribute (e.g., on your web site).
+
+=item B<-m>
+
+Multi-file output mode.  Each entry is written to a separate file that is named
+"I<entry>.bib" in the current working directory, where I<entry> is the entries
+identifier.
+
+=item B<--mapfile> I<file>
+
+Read I<file> of the format:
+
+I<fieldtype>:I<old>=I<new>
+
+That is applied to pretty printed output, converting each field of type
+I<fieldtype> that is the text I<old> to the text I<new>.  This can be useful if
+you want to convert things like publishers or conferences into links.
+
+=item B<-n>
+
+Don't actually write the output.  This can be used to check the syntax of your
+bibliography.
+
+=item B<-o> I<outfile>
+
+Write the output to this file.
+
+
+=head1 REQUIRES
+
+Pod::Usage, Data::Dumper, Text::BibTeX
+
+=head1 AUTHOR
+
+Charles P. Wright, cwright@cs.sunysb.edu
+
+=cut

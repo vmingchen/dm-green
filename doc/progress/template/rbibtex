@@ -1,0 +1,54 @@
+#!/bin/sh
+# Run bibtex, and flag warnings as errors,
+# but also support exclusion lists.
+
+echo "Running bibtex"
+echo "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
+
+bibtex -min-crossrefs=999 $* > /tmp/rbibtex$$ 2>&1
+cat /tmp/rbibtex$$
+
+IGNORES=`grep '^%rbibtexignore:' template/master.bib | cut -d':' -f 2-`
+if [ -f bibignore ]; then
+	IGNORES="$IGNORES `cat bibignore`"
+fi
+
+for x in $IGNORES
+do
+	if [ -z "$IGPAT" ] ; then
+		IGPAT="($x"
+	else
+		IGPAT="$IGPAT|$x"
+	fi
+done
+IGPAT="$IGPAT)"
+
+echo $IGPAT
+
+grep -vE $IGPAT /tmp/rbibtex$$ > /tmp/rbibtex$$-ex
+rm -f /tmp/rbibtex$$
+
+if grep -q '^Warning' /tmp/rbibtex$$-ex ; then
+
+	( cat /tmp/rbibtex$$-ex | \
+	grep -oE "^Warning--I didn't find a database entry for \"(.*)\"" | \
+	cut -d'"' -f 2 ) | (
+		while read CITE
+		do
+			if grep -q "^$CITE," template/citemap ; then
+				NEWCITE=`grep "^$CITE," template/citemap | cut -d',' -f2`
+				echo "You should use $NEWCITE instead of $CITE" 1>&2
+				grep -n $CITE *.tex
+			fi
+		done
+	)
+
+	rm -f /tmp/rbibtex$$-ex
+	rm -f $1.bbl
+	exit 1
+fi
+
+rm -f /tmp/rbibtex$$-ex
+
+echo "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
+exit 0

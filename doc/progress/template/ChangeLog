@@ -1,0 +1,1593 @@
+2012-02-18  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: fast'12 papers appeared.
+
+2012-01-20  Erez Zadok  <ezk@avatar.fsl.cs.sunysb.edu>
+
+	* master.bib: fix typo in authors for
+          ols_tut09performance_inspector.
+
+2012-01-12  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: fix typo in icde05stonebraker entry.
+
+2012-01-12  Erez Zadok  <ezk@BigMac.local>
+
+	* master.bib: remove duplicate entry "spillane09fast"
+
+2012-01-01  Erez Zadok  <ezk@lira.local>
+
+	* master.bib: reformat, fix a bunch of citations used in fast12
+          paper w/ EMC.
+
+2011-12-31  Erez Zadok  <ezk@lira.local>
+
+	* master.bib: remove redundant entry for hibernator.
+
+2011-12-22  Erez Zadok  <ezk@avatar.fsl.cs.sunysb.edu>
+
+	* master.bib: use crossref for FAST'11 and '12 conferences.
+
+2011-12-14  Erez Zadok  <ezk@BigMac.local>
+
+	* master.bib: fixed jgraph URL.
+
+2011-12-14  Erez Zadok  <ezk@avatar.fsl.cs.sunysb.edu>
+
+	* master.bib: fix gnuplot entry.  Add jgraph entry.
+
+2011-12-12  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: add ibench citation.
+
+2011-12-11  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: lowercase "TPC" key to avoid conflict with difference
+          cases.
+
+2011-12-05  Erez Zadok  <ezk@BigMac.local>
+
+	* master.bib: add fast12t2m and fast12emc-energy, two FAST'12
+          accepted papers (marked "to appear").
+
+2011-11-03  Erez Zadok  <ezk@avatar.fsl.cs.sunysb.edu>
+
+	* master.bib: SOCC'11 and ICA3PP'11 papers appeared.
+
+2011-09-28  Erez Zadok  <ezk@avatar.fsl.cs.sunysb.edu>
+
+	* master.bib: rv11 paper won best paper award.
+
+2011-09-27  Erez Zadok  <ezk@avatar.fsl.cs.sunysb.edu>
+
+	* master.bib: change back fast'09-11 TITLE to BOOKTITLE.
+
+2011-09-24  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: add acm2008cs_curriculum.
+
+2011-09-20  Erez Zadok  <ezk@avatar.fsl.cs.sunysb.edu>
+
+	* master.bib: reformat.  Add missing citation Kandemir07dvfs.
+
+2011-09-05  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* rbibtex (IGPAT): fix typo in cleaning temp file.
+
+2011-09-04  Erez Zadok  <ezk@avatar.fsl.cs.sunysb.edu>
+
+	* master.bib: fix typo.
+
+2011-09-04  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* Rules.make: update DVIPS options to produce all Type-1 fonts for
+          PS/PDF.
+	  (%.pdf): Use ps2pdf14 first when converting PS to PDF.
+
+2011-09-04  Erez Zadok  <ezk@avatar.fsl.cs.sunysb.edu>
+
+	* master.bib: reformat.
+
+2011-08-22  Erez Zadok  <ezk@avatar.fsl.cs.sunysb.edu>
+
+	* master.bib: remove dummy entries rick had to add for "w" and
+          "value".
+
+2011-08-12  Erez Zadok  <ezk@shekel.local>
+
+	* master.bib: update systor refs to include order (1st, 2nd, etc.)
+	Fix typo in usenix:Gabber99 entry.
+
+2011-08-10  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: hotstorage11 paper appeared.
+
+2011-08-10  Erez Zadok  <ezk@1513bhost83.starwoodbroadband.com>
+
+	* master.bib: reformat and revalidate.  Strip trailing WS.
+	Update entries for rv11stoller and ica3p11redflag.
+	Add new entries for socc1chisl and erss11model.
+
+2011-06-05  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: systor11 paper appeared.
+
+2011-05-12  Erez Zadok  <ezk@shekel.local>
+
+	* master.bib: fast10fsgreen ACM TOS DOI added.
+
+2011-05-05  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: typo fix for year of hotos'11 paper.
+
+2011-04-30  Erez Zadok  <ezk@BigMac.local>
+
+	* acm_proc_article-sp.cls: update from v3.0 to v3.2.
+
+	* sig-alternate-tight.cls: tighter version of sig-alternate.cls.
+
+2011-04-22  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: fix typo to avoid bibtex checking complain.
+
+	* master.bib: add recently accepted papers (hotos, hotstorage,
+          systor).
+	  Remove extra copy entry.
+	  Add Vibay's under-review P2PNA article.
+
+2011-04-12  Erez Zadok  <ezk@avatar.fsl.cs.sunysb.edu>
+
+	* Rules.make (check): separate "make check" (for checkbib) from
+          "make consistify".
+
+2011-04-11  Erez Zadok  <ezk@shekel.local>
+
+	* master.bib: added SYSTOR 2011 paper.
+
+2011-03-31  Erez Zadok  <ezk@BigMac.local>
+
+	* rlatex: ignore font shape/size warnings.
+
+2011-02-05  Erez Zadok  <ezk@avatar.fsl.cs.sunysb.edu>
+
+	* master.bib: added UCSD "How much information" 2009 report ref.
+
+2011-02-03  Erez Zadok  <ezk@76.35.246.10.in-addr.arpa>
+
+	* master.bib: add IDC 2010 "digital universe" study.
+
+2011-01-30  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: fix typo.
+
+2011-01-10  Erez Zadok  <ezk@avatar.fsl.cs.sunysb.edu>
+
+	* Rules.make: don't format as a4 paper unless one sets $A4PAPER=1.
+
+2011-01-05  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: reformat.
+
+2010-12-13  Erez Zadok  <ezk@kosh.fsl.cs.sunysb.edu>
+
+	* master.bib: Added Stanley's 2010 state of the univ. address, fixed
+          URLs to past addresses.
+	  Reformatted using Emacs bibtex-reformat command.
+
+2010-12-12  Erez Zadok  <ezk@BigMac.local>
+
+	* master.bib: RV paper appeared.  Fix capitalization of {I/O} in
+	  MSST'10 paper.
+
+2010-11-23  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: interaspect paper appeared.
+
+2010-11-21  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: STTT paper accepted for publication.
+
+2010-09-20  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: comment out bad entry.
+
+2010-08-29  Erez Zadok  <ezk@BigMac.local>
+
+	* master.bib: fixed numerous typos which affected sorting order and
+          consistent styles in all citation used in Chisl paper.
+
+	* usetex-v1-anon.cls: use red color for \NOTES, to make them more
+          visible.
+
+2010-08-28  Erez Zadok  <ezk@BigMac.local>
+
+	* master.bib: remove duplicate "rfc:xdr" entry.
+	Fix broken url for ntfs-adv, was causing url.sty to break.
+
+2010-08-17  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: fix typos.  Reformat.
+	Add month for interaspect paper.
+	Update status of SMCO STTT'10 article, again.
+
+2010-08-13  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: reformat and revalidate.  Fix typos.
+
+2010-06-02  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: fix typo.  reformat.
+
+2010-05-29  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: remove duplicate key/value entries for
+	fast10fsgreen, which came from xref entry anyway.
+
+2010-05-18  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: fix all \" commands.
+
+2010-05-05  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: reformatted, changed all numeric DOI citations to
+	named ones.
+
+2010-03-08  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: add tapp10eeps paper.
+
+2010-01-18  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: fix typos.
+
+2009-11-17  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: reformat. fix one typo.
+
+2009-11-09  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master-anon.txt: added callanan08ngs to anon list.
+
+	* master.bib: remove anonymized entry for callanan08ngs.  No need.
+
+2009-11-07  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: added FAST'10 paper.
+
+2009-11-04  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* sig-alternate-anon.cls: anonymous and even tighter version of
+	sig-alternate (SIGMETRICS).  Saves space where author names and
+	affiliations are.  Turns on page numbers.
+
+	* sigplanconf-small.cls: tighter version of sigplan style.
+
+	* sig-alternate.cls: updated version.
+
+2009-09-29  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: cacm-hdf5 published.
+
+2009-09-08  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: add Intel 7000 processor family manual.
+
+2009-09-06  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: Forrester citation confirming that more energy is
+	consumed outside of the data center.
+
+	* usetex-v1-anon.cls: make the 'anon' style also tight on space.
+
+2009-08-14  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: added valor tos (invited) article.
+
+2009-08-01  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: Add D.J.'s MS tehsis TR.
+	TaPP is by Usenix.
+
+2009-08-01  Erez Zadok  <ezk@shekel.local>
+
+	* master.bib: gcc summit paper.
+
+2009-08-01  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: leave publisher out of "under review" articles.
+
+2009-08-01  Erez Zadok  <ezk@shekel.local>
+
+	* master.bib: new journal/magazine articles.
+
+2009-06-22  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* usetex-v1-tight.cls: more space tightening.
+
+	* master.bib: fixed typos.
+	More fixes.
+
+	* usetex-v1-tight.cls: tighten format for 'webversion'
+
+2009-05-13  Erez Zadok  <ezk@shekel.local>
+
+	* master.bib: fix typo.
+	Add page numbers to FAST valor paper.
+
+2009-05-06  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: systor is no longer "to appear"
+
+2009-04-19  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: reformat. fix 2 typos.
+
+2009-04-13  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: mention "ACM" for SYSTOR.
+
+2009-04-12  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: added linux-ltp citation.
+
+2009-04-11  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: add cewit entry.  reformat.
+
+2009-04-05  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: reformat.
+
+2009-04-04  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: added Rocks Clusters.
+	Added NYSgrid.
+
+2009-03-29  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: fix syntax errors in tapp09storybook entry.
+	reformat file (using Emacs M-x bibtex-validate and
+	bibtex-reformat).
+	Add hdfgroup citation.
+	Fix typo in "hdf".
+	Fix typo in "joulesort07".
+	Fix type in "cmu03selfstor".
+	Add Kenny's 2008 state of the university address.
+
+2009-03-25  Erez Zadok  <ezk@shekel.local>
+
+	* master.bib: fix typo in systo09DHIS.
+
+2009-03-16  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: add Sean's thesis.
+
+2009-02-03  Erez Zadok  <ezk@shekel.local>
+
+	* master.bib: remove all "http://" prefixes for www.* URLs.
+	Fix EMC and Netapp citations key sorting.
+
+2009-01-31  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: reformat.  merge dup entries for hpdc02jeannot.
+
+2009-01-26  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: reformat/indent.
+	typo fix.
+
+2009-01-06  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* Rules.make (checkbib): revert Rick's broken Rules.make, which
+          didn't apply fixes to *.bbl files, anonimization, etc.
+
+2008-12-09  Erez Zadok  <ezk@shekel.local>
+
+	* master.bib: remove extra comma in harvard08muniswamy-reddy.
+
+2008-11-05  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: added fast09valor paper.
+
+2008-10-06  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: add IDC 2007 citation.  Reformat rest.
+
+2008-10-05  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: fixes.
+
+2008-09-14  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* master.bib: page numbers to SVSDS paper.
+	Already appeared.
+
+	* Rules.make (ANONFILES): add anonymization support to templates.
+
+	* master.bib: fix pawlowski00thenfs entry.
+
+2008-06-26  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* remove ^M chars at the end of files.  Someone's been editing
+	these files on ... gasp ... Windows?!
+
+2008-03-17  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: add exclusion to lj03amd because it doesn't have a
+	volume number.
+	Kenny's 2007 state of the univ. address.
+
+2008-03-16  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: PASS pubs.
+
+2008-02-28  Erez Zadok  <ezk@shekel.local>
+
+	* master.bib: rename adam08freebsdautofs to adam07freebsdautofs.
+	Add ngs08 and please08csc.
+	Fix typos/dups.
+
+2008-02-26  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: add lsf08.
+
+2008-01-14  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: Kenny's 2006 university address.
+
+2008-01-02  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: reformat, fixes.
+
+2007-12-24  Avishay Traeger  <atraeger@cs.sunysb.edu>
+
+	* consistify: fix comment about double-word patterns, add consistifyoff
+	option for double-word patterns.
+
+2007-11-07  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: don't say "ETA" -- too colloquial.
+
+2007-10-29  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: storagess page numbers
+
+2007-10-03  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: MSST appeared already.
+
+2007-09-16  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: remove http:// prefix in front of "www.*" URLs.
+
+2007-08-16  Avishay Traeger  <atraeger@cs.sunysb.edu>
+
+	* Rules.make: removed SRCS+=$(NAME).tex since the Makefiles in our
+	papers already do that (at least those in the sample that I checked).
+	Keeping it there causes things like "make check" to process $(NAME).tex
+	twice.
+
+2007-07-29  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: fix LSF entry.
+
+2007-07-25  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: GCC summit paper appeared.
+	Dave's middle name.
+
+2007-07-25  Josef "Jeff" Sipek  <jsipek@cs.sunysb.edu>
+
+	* master.bib: Added page numbers & volume number to ols07stackfs
+	entry
+
+2007-07-24  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: update.  Add MSST'07 RAIF paper.
+	Added Dave's PLEASE MS Thesis.
+
+2007-05-10  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: removed new/duplicate entry for orange book.  Use
+	the older "dod85orange" instead.
+
+2007-05-05  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* bbl_contents_line.tex: revert change.  Don't change this file in
+	bib/.  Instead, copy it to your own paper dir, and then change it
+	there.  Latex will use the local copy of this file first.
+
+2007-05-04  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* consistify: add rule to catch nonallowed "it's".
+
+2007-05-01  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* fslreport.cls: pass options passed from fslreport.cls use to
+	base class report.cls.
+
+2007-04-29  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: fix typo in key=ref-policy entry.  Reformat.
+
+2007-04-20  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* sigplan-proc.cls: an improved version of acm_proc_article-sp.cls
+	which actually prints page numbers.  See
+	<http://www.cs.indiana.edu/icfp04/acm.html>.
+
+	* sig-alternate.cls: update to latest ACM version.
+
+	* acm_proc_article-sp.cls: update to latest ACM version.
+
+	* Rules.make (STYLES): depend on more ACM styles.
+
+2007-04-17  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: add gcc summit and expcs papers.
+	Add ols07 paper.
+
+2007-03-19  Erez Zadok  <ezk@shekel.local>
+
+	* strip_publisher.sh: move script off of specific papers and into
+          template.  Script needs to be made more portable (broken on some
+          systems).
+
+2007-03-17  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* usetex-v1-anon.cls: sync up w/ changes in master cls file.
+
+2007-02-12  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: LSF presentation.
+
+2007-02-09  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: add NGS 07 paper.
+
+2007-01-20  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: add GPM89 for Smolka.
+	Add CES86 for Smolka.
+
+	* Rules.make ($(NAME).bbl): accept both old and new styles for
+	'tail' program (portability).
+
+	* anonymize.pl, bibtag, citecount, citefix, consistify,
+	extractbib, textags: don't hard code perl's path.  Use portable
+	'eval' trick to execute any perl from your $PATH.
+
+2007-01-04  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* consistify: catch "can't" contractions.
+
+	* master.bib: fixes to formatting. use \url around URLs and strip
+	off leading 'http://' if its' a www.*; use en-dash for page
+	ranges.  Use clearer and easier to read cite key names.
+
+	* citemap: map bdbmanual and bdbmanualdeadlock.
+
+2006-11-06  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: page numbers for osdi06 papers.
+
+2006-10-31  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: add page numbers to two StorageSS papers.
+
+2006-09-21  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: DOI# for callanan06compiler.
+
+2006-09-15  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: page numbers for NGS'05 paper.
+	CD-ROM only pub for NGS'06 (so far).
+	Temp page nums.
+
+2006-09-10  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: SF typo.
+
+2006-09-08  Avishay Traeger  <atraeger@cs.sunysb.edu>
+
+	* Rules.make: better rules for html and install-html
+
+2006-09-08  Avishay Traeger  <atraeger@cs.sunysb.edu>
+
+	* Rules.make: don't make html if exists, install-html rule
+
+2006-09-08  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* Rules.make (checktthvers): rule to ensure that we're using the
+	latest version of TTH.
+
+	* master.bib: NOTES -> NOTE ("to appear" on SSS'06 pubs)
+
+2006-09-05  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master-anon.txt: updated w/ all of our latest pubs.
+
+2006-08-29  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* Rules.make (submit): allow overriding of "submit" rule for
+	custom submissions.
+
+2006-08-28  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: add two storagess 2006 papers.
+	Reformat, truncate first names, remove trailing WS.
+	Fix keys.
+	Finally, zen article appears on TOS (back-dated to May '06).
+
+2006-07-25  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* Rules.make (tar): fix rule to include additional files needed to
+	produce self-contained tarballs.
+
+2006-07-24  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: OLS paper presented, page numbers.
+
+2006-07-10  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* Rules.make: syntax of "tail" for +N has changed.  Use more
+	portable format.
+
+2006-06-29  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: add tsd/osprof OSDI06 papers.
+
+2006-06-04  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: callanan06compiler appeared already.
+	Add Chip's thesis.
+
+2006-05-19  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: revisionist history, hopefully one last time for
+	this overdue issue.
+
+2006-04-24  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* consistify: hyphenate "free-space" (not "freespace").
+
+2006-04-18  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* consistify: dire warning.  typo fix.
+
+	* master.bib: OLD paper is "to appear".
+
+2006-04-18  Charles P. Wright  <cwright@fsl.cs.sunysb.edu>
+
+	* consistify: If a "consistifyoff" environment is detected,
+	then skip consistency checking.  This is important so that
+	code fragments don't get checked.
+
+2006-04-16  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* consistify: add double-L "jounralling" rules.
+
+2006-03-31  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: MBT paper appeared already.
+	Pages for MBT paper.
+
+2006-03-30  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: all URLs which don't start with a 'www' must be
+	prefixed with "http://".
+
+2006-03-23  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* Rules.make (STYLES): depend on fslreport.cls.
+
+	* fslreport.cls: class file for FSL reports and proposals of all
+	sorts, based on usetex-v1.cls (single column, 11pt, TimesRoman, 1"
+	margins, tighter spaces, captions are smaller and in italics, and
+	paragraph titles end with a period automatically).
+
+2006-03-09  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: zen is "to appear".
+	TOS-unionfs should be out this month.
+
+2006-03-05  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: oh my god, they cited Kenny.
+
+2006-02-28  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* local-vars.tex: no need for LocalWords, because Ispell will add
+	it itself.
+
+	* local-vars.txt: same as local-vars.tex, but for TEXT files.
+
+2006-02-26  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* citefix: search for citemap in several paths.
+	Support \\cite and \\nocite.
+
+2006-02-25  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: citations to projects and products who use fistgen
+	(ToPAS, mini_fo, and StorCompress).
+
+2006-02-23  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* citefix: default to ~/proj/fsl/bin/citemap.
+
+2006-02-21  Charles P. Wright  <cwright@fsl.cs.sunysb.edu>
+
+	* fslbib.lib: Most most of bibtex pretty printing into fslbib.lib,
+	so that we can use it without calling extractbib.
+
+	* extractbib: Support formats in the mapfile.
+
+	* master.bib: Underscores are even worse than colons, because they
+	break bibparse.  Also, if you change a citation's name you should
+	update citemap.
+
+2006-02-21  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: avoid ':' in bibtex keys for our own publications,
+	because it confuses the auto-generated install.mk makefile in the
+	www repo.
+
+2006-02-21  Charles P. Wright  <cwright@fsl.cs.sunysb.edu>
+
+	* extractbib: Add support for citation specific mappings (which is
+	needed to disambiguate Aditya vs. Anand).
+
+2006-02-18  Charles P. Wright  <cwright@fsl.cs.sunysb.edu>
+
+	* master.bib, citemap: Get rid of nasty formats for publicly exposed
+	bib entries.
+	* citefix: Convert old bib entries to new bib entries using citemap.
+
+2006-02-16  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: consistent TOS keys.
+
+2006-01-26  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* Rules.make (BIBFILES): allow one to define $MYBIBFILES for any
+	extra (typically per PI) *.bib files.
+
+2006-01-25  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* acmtrans2m.cls: support a new 'acmcsur' (Computing Surveys)
+	option.
+
+2006-01-22  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: URLs that don't start with 'www' or 'ftp' must be
+	prefixed with "http://".
+
+2006-01-21  Charles P. Wright  <cwright@fsl.cs.sunysb.edu>
+
+	* master.bib: Use ADDRESS not LOCATION, which BIBTEX ignores.
+	* extractbib: Support boldface text, and ignore missing page numbers.
+
+	* master.bib: Fix syntax errors.
+
+	* extractbib: Add support for tech reports, articles, and theses.
+
+	* extractbib: Add support for mapfiles to convert bibliography
+	tokens into something else.
+
+2006-01-20  Charles P. Wright  <cwright@fsl.cs.sunysb.edu>
+
+	* master.bib: Reserve TR number for Goanna, but don't include
+	URL b/c we aren't citing it anywhere.
+
+2006-01-19  Charles P. Wright  <cwright@fsl.cs.sunysb.edu>
+
+	* extractbib: User-specified format strings.
+
+	* extractbib: Add some pretty printing support.
+
+2006-01-17  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: sync up with www/docs/aris-mbt06.bib.  Run "M-x
+	bibtex-reformat".  add "to appear".
+
+2006-01-17  Charles P. Wright  <cwright@fsl.cs.sunysb.edu>
+
+	* extractbib: Extract bibliography entries.
+
+2006-01-16  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* Rules.make: if PDF_VIEWER is acroread, pass --display, else
+	-display.
+
+2006-01-15  Charles P. Wright  <cwright@fsl.cs.sunysb.edu>
+
+	* citemap: Use comma to separate (b/c it isn't allowed in cites)
+	* master.bib: ezk.misc:Blaze93 -> blaze93cfs
+
+2006-01-15  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* usetex-v1.cls, usetex-v1-tight.cls, usetex-v1-anon.cls
+	(@makecaption): new rule to override the default font used for
+	caption text to use \small+\it, so we don't have to remember to
+	put those (now defunct) \captionfont and \capfont macros any
+	more.  Also cut the glue space between the figure and the caption
+	in half to save some space, now that the caption is going to be
+	clearly distinguished from its figure and the text that follows.
+
+2006-01-15  Charles P. Wright  <cwright@fsl.cs.sunysb.edu>
+
+	* acmtrans2m.cls: Add "fsltr" option, so that our technical report
+	looks like the journal article, but instead of "ACM Journal Name.
+	Vol. V. No. N. Pages 1-37." have "FSL Technical Report No. FSL-XX-XX."
+
+2006-01-14  Charles P. Wright  <cwright@fsl.cs.sunysb.edu>
+
+	* Rules.make: "make newcheck" only checks files that have been updated,
+	saving huge amounts of time.
+
+	* rbibtex: If a citation isn't found, then search for it in citemap. if
+	It is found in citemap, tell the user what to change it to; and grep -n
+	for it in the .tex files.  This makes it possible to change poorly
+	named citations, and not worry about someone not being able to find it.
+
+	* citemap: List of old citations mapped to new citations.
+
+	* consistify: Add NOTE rule.  chewbraces for ref, pageref, label, and
+	cite.  Replace \ref{foo} (or pageref or label) with \ref{}.  Replace
+	\cite{foo} with \cite{DUMMYCITE}.
+
+2006-01-12  Charles P. Wright  <cwright@fsl.cs.sunysb.edu>
+
+	* master.bib: Include URL for Amino Tech Report.
+
+2006-01-10  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* Rules.make: rules for spliting a proposal into main text and
+	bibliography.
+
+2006-01-09  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: looks like Zen will get published in August, not
+	May.
+
+	* master.bib: fixing typos and using a consistent first name
+	style.  PLEASE BE CAREFUL WITH master.bib SO YOU DON'T BREAK
+	THINGS FOR EVERYONE ELSE.
+
+2006-01-02  Avishay Traeger <atraeger@cs.sunysb.edu>
+
+	* master.bib: Added 2 nfsspeed related work entries.
+
+2005-12-30  Avishay Traeger <atraeger@cs.sunysb.edu>
+
+	* master.bib: changed all instances of Page to Pages, fixed month
+	on FAST BOF, added nfsspeed related work entries.
+
+2005-12-21  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* consistify (chewbraces): Don't match "ref" in this regex below,
+	b/c all \ref rules will be ignored then (why was it needed in the
+	first place?)
+
+2005-12-20  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: ignore bibtex warnings on linux-journal entries
+	because they don't have a VOLUME field.
+	Add fast05bof entry, for reference to the slide PDFs.
+
+	* consistify: don't complain about a line being too long if it
+	contains a \cite{} because of a limitation in citesort.sty which
+	requires that there be no spaces between multiple cited items.
+
+2005-12-14  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: pages for replayfs paper.
+
+2005-12-09  Charles P. Wright  <cwright@fsl.cs.sunysb.edu>
+
+	* README: Add a sample Makefile template.
+
+	* Rules.make: Add support for CVs.
+
+	* Rules.make: Add support for multiple BBLFILES, so bibunits can
+	be made to work properly.
+
+	* master.bib: Transition Amino status to 'Under review.'
+
+2005-12-07  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* acmtrans2m.cls: define an 'acmtos' \documentstyle option.
+
+2005-12-06  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: remove old key 'zen-article' in favor of 'zen06tos'.
+	Set month to May (2006), which Sree said was most likely.
+	Add Sunil's MS Thesis, TR FSL-05-03.
+	Retitle FSL-05-03.
+	Set expected volume/issue for zen article.
+
+2005-12-05  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: add zen article.  unionfs-tos has been published.
+
+2005-11-27  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* rlatex: rewritten script in portable Bourne Shell code.
+	Ignore certain latex font warnings.
+
+2005-11-25  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* rlatex: don't consider "float too large for page" a fatal error.
+
+2005-11-14  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: page numbers for StorageSS papers.
+
+2005-11-13  Avishay Traeger  <atraeger@cs.sunysb.edu>
+
+	* master.bib: Added publisher to USENIX05 ref.
+
+2005-11-13  Avishay Traeger  <atraeger@cs.sunysb.edu>
+
+	* master.bib: Added USENIX 2005 NFSv4 Talk, moved SOSP 2005 poster
+	  before references, added USENIX05 ref.
+
+2005-11-09  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: remove "to appear" from two StorageSS papers.
+
+2005-11-04  Nikolai Joukov  <kolya@fsl.cs.sunysb.edu>
+
+	* consistify: do not hyphenate run-time and time-line.
+
+2005-11-02  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: add Aris tech-report.
+
+2005-10-25  Charles P. Wright  <cwright@fsl.cs.sunysb.edu>
+
+	* Journaling vs. SoftUpdates --- Steel Cage Death Match
+
+	* rlatex: Fix warning checking, which was broken by the warning
+	exclusions.
+
+2005-10-14  Nikolai Joukov  <kolya@fsl.cs.sunysb.edu>
+
+	* Rules.make: keep pngs upon "make clean"
+
+2005-10-14  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: add "to appear" purgefs SISW05 paper.
+
+	* ps2png: move script to templates/ dir.
+
+	* Rules.make (html): search for binaries (ps2png script) in the
+	./template/ subdir.  Remove rule that re-cleaned and re-built pdf
+	(why this was needed?)
+
+2005-10-14  Charles P. Wright  <cwright@fsl.cs.sunysb.edu>
+
+	* master.bib: Fix StorageSS citation to avoid ugly punctuation.
+
+	* master.bib: Add Amino as "In preparation."
+
+2005-10-13  Charles P. Wright  <cwright@fsl.cs.sunysb.edu>
+
+	* Rules.make: Fix MYSTYLE for ACM.
+	* master.bib: Fix title.
+
+2005-10-13  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: add SOSP '05 poster.
+
+2005-10-13  Nikolai Joukov  <kolya@fsl.cs.sunysb.edu>
+
+	* Rules.make: rm pngs upon "make clean"
+
+2005-10-09  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* Rules.make (STYLES): support custom style files, in ${MYSTYLES}
+	variable.
+
+2005-10-09  Nikolai Joukov  <kolya@fsl.cs.sunysb.edu>
+
+	* consistify: no "." after "et" in "et al."
+
+2005-09-27  Charles P. Wright  <cwright@fsl.cs.sunysb.edu>
+
+	* rlatex: Ignore 'LaTeX Warning: .* contains only floats.'
+
+2005-09-26  Charles P. Wright  <cwright@fsl.cs.sunysb.edu>
+
+	* Rhino citation.
+
+2005-09-20  Charles P. Wright <cwright@fsl.cs.sunysb.edu>
+
+	* Rules.make: Don't try to count words in non-existent abstract.
+
+2005-09-08  Charles P. Wright <cwright@fsl.cs.sunysb.edu>
+
+	* Use latex instead of rlatex for bibliography scanning (because there
+	will always be warnings at the end)
+
+	* rlatex: Fail on any LaTeX warning (e.g., undefined reference).
+
+2005-09-07  Charles P. Wright <cwright@fsl.cs.sunysb.edu>
+
+	* master.bib: Add lightweight recoverable virtual memory
+
+2005-09-06  Avishay Traeger  <atraeger@cs.sunysb.edu>
+
+	* master.bib: Added byte94compression.
+
+2005-09-06  Charles P. Wright  <cwright@fsl.cs.sunysb.edu>
+
+	* consistify: Catch any i.e. or e.g. without a comma.
+
+2005-09-05  Charles P. Wright <cwright@fsl.cs.sunysb.edu>
+
+	* consistify: Complain about e.g.\
+
+2005-09-04  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* usetex-v1{,-tight}.cls: remove \framebox from around \NOTE's
+	text.  Cute idea, but doesn't work for long notes.
+
+	* bbl_contents_line.tex: if you're using the default
+	bbl_contents_line, it reduces inter-bib-item space by 50% and uses
+	\small font.
+
+	* usetex-v1-tight.cls: fix the style file to use the newer one,
+	i.e., only \NOTE is supported.
+
+	* master.bib: typo.
+
+	* Rules.make (clean): "make clean" should remove anything defined
+	in the customer $(EXTRACLEAN).
+
+2005-09-03  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: fix markstein82bounds.
+
+2005-09-02  Charles P. Wright  <cwright@fsl.cs.sunysb.edu>
+
+	* consistify: Catch \s~\cite{}.
+
+2005-08-29  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: add Replayfs paper.
+
+2005-08-19  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: two storagess 2005 papers accepted.
+
+2005-08-12  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: fix ms-ifs entry.
+
+	* rbibtex: comment.
+
+2005-08-12  Charles P. Wright  <cwright@fsl.cs.sunysb.edu>
+
+	* %rbibtexignore:key will ignore a key in bibtex warnings.
+
+	* rbibtex: Die on any bibtex warnings.
+
+2005-08-12  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: fixed page number ranges to use full numbers.  Let
+	the bst file figure out if it wants to abbreviate "127--142" to
+	"127--42".
+	Fix "http://www." -> "www." in URLs.
+
+2005-08-04  Charles P. Wright  <cwright@fsl.cs.sunysb.edu>
+
+	* Rules.make: Don't make foo.bbl depend on checkbib.
+
+2005-08-03  Charles P. Wright  <cwright@fsl.cs.sunysb.edu>
+
+	* Rules.make: Allow Makefile to have extra rules for name.dvi.
+	Depend on various USENIX styles when not in ACM mode.
+
+	* usetex-*.cls: Just make \paragraph do the period.
+
+2005-08-03  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* usetex-v1.cls: remove old annottaion commands which were rarely
+	used.  Just define one plain \NOTE which takes a name (for
+	margins) and text.
+	Define simple \para command which'd call \paragraph but add a
+	period at the end.
+
+2005-07-30  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: placeholders for zen and fsbench journal articles.
+
+2005-07-28  Charles P. Wright  <cwright@fsl.cs.sunysb.edu>
+
+	* Reorganize for "sub-repository"
+
+2005-07-28  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* Rules.make: move to bib dir.  Turn emacs Makefile mode.
+	Allow customized extra rules.
+	(%.pdf): try ps2pdf13 first (because of "fi" ligatures).
+	(PS_VIEWER, PDF_VIEWER): allow you to customize your ps/pdf
+	viewers.
+
+2005-07-28  Charles P. Wright  <cwright@fsl.cs.sunysb.edu>
+
+	* consistify: \ref, \label, and \input should be immune from
+	consistification (e.g., \ref{model-unix} should not be
+	\ref{model-Unix}).
+
+2005-07-28  Charles P. Wright <cwright@fsl.cs.sunysb.edu>
+
+	* templates/Rules.make: A generic paper Makefile.
+
+2005-07-22  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: auto-pilot manual.
+
+2005-07-18  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* consistify: add \pageref rule like \ref.  Catch ~\cite and ~\ref
+	at the beginning of the line (should be attached to text in
+	previous line).
+
+2005-07-17  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* consistify: use en-dash for negative numbers in \textrm mode,
+	because a single dash looks too short.
+
+2005-07-11  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* Makefile: support pre- and post- local.inc files.
+
+	* consistify: '%' comments should be at the beginning of the line,
+	to avoid confusion and inadvertent mistakes commands that fill a
+	paragraph to a given line-width.  But if line begins with a '\\'
+	then it's OK (special case).
+
+2005-07-08  Charles P. Wright  <cwright@fsl.cs.sunysb.edu>
+
+	* consistify: Fixed Am-utils capitalization, \cline ignored, and
+	catch numbers that are not by themselves.
+
+2005-07-08  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* consistify: hyphenate "am-utils".
+
+2005-07-05  Charles P. Wright  <cwright@fsl.cs.sunysb.edu>
+
+	* consistify: Catch \cite and \ref at the beginning of a line, not just
+	after a character that isn't a tilde.
+
+	* consistify: Use print, not printf for error messages so that
+	percents do not screw things up.
+
+	* consistify: Print out the XXX reason.
+
+2005-07-05  Charles P. Wright <cwright@fsl.cs.sunysb.edu>
+
+	* consistify: Catch empty citations, "is be", and XXX.
+
+2005-07-01  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: add Unionfs TOS article.  Reformat bib file.
+
+2005-06-16  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* consistify: more hyphenation rules for micro/macro benchmarks.
+	Bug: missing comma at end of list item.
+
+2005-06-16  Charles P. Wright  <cwright@fsl.cs.sunysb.edu>
+
+	* consistify: Hyphenate micro-benchmarks, and add \.? to lots
+	of the single word patterns, otherwise you miss them at the
+	end of a sentence.
+
+	* consistify: Hyphenate micro-benchmarks.
+
+	* consistify: Support mboxes for more than just a single word,
+	otherwise Unionfs snapshot 010101-0101, can not be unflagged as a
+	range.  Evaluate the error message as well, not just the pattern,
+	so that you can use $1 and friends in your errors.  Use -D flag to
+	enable debugging (previously you had to edit the script).
+
+2005-06-14  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* consistify: no need for "./".
+
+2005-05-28  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: ccgrid paper no longer "to appear."
+
+2005-05-21  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: reformat.  Add Abhishe's RPE TR (kgcc).
+
+2005-05-19  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* consistify: skip single words wrapped in an \mbox{}.  Assume
+	they are OK.
+
+2005-05-18  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* consistify: ensure that there's a '~' before \cite and \ref
+	commands, not a space.  A '~' provides a non-breakable space,
+	avoiding really ugly orphans or widows.
+
+2005-05-14  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* consistify: catch percentages such as 1000\% (of course, with
+	such large percentages, it's better to say "10x slower").
+
+2005-05-13  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* README: remove two test lines.
+
+	* consistify: parse words that are right inside parentheses.
+
+2005-05-08  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* consistify: rule to capitalize "Web"
+	Rule to catch period or comma that's outside the quotes.
+	Catch "i.e." and "e.g." w/o a comma at the end of the line.
+	Catch slash use of "read/write."
+	Say how many errors were detected.
+	If number of errors is greater than 256, exit(255).
+
+	* README: instructions how to use consistify (will be updated to
+	include more general FSL paper authoring instructions).
+
+	* consistify: tell user where to get local-vars.tex from.
+	Cleanups and spell-checks.
+
+	* local-vars.tex: a file to define emacs/vim and ispell local
+	variables.  This file's contents should be appended to the end of
+	each and every .tex file we write.
+
+	* commit: commit commit script.
+
+	* consistify: new perl script to use in FSL papers.  Checks
+	consistency of usage terms, phrases, and more.  Every FSL-produced
+	paper from now on will have to pass this file before committing
+	any updates or producing a printout for anyone to read.
+	If no option specified, assume all of them.
+	Force tests for missing periods in "ie" and "eg" to be tested on
+	whole words.
+	Tell people that a ". " should have two spaces or a "\ ".
+	Don't match sub-word in the repeated-words test, and only consider
+	perl "\w+" to be a valid word here.
+	Complain about lines that are too long, but only if they don't
+	start with a backslash command.
+	Check that each file contains the emacs/vim local-variable
+	settings that will force lines to be no more than 70 chars.
+
+2005-05-07  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: remove all unnecessary KEY entries.
+	Every bad entry had its name changed to add "FIXME to it.  Fix
+	those entries or your latex files won't compile.
+
+2005-05-05  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: run emacs M-x bibtex-reformat and bibtex-validate
+	(you should too).
+
+2005-04-18  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: apv2 paper page numbers.
+
+2005-04-08  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: remove 'to appear' from ngs/apv2 pubs.
+
+2005-04-06  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib (liblit-sampler): don't use {} around normal author
+	names, or else they get sorted alphabetcially by first name
+	instead of last name.
+	(slam): same as above, but also use only first char of authors'
+	first name.
+
+2005-03-25  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: reformatted.
+
+2005-03-21  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master-anon.txt: rename from zadok-anon.
+	Full list of anonimized entries, 49 entries.
+
+	* anonymize.pl: document usage.
+
+2005-03-21  Charles P. Wright <cwright@fsl.cs.sunysb.edu>
+
+	* anonymize.pl: Anonymization script.
+	* zadok-anon: List of citations for master.bib that should be
+	anonymized.
+
+2005-03-20  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: fix typo.
+	Another typo.
+
+2005-03-19  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: cleanups, reformat, and updates.
+
+2005-03-09  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: Aditya's MS Thesis FSL tech-report.
+
+2005-02-16  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: ccgrid paper fix typo, say "best paper," and update
+	to latest title.
+
+2005-02-02  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: add ngs05 citation.
+
+2005-01-22  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: add ccgrid-5 cluster-sec entry.
+
+2005-01-05  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: reformat.
+
+2004-11-22  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: changed K42Overview to "unpublished" -- TR is
+	unsuitable unless you have an official TR#.
+
+	* master.bib: Copy freebsd-kernel-man-pages and
+	linux-kernel-man-pages entries from zadok.bib back into master.bib
+	(tsk, tsk).
+
+2004-11-21  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: add aggregate_stats TR.
+	Ref to Liblit's sampler.
+	Refs to sourceforge and bugzilla.
+
+2004-11-19  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: fixes to recent entries.
+
+2004-11-08  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: abbreviate first name on lj-unionfs.
+	i3fs no longer "to appear".
+
+2004-11-07  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: remove "to appear" from lj-unionfs article.
+	New revision of unionfs tr.
+
+2004-10-22  Gopalan Sivathanu  <gopalan@cs.sunysb.edu>
+
+	* master.bib: Added "Caching in the Sprite Network File System"
+	citation.
+
+2004-09-27  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: remove {} around normal list of authors (e.g.,
+	"{F. Last}") because it'd cause that entry to be sorted on the "F"
+	instead of the "L"; one more typo in i3fs.bib discovered, similar
+	mistakes have probably been made in other papers.
+
+2004-09-21  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: fix a rather embarrasing cut-n-paste error: the
+	paper "improving host security with system call policies" is by
+	Neils Provos, not T. Garfinkel!
+	(craiglisa03): P.Mc.Neal -> P.M.McNeal.
+
+2004-09-20  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: lj-unionfs more likely to appear in December.
+
+2004-09-14  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: minor reformatting.
+
+2004-09-13  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: digital libraries cost models citations.
+
+2004-09-12  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: new citations for global file systems, cluster file
+	systems, and P2P systems.
+
+2004-09-11  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: fist home page update.  Fix URLs to defunct Columbia
+	U. Web page.
+
+2004-08-26  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: page numbers of i3fs paper.
+
+2004-08-15  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: linux journal unionfs article.  Akshat's MS thesis.
+	Convert all LOCATION to ADDRESS.
+	Ncperf page numbers.
+	Cosy-hotos page numbers.
+
+2004-08-11  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: official page numbers for avfs paper.
+
+2004-08-09  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: fixes.  remove "http://" if the URL starts with
+	"www."  Proper capitalization of author and titles.  Reformat
+	entries.  Remove excessive {}.  Every URL should be wrapped in
+	\url{}.
+
+2004-05-31  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: i3fs LISA paper.
+
+2004-05-26  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: sorting key for pickos, around "p".
+
+2004-05-25  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: reformat. add ref to solaris cachefs.
+
+2004-05-21  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: fix googlefs entry.
+
+2004-05-08  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: reformat and add NC checksum tech-report.
+
+2004-05-02  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: new TRs for secfs-rpe and nfscrack.
+
+2004-04-18  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: sha1 and kbdb.
+
+2004-04-03  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: versionfs+tracefs page numbers.
+
+2004-03-28  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: correct avfs entry.
+
+2004-02-29  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: time-travel ML debugger citation.
+
+2004-02-28  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: fix typo; reformat.
+
+2004-02-04  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: change http://www -> www (http prefix
+	unnecessary)
+
+2004-02-01  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: fixes to ensure sorting of bib entries.
+
+2004-01-31  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: cleanups and reformatting (M-x bibtex-*
+	commands).
+
+2004-01-25  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: remove "to appear" from versionfs and tracefs
+	FAST refs, so we can cite them properly.
+	fixes.
+
+2004-01-12  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: Kenny's State of the University addresses for
+	2002 and 2003.
+
+2004-01-09  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: versionfs/tracefs to appear.
+
+2004-01-08  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: nc-perf appeared already.
+
+2003-12-23  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: add missing 'dbfs' citation from kdb3fs.bib!
+	(Always add/change bibtext entries in CVSROOT/fsl/master.bib).
+
+2003-12-23  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: fix typos.
+
+2003-12-17  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: versionfs msthsis and FAST, tracefs fast paper.
+
+2003-12-16  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: formatting and other typos fixed.
+
+2003-11-20  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: msst04eqfs citation (sans page nums)
+
+2003-09-24  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: add nc-perf bib entry as conference paper.
+
+2003-10-06  Erez Zadok  <ezk@cricket.fsl.cs.sunysb.edu>
+
+	* master.bib: typos, fixes, reformat, revalidate (using
+	built-in emacs functions)
+
+2003-09-03  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: Amd Linux Journal article is here.
+
+2003-08-14  Erez Zadok  <ezk@agora.fsl.cs.sunysb.edu>
+
+	* master.bib: correct title for eqfs policy paper.
+
+2003-08-14  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: add URLs to CUCS TR location.
+
+2003-08-14  Erez Zadok  <ezk@agora.fsl.cs.sunysb.edu>
+
+	* master.bib: typo fixed
+
+2003-08-13  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: nc-perf tech-report. add URLs to all FSL
+	tech-reports.
+
+2003-07-15  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* master.bib: cosy hotos paper is no longer "to appear"
+
+2003-07-08  Erez Zadok  <ezk@agora.fsl.cs.sunysb.edu>
+
+	* master.bib: entry for October LJ Amd article.  Reformat and
+	validate all other entries.
+
+2003-06-09  Charles P. Wright  <cwright@fsl.cs.sunysb.edu>
+
+	* master.bib: NCryptfs page numbers.
+
+2003-04-04  Charles P. Wright  <cwright@fsl.cs.sunysb.edu>
+
+	* master.bib: CGD Reference
+
+2003-03-19  Charles P. Wright  <cwright@fsl.cs.sunysb.edu>
+
+	* master.bib: ESG Study, NetApp NearStore
+
+2003-03-12  Charles P. Wright  <cwright@fsl.cs.sunysb.edu>
+
+	* master.bib: Modified url citations to use the url package,
+	and http://www -> www.
+
+2003-03-09  Charles P. Wright  <cwright@fsl.cs.sunysb.edu>
+
+	* master.bib: Added reference to Peter Gutmann's SFS.
+	Added reference for "More Trouble Ahead for Moore's Law?"
