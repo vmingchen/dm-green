@@ -42,11 +42,11 @@
 #endif
 
 #ifdef OLD_KERNEL
-#ifdef CONFIG_64BIT
-#define BITS_PER_LONG 64
-#else
-#define BITS_PER_LONG 32
-#endif /* CONFIG_64BIT */
+  #ifdef CONFIG_64BIT
+    #define BITS_PER_LONG 64
+  #else
+    #define BITS_PER_LONG 32
+  #endif /* CONFIG_64BIT */
 #endif
 
 /* Works like ASSERT() */
@@ -207,7 +207,7 @@ struct green_c {
 
     struct work_struct eviction_work;    /* work of evicting cache extent */
     struct extent *eviction_cursor;
-    bool eviction_running; 
+    bool eviction_running; 				 /* current simple design does not need eviction thread */
 };
 
 /* Context information passed between promotion function and its callback */

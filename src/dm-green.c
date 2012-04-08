@@ -511,6 +511,7 @@ static int dump_metadata(struct green_c *gc)
 	bitmap = (unsigned long *)vmalloc(bitmap_size(vdisk_size(gc))); 
 	if(!bitmap) {
 		DMERR("dump_metadata: Unable to allocate memory"); 
+        vfree(extents);
 		return -ENOMEM; 
 	}
 
@@ -770,10 +771,11 @@ static void update_bio(struct green_c *gc, struct bio *bio, extent_t eid)
     struct dm_target *ti = gc->ti;
     sector_t offset;          /* sector offset within extent */
 
-#if 0
+#ifdef OLD_KERNEL
+    offset = (bio->bi_sector - ti->begin) % extent_size(gc);
+#else
     offset = ((bio->bi_sector - ti->begin) & (extent_size(gc) - 1));
 #endif
-    offset = (bio->bi_sector - ti->begin) % extent_size(gc);
 
     extent_on_disk(gc, &eid, &idisk);
     bio->bi_bdev = gc->disks[idisk].dev->bdev;
@@ -1242,6 +1244,13 @@ static int green_ctr(struct dm_target *ti, unsigned int argc, char **argv)
     INIT_WORK(&gc->eviction_work, eviction_work);
     gc->eviction_running = false;
 
+    /* prevent io from acrossing extent */
+    ti->split_io = ext_size;
+    ti->num_flush_requests = ndisk;
+#ifndef OLD_KERNEL
+    ti->num_discard_requests = ndisk;
+#endif
+
 	/* TODO: 
 	 * spin down disks when the green context is created for
 	 * power benefit. 
@@ -1292,6 +1301,16 @@ static int green_map(struct dm_target *ti, struct bio *bio,
 	/* bio->bi_sector is based on virtual sector specified in argv */
     extent_t eid, veid = (bio->bi_sector - ti->begin) >> gc->ext_shift;
     bool run_eviction = false;
+#ifndef OLD_KERNEL
+	unsigned target_request_nr;
+
+    if (bio->bi_rw & REQ_FLUSH) {
+        target_request_nr = map_context->target_request_nr;
+        VERIFY(target_request_nr < fdisk_nr(gc));
+        bio->bi_bdev = gc->disks[target_request_nr].dev->bdev;
+        return DM_MAPIO_REMAPPED;
+    }
+#endif
 
     DMDEBUG("%lu: map(sector %llu -> extent %llu)", jiffies, 
             (long long unsigned int)(bio->bi_sector - ti->begin), veid);
@@ -1309,45 +1328,6 @@ static int green_map(struct dm_target *ti, struct bio *bio,
         DMDEBUG("map: virtual %llu -> physical %llu", veid, eid);
 		/* cache miss */
         if (!on_cache(gc, eid)) {
-            /* 
-             * If the operation is writing on an extent outside of the cache
-             * disk, we will not try to promote it as an effort to minimize the
-             * eraze-write cycles on cache disk (SSD). No matter we promote the
-             * extent or not, the host disk needs to spin up. Anyway, if it is
-             * read soon, it will then be promoted. This policy is inspired by a
-             * paper titled "Extending SSD Lifetimes with Disk-Based Write
-             * Caches". 
-             *
-             * In this case, nothing needs to be done here. It falls through. 
-			 *
-			 * NOTE: When a cold data is accessed, it becomes hot.
-			 * Considering data locality, it has to be moved to Cache. 
-			 * The above policy trades performance for the reliability
-			 * of SSD.  
-             */
-		#if 0
-            /* If the extent is under promotion, postpone the IO request */
-            if (gc->table[veid].state & VES_PROMOTE) {  
-				/* TODO: 
-				 * 1. spin up disk
-				 * 2. replace Cache extent
-				 * 3. update mapping table 
-				 */
-                gc->table[veid].counter--;      /* undo counter */
-                spin_unlock_irqrestore(&gc->lock);
-                return DM_MAPIO_REQUEUE;
-            }
-			/*
-			 * Try to promote extent on read. It will schedule callback
-			 * function to resubmit the bio no matter success or fail.
-			 */
-            if (bio_data_dir(bio) == READ) {
-				/* TODO: ditto or merge the two "if" branches */
-				promote_extent(gc, bio); 
-                spin_unlock_irqrestore(&gc->lock);
-                return DM_MAPIO_SUBMITTED;
-            } 
-		#endif
 			promote_extent(gc, bio); 
 
 			spin_unlock_irqrestore(&gc->lock, flags);
