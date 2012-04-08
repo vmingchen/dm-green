@@ -13,7 +13,8 @@ SRCS=	$(NAME).tex		\
 	ack.tex
 
 # extre dependencies
-EXTRAS=smr.bib figures/lba-ind-example.eps
+# EXTRAS=smr.bib figures/lba-ind-example.eps
+EXTRAS=smr.bib
 
 # Let the user have custom overrides, globally or for just this paper.
 -include $(HOME)/.paperdev.mk
