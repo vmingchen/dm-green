@@ -215,12 +215,13 @@ cold extent on SSD, a LRU algorithm is used.
 
 \subsection{Data Grouping}
 
-Right now, we have done very little thing about data grouping. A
-simple heuristic we are going to experiment is to group data by
-frequency of access. That is, most accessed data are all mapped on to
-the first disk, namely, SSD and so forth. The reason behind this is
-that it is likely for data in same working set to exhibit access
-frequency at same level. 
+We have studied the data grouping in \cite{Wildani_grouping}. However,
+right now, very little thing about data grouping has been done in our
+implementation. A simple heuristic we are going to experiment is to
+group data by frequency of access. That is, most accessed data are all
+mapped on to the first disk, namely, SSD and so forth. The reason
+behind this is that it is likely for data in same working set to
+exhibit access frequency at same level. 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% For Emacs:

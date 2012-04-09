@@ -39,11 +39,12 @@ under-utilized.
 
 To enable servers to benefit more from the power efficiency and high
 performance of solid state media, we used a single but relatively
-large SSD as cache for all other disks (referred to as secondary
-disks). This approach would achieve a good cache hit ratio because of
-the large size of the cache. Thanks to data locality, it would also
-make the SSD capable of serving majority of the disk accesses as we
-can see in \cite{Debnath_SkimpyStash, Debnath_Bloomflash,
+large SSD as cache (it has similar effect as cache but is not exactly
+cache) for all other disks (referred to as secondary disks). This
+approach would achieve a good cache hit ratio because of the large
+size of the cache. Thanks to data locality, it would also make the SSD
+capable of serving majority of the disk accesses as we can see in
+\cite{Debnath_SkimpyStash, Debnath_Bloomflash,
 flashcache_experiments}. Therefore, other disks are idle for longer
 periods of time and thus can be powered down to save energy. 
 

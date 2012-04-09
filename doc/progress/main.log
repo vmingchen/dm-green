@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.1415926-1.40.10 (TeX Live 2009/Debian) (format=latex 2011.7.7)  9 APR 2012 00:04
+This is pdfTeX, Version 3.1415926-1.40.10 (TeX Live 2009/Debian) (format=latex 2011.7.7)  9 APR 2012 00:18
 entering extended mode
  %&-line parsing enabled.
 **main.tex
@@ -243,4 +243,4 @@ Here is how much of TeX's memory you used:
  29 hyphenation exceptions out of 8191
  34i,9n,21p,382b,247s stack positions out of 5000i,500n,10000p,200000b,50000s
 
-Output written on main.dvi (7 pages, 46808 bytes).
+Output written on main.dvi (7 pages, 46996 bytes).
