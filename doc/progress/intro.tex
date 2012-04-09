@@ -19,9 +19,9 @@ of the problems related to performance and energy efficiency are
 alleviated. However, despite of having the above advantages, SSD are
 not widely adopted in the server storage stack due to their high
 capital cost per byte. To overcome this limit, hybrid disks are
-proposed. Hybrid disks achieve better tradeoff between performance and
-capacity by organizing different disks in the manner conformant to the
-storage hierarchy. 
+proposed. Hybrid disks achieve better trade-off between performance
+and capacity by organizing different disks in the manner conformant to
+the storage hierarchy. 
 
 The most common type of hybrid disks \cite{Bisson07ahybrid} tries to
 reap the benefits of SSDs by having a small flash memory on each hard
@@ -76,16 +76,18 @@ Additionally, data grouping has the benefit of isolating faults
 \cite{Sivathanu_dgraid, Wildani_grouping}. 
 
 We use the Linux Device Mapper framework and implement our hybrid
-model as a device mapper target. This provides modularity and
+model as a Device Mapper target. This provides modularity and
 transparency as it enables us to create virtual disks without exposing
 the details of underlying physical disks. By leveraging the strengths
 of different disks, our virtual disk can better trade-off among power
 consumption, I/O performance, and storage capacity.
 
-The rest of the paper is organized as follows. Section 2 describes our
-design and implementation. In Section 3, we present some block trace
-analysis. The results of our system is evaluated in Section 4. We
-conclude our study in Section 5.
+The rest of the paper is organized as follows. Section
+\ref{sec:design} describes our design and implementation. Section
+\ref{sec:trace} presents some block trace analysis.  The energy
+efficiency and I/O performance of our system is evaluated in Section
+\ref{sec:eval}. Related work is discussed in Section
+\ref{sec:related}. Conclusions are drawn in Section \ref{sec:conc}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% For Emacs:

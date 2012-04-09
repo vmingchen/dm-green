@@ -1,78 +1,67 @@
-\section{Background}
-\label{bg}
+\section{Trace Study}
+\label{sec:trace}
 
-Background...
+Traces are used to collect information about the system workloads.
+Traces can be collected at different layers in storage stack. Block
+traces would contain information about disk offset, number of blocks
+accessed, Read/Write information and timestamp for every accessed I/O.
+This information can be used to characterize the workloads and
+identify I/O access patterns.  Trace analysis plays a crucial role in
+identifying hot data blocks across different disks.The idea is to move
+hot blocks to primary disk and serve most of the requests from most
+energy efficient disk. Hence other disks can be spun/powered down for
+long periods of time to achieve good power savings and increased
+performance. A simple approach like counting the number of times a
+particular block is accessed can be used to find the hotness of disk
+blocks. Apart from this, I/O block traces can be used for variety of
+other purposes.  For example, block trace analysis can be used to
+tweak the design parameters like extent size and migration threshold.
 
-Typical length: 0 pages to 1.0.
+Workloads which exhibit good data locality properties are most
+suitable for this project. Workloads such as video server and file
+server are likely to exhibit this property. The distribution of
+popular files on disks may change dynamically but at any particular
+instant, only a fraction of files the disk are popular in the case of
+above workloads.  A workload which is completely random I/O access
+patterns would not benefit this approach as it would result in
+frequent data migration between primary disks and secondary disks.
+ 
+Currently, we use I/O traces for analysis and tweaking parameters. I/O
+traces can also be used in offline mode to predict the hot blocks.
+This approach is another option and we may implement this if time
+permits. Also, to verify the correctness and working of our concept,
+we replay the traces with and without green Multi-disk target and
+compare the power consumption and I/O performance. 
 
-Background and Related Work can be similar.
-Most citations will be in this section.
+\begin{figure}[ht]
+\begin{centering}
+\epsfig{file=figures/rw.eps,width=1.00\linewidth}
+\caption{Read/write ratio of video server, file server and random
+  workloads.}
+\label{fig:rwratio}
+\end{centering}
+\end{figure}
 
-1. Describe past work and criticize it, fairly.  Use citations
-   to JUSTIFY your criticism!  Problem: hard to compare to YOUR
-   work, b/c you've not yet described your work in enough
-   detail.  Solution: move this text to Related Work at end of
-   paper.
+\begin{figure}[ht]
+\begin{centering}
+\epsfig{file=figures/randomrw_io_freq.eps,width=1.00\linewidth}
+\caption{I/O size of the random workload.}
+\label{fig:randomiosize}
+\end{centering}
+\end{figure}
 
-2. Describe in some detail, background material necessary to
-   understand the rest of the paper.  Doesn't happen often,
-   esp. if you've covered it in Intro.
-
-Example, submit a paper to a storage conference: reviewers are
-experts in storage.  Don't need to tell them about basic disk
-operation.  But if your paper, say, is an improvement over an
-already-advanced data structure (eg., COLA), then it'd make
-sense to describe basic COLA algorithms in some detail.
-
-Important: open the bg section with some "intro" text to tell
-reader what to expect (so experienced readers can skip it).
-
-If your bg material is too short, can fold it into opening of
-'design' section.
-
-
-\textbf{notes about picking a project}
-
-Put every possible related citation you can! (esp. if conf.
-doesn't count citations towards page size).
-
-Literature survey:
-- CiteSeer
-
-- Google Scholar
-
-- libraries
-
-1. find a few relates paper
-
-2. skim papers to find relevance
-
-3. search for add'l related papers in Biblio.
-
-4. reverse citation: use srch engines, to find
-   newer papers that cite the paper you like.
-
-5. "stop" when reach transitive closure
-
-- then go off and read it.
-
-- think about "how can I improve" and "what was so
-  good about that paper".
-
-- check future work for project ideas.
-
-- go to talks \& conferences
-
-Pick an idea:
-
-- novelty vs. incremental (how big of an increment?)
-
-- idea vs. practical implications
-  (implemented? released? in use as OSS or commercial?)
-
-- where to submit? good fit and match for quality.
-
-- look at schedule of conferences: due dates \& result dates.
+I/O block traces have been collected for variety of workloads like
+video server, file server and random workloads. The workloads were run
+for a relatively long periods (for a few hours). Below, we present the
+results for some preliminary analysis on the traces. Figure
+\ref{fig:rwratio} shows Read/Write ratios for the above three
+workloads.  We have collected the number of times a particular I/O
+size was issued for the above three workloads. Figure
+\ref{fig:randomiosize}, which shows the I/O size of the random
+workloads, is one of them. All these workloads were generated using
+Filebench and each workload runs for 2 hours. We used three different
+physical disks with different power consumption and performance
+characteristics to run these workloads. 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% For Emacs:

@@ -135,7 +135,7 @@ free extents on prime disk. It is initialized by 'promote_extent' and finished
 by 'promote_callback'. 
 
 ## Demotion
-Promotion occurs when the number of free prime extents falls below a threshold.
+Demotion occurs when the number of free prime extents falls below a threshold.
 Currently, the threshold is 'EXTENT_LOW'. Demotion tries to evict cold extents
 on prime disks until the number of free prime extents goes up to another
 threshold, which currently is 'EXTENT_FREE'. It is initialized by

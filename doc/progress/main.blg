@@ -20,45 +20,45 @@ Repeated entry---line 374 of file gos.bib
  : @inproceedings{fast12t2m
  :                         ,
 I'm skipping whatever remains of this entry
-You've used 22 entries,
+You've used 24 entries,
             2118 wiz_defined-function locations,
-            642 strings with 8823 characters,
-and the built_in function-call counts, 8783 in all, are:
-= -- 888
-> -- 413
-< -- 10
-+ -- 163
-- -- 140
-* -- 595
-:= -- 1373
-add.period$ -- 75
-call.type$ -- 22
-change.case$ -- 136
+            651 strings with 9082 characters,
+and the built_in function-call counts, 9436 in all, are:
+= -- 953
+> -- 443
+< -- 11
++ -- 175
+- -- 150
+* -- 635
+:= -- 1477
+add.period$ -- 81
+call.type$ -- 24
+change.case$ -- 147
 chr.to.int$ -- 0
-cite$ -- 22
-duplicate$ -- 353
-empty$ -- 696
-format.name$ -- 140
-if$ -- 1921
+cite$ -- 24
+duplicate$ -- 379
+empty$ -- 751
+format.name$ -- 150
+if$ -- 2065
 int.to.chr$ -- 0
-int.to.str$ -- 22
-missing$ -- 18
-newline$ -- 112
-num.names$ -- 44
-pop$ -- 174
+int.to.str$ -- 24
+missing$ -- 19
+newline$ -- 121
+num.names$ -- 48
+pop$ -- 190
 preamble$ -- 1
-purify$ -- 114
+purify$ -- 123
 quote$ -- 0
-skip$ -- 265
+skip$ -- 286
 stack$ -- 0
-substring$ -- 513
-swap$ -- 111
-text.length$ -- 10
+substring$ -- 539
+swap$ -- 118
+text.length$ -- 11
 text.prefix$ -- 0
 top$ -- 0
-type$ -- 88
+type$ -- 96
 warning$ -- 0
-while$ -- 82
-width$ -- 24
-write$ -- 258
+while$ -- 89
+width$ -- 26
+write$ -- 280
 (There were 4 error messages)

@@ -1,8 +1,37 @@
 \section{Evaluation}
-\label{eval}
+\label{sec:eval}
 
 We have finished the code. But it is still being tested. We are going
 to perform experiments to evaluate our system in the near future.
+
+To evaluate our work, experiments will be performed on multi-disks
+systems with and without our green target. Performance results of
+power consumption and IO speed will be compared. To prove that the
+green target can save energy, system using green target should report
+significant less power consumption and comparative IO speed than
+system with same experiment setup but not using the green target.
+Power consumption can be measured using watt-meter connected to
+machine and disks; IO performance can be measured using Filebench in
+unit of ops/sec. To make the comparison fair, we trace block IO of
+workloads beforehand and replay the traces on the two systems. 
+
+The experiments will be performed under different configuration
+combinations. The first configuration option is workload. Because
+different workloads can exhibit very different IO characteristics, the
+comparison will be performed per workload. We will start with a simple
+workload, file compression, then extend to file server with large
+files. Workloads should be large so that most physical disks will be
+covered. 
+
+The second configuration option is file system. File systems with
+different features such as journalling and allocation policy will
+behave differently on block IO. We are going to consider Ext2 and
+Ext3. 
+
+The third configuration option is IO scheduler. IO scheduler
+determines how IO requests are grouped and issued. It might has great
+impact on the effectiveness of the green target. We plan to consider
+Anticipatory and Noop Scheduler in our experiment. 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% For Emacs:

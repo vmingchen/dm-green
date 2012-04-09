@@ -123,6 +123,13 @@ Andy Soon.
 \newblock
   http://www.slideshare.net/IBMAsean/green-beyond-data-center-actions-to-increase-business-responsiveness-and-reduce-costs.
 
+\bibitem{hddcache}
+Gokul Soundararajan, Vijayan Prabhakaran, Mahesh Balakrishnan, and Ted Wobber.
+\newblock Extending ssd lifetimes with disk-based write caches.
+\newblock In {\em Proceedings of the 8th USENIX conference on File and storage
+  technologies}, FAST'10, pages 8--8, Berkeley, CA, USA, 2010. USENIX
+  Association.
+
 \bibitem{fast12t2m}
 V.~Tarasov, K.~S. Kumar, J.~Ma, D.~Hildebrand, A.~Povzner, G.~Kuenning, and
   E.~Zadok.
@@ -142,6 +149,10 @@ Charles Weddle, Mathew Oldham, Jin Qian, and An~i~Andy~Wang.
 \newblock Paraid: The gearshifting power-aware raid.
 \newblock In {\em In Proc. USENIX Conference on File and Storage Technologies
   (FAST 07}, pages 245--260. USENIX Association, 2007.
+
+\bibitem{wiki_dm}
+Wikipedia.
+\newblock Device mapper, May 2012.
 
 \bibitem{Wildani_grouping}
 Avani Wildani, Ethan~L. Miller, and Lee Ward.

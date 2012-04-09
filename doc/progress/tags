@@ -98,7 +98,6 @@ Crecipes	template/master.bib	14046
 CryptoAPI	template/master.bib	6523
 DBLP:conf/mkern/1992	template/master.bib	6977
 DVFS04	template/master.bib	2055
-Design	design.tex	2
 Diao02mimo	template/master.bib	2357
 Diao05self-managingsystems:	template/master.bib	1860
 Dijkstra68THE	template/master.bib	17402
@@ -595,7 +594,6 @@ compileroslowpower2003	template/master.bib	18790
 complexNetworks	template/master.bib	11626
 compsys90massalin	template/master.bib	13434
 computsurv03podling	template/master.bib	21194
-conc	conclusion.tex	2
 conclusion	conclusion.tex	1
 condit09sosp	template/master.bib	22255
 connectathon-web	template/master.bib	20821
@@ -761,7 +759,7 @@ eurosys08greenfs	template/master.bib	18012
 eurosys08greenfs_note	template/master.bib	18024
 eurosys09narayanan	template/master.bib	21276
 eurosys11_sierra	template/master.bib	1790
-eval	eval.tex	2
+eval	eval.tex	1
 evans02static	template/master.bib	11770
 evans94lclint	template/master.bib	4780
 eweek10app-colsolidation	template/master.bib	23312
@@ -926,7 +924,6 @@ fengenergy	template/master.bib	2203
 fernandez99dixie	template/master.bib	18082
 ffsb	template/master.bib	25343
 fig:dm	design.tex	12
-fig:rw	design.tex	213
 file-motel	template/master.bib	6666
 file_memory_scheduling-sjcc1967	template/master.bib	23133
 filebench-gamma	template/master.bib	19894
@@ -1867,7 +1864,7 @@ reiser4	template/master.bib	8743
 reiser4-txn	template/master.bib	9782
 reiserfs-ea	template/master.bib	8216
 reiss03jive	template/master.bib	17181
-related	related.tex	2
+related	related.tex	1
 reparse_points	template/master.bib	7313
 report10splunk	template/master.bib	23011
 report10spotlight	template/master.bib	23019
@@ -1966,6 +1963,10 @@ schroeder:osdi85	template/master.bib	5131
 schulz07	template/master.bib	1470
 seagate-momentus	template/master.bib	15511
 seagate:scsidisk	template/master.bib	20747
+sec:conc	conclusion.tex	2
+sec:design	design.tex	2
+sec:eval	eval.tex	2
+sec:related	related.tex	2
 security04avfs	template/master.bib	7660
 sehgal10thesis	template/master.bib	20114
 sekar03mcc	template/master.bib	7562
