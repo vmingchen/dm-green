@@ -17,3 +17,8 @@ dmesg | tail -100
 
 # Then, power and performance measurement for real workloads
 # with effective trace study
+
+dmsetup remove /dev/mapper/green
+dmesg | tail -10
+make remove
+dmesg | tail -10
