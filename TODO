@@ -14,12 +14,13 @@
 4. Trace analysis and preparation (online vs. offline)
 	- Only offline study for CSE595 considering the time limit
 
-[REVISE] 5. Review on the cache design and implementation. 
+[REVISE] 5. Review on the cache design and implementation.
 
 6. Evaluation of different workloads (web server, file server,
    database server, email server, etc) with three different approaches
 	- Naive sectors mapping without knowledge about workload [CSE595]
-	- Offline trace analysis based [CSE595]
+	- Design test scenario by "dd" [CSE595]
+	- Offline trace analysis based [NOT CSE595]
 	- Online trace analysis based  [NOT CSE595]
 
 7. Optimization. [NOT CSE595 <-- Time limit]
@@ -31,9 +32,8 @@
 	- Two levels Cache (RAM)
 	- etc. 
 
-8. Paper submission. 
-	- By May 10, write a report summarizing what has been
-	  done so far 
-	- Extend the work with more domain knowledge and optimization
-	  techniques, submit as one potential paper, and carefully 
-	  distinguish from massive other approaches. 
+8. Paper submission.
+	- By May 1, write a report summarizing what has been done so far.
+	- Potentially extend the work with more domain knowledge and optimization
+	  techniques, submit as one potential paper, and carefully distinguish
+	  from massive other approaches.
