@@ -771,11 +771,13 @@ static void update_bio(struct green_c *gc, struct bio *bio, extent_t eid)
     struct dm_target *ti = gc->ti;
     sector_t offset;          /* sector offset within extent */
 
-#ifdef OLD_KERNEL
-    offset = (bio->bi_sector - ti->begin) % extent_size(gc);
-#else
+//#ifdef OLD_KERNEL
+//    offset = (bio->bi_sector - ti->begin) % extent_size(gc);
+//#else
+//    offset = ((bio->bi_sector - ti->begin) & (extent_size(gc) - 1));
+//#endif
+//
     offset = ((bio->bi_sector - ti->begin) & (extent_size(gc) - 1));
-#endif
 
     extent_on_disk(gc, &eid, &idisk);
     bio->bi_bdev = gc->disks[idisk].dev->bdev;
@@ -797,7 +799,6 @@ static void evict_callback(int read_err, unsigned long write_err,
     struct extent *ext;
     struct extent *next, *prev;
     extent_t seid, deid;
-    bool run_low = false;
 	unsigned long flags; 
 
     gc = dinfo->gc;
@@ -811,9 +812,8 @@ static void evict_callback(int read_err, unsigned long write_err,
             seid, deid, ext2id(gc, next), ext2id(gc, prev));
 
     spin_lock_irqsave(&gc->lock, flags);
-#if 0
-    ext->vext->state ^= VES_MIGRATE;
-#endif
+    ext->vext->state &= ~VES_MIGRATE;
+
     if (read_err || write_err || (ext->vext->state & VES_ACCESS)) {
         /* undo eviction in case of error or extent is accessed */
 		if (read_err)
@@ -827,19 +827,13 @@ static void evict_callback(int read_err, unsigned long write_err,
     else {
         DMDEBUG("evict_callback: extent %u is remapped to extent %llu", 
                 (unsigned int)(ext->vext - gc->table), deid);
-        ext->vext->state ^= VES_MIGRATE;  
 		/* update mapping table for dest physical extent */
         ext->vext->eid = deid;
         put_extent(gc, seid);
-        run_low = (cache_free_nr(gc) < EXT_MAX_THRESHOLD);
     }
     gc->eviction_running = false;
     spin_unlock_irqrestore(&gc->lock, flags);
     kfree(dinfo);
-
-    /* schedule more eviction */
-    if (run_low) 
-        queue_work(kgreend_wq, &gc->eviction_work);
 }
 
 /*
@@ -892,6 +886,8 @@ static extent_t evict_extent(struct green_c *gc)
     extent_t seid, deid, tmp;
     unsigned idisk;
     struct evict_info *dinfo;
+    unsigned long flags;
+    int r;
 
     dinfo = kmalloc(sizeof(struct evict_info), GFP_KERNEL);
     if (!dinfo) {
@@ -900,7 +896,10 @@ static extent_t evict_extent(struct green_c *gc)
     }
 
     DMDEBUG("evict_extent: Eviction");
+    spin_lock_irqsave(&gc->lock, flags);
     ext = lru_extent(gc);
+    spin_unlock_irqrestore(&gc->lock, flags);
+
     if (ext == NULL) { 
         DMDEBUG("evict_extent: Nothing to evict");
         goto quit_evict;
@@ -909,7 +908,10 @@ static extent_t evict_extent(struct green_c *gc)
     DMDEBUG("evict_extent: LRU extent is %llu", seid);
 
 	/* Get one free extent as the dest place */
-    if (get_extent(gc, &deid, false) < 0) { /* no space on disk */
+    spin_lock_irqsave(&gc->lock, flags);
+    r = get_extent(gc, &deid, false);
+    spin_unlock_irqrestore(&gc->lock, flags);
+    if (r < 0) { /* no space on disk */
         DMDEBUG("evict_extent: No space on non-cache disk");
         goto quit_evict;
     }
@@ -1014,24 +1016,30 @@ static void promote_extent(struct green_c *gc, struct bio *bio)
     extent_t veid, peid, eid;
     unsigned idisk;
     struct promote_info *pinfo;
+    unsigned long flags;
+    int r;
 
     DMDEBUG("promote_extent: promoting");
-    if (get_from_cache(gc, &peid) < 0) { 
+    pinfo = (struct promote_info *)kmalloc(
+            sizeof(struct promote_info), GFP_KERNEL);
+    if (!pinfo) {
+        DMERR("promote_extent: Could not allocate memory");
+        return;        /* out of memory */
+    }
+
+    spin_lock_irqsave(&gc->lock, flags);
+    r = get_from_cache(gc, &peid) < 0;
+    spin_unlock_irqrestore(&gc->lock, flags);
+
+    if (r < 0) { 
         DMDEBUG("promote_extent: no extent on cache disk");
 		/* If cache is full, do cache replacement */
 		peid = evict_extent(gc); 
 		if(peid < 0) {
 			DMERR("promote_extent: evict_extent error"); 
+            kfree(pinfo);
 			return; 
 		}
-    }
-
-    /* use GFP_ATOMIC because it is holding a spinlock */
-    pinfo = (struct promote_info *)kmalloc(
-            sizeof(struct promote_info), GFP_ATOMIC);
-    if (!pinfo) {
-        DMERR("promote_extent: Could not allocate memory");
-        return;        /* out of memory */
     }
 
 	/* TODO: spin up disk */
@@ -1328,9 +1336,10 @@ static int green_map(struct dm_target *ti, struct bio *bio,
         DMDEBUG("map: virtual %llu -> physical %llu", veid, eid);
 		/* cache miss */
         if (!on_cache(gc, eid)) {
+			spin_unlock_irqrestore(&gc->lock, flags);
+
 			promote_extent(gc, bio); 
 
-			spin_unlock_irqrestore(&gc->lock, flags);
 			return DM_MAPIO_SUBMITTED;
         }/* end of cache miss */ 
 		/* If cache hits, then performance benefits from Design */
