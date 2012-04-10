@@ -1333,25 +1333,26 @@ static int green_map(struct dm_target *ti, struct bio *bio,
 	/* if the mapping table is setup already */
     if (gc->table[veid].state & VES_PRESENT) {
         eid = gc->table[veid].eid;
-        DMDEBUG("map: virtual %llu -> physical %llu", veid, eid);
-		/* cache miss */
-        if (!on_cache(gc, eid)) {
-			spin_unlock_irqrestore(&gc->lock, flags);
-
-			promote_extent(gc, bio); 
-
-			return DM_MAPIO_SUBMITTED;
-        }/* end of cache miss */ 
-		/* If cache hits, then performance benefits from Design */
-		else {
-			/* In the beginning: cache extent state is already set to be accessed */
-		}
-    }/* end of existed mapping */
-	/* If the mapping is not present yet, get one free physical extent */
-	else {
+    } else {
+     /* If the mapping is not present yet, get one free physical extent */
         VERIFY(get_extent(gc, &eid, true) >= 0);   /* out of space */
         map_extent(gc, veid, eid);
     }
+
+    DMDEBUG("map: virtual %llu -> physical %llu", veid, eid);
+    /* cache miss */
+    if (!on_cache(gc, eid)) {
+        spin_unlock_irqrestore(&gc->lock, flags);
+
+        promote_extent(gc, bio); 
+
+        return DM_MAPIO_SUBMITTED;
+    }/* end of cache miss */ 
+    /* If cache hits, then performance benefits from Design */
+    else {
+        /* In the beginning: cache extent state is already set to be accessed */
+    }
+
     run_eviction = (cache_free_nr(gc) < EXT_MIN_THRESHOLD) 
             && !gc->eviction_running;
     spin_unlock_irqrestore(&gc->lock, flags);
@@ -1359,7 +1360,7 @@ static int green_map(struct dm_target *ti, struct bio *bio,
     update_bio(gc, bio, eid);
     generic_make_request(bio);
 
-#ifdef 0
+#ifdef XXX
     if (run_eviction) {              /* schedule extent eviction */
 		/* remember to flush_work */
         queue_work(kgreend_wq, &gc->eviction_work);
