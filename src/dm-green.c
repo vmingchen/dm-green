@@ -86,7 +86,7 @@ static struct green_c *alloc_context(struct dm_target *ti,
     gc->io_client = NULL;
     gc->kcp_client = NULL;
     gc->cache_extents = NULL;
-    gc->eviction_cursor = NULL;
+    gc->eviction_cursor = 0;
 
     return gc;
 }
@@ -853,29 +853,31 @@ static void evict_callback(int read_err, unsigned long write_err,
  */
 static struct extent *lru_extent(struct green_c *gc)
 {
-    struct extent *ext, *next;
+    struct extent *ext;
+    extent_t i;
 
-    if (gc->eviction_cursor == NULL) { 
-        if (list_empty(&gc->cache_use)) { 
-            DMDEBUG("lru_extent: Empty list");
-            return NULL;
+    i = gc->eviction_cursor;    /* start from last position */
+    do {
+        /* advance cursor, wrap if the end is reached */
+        if (++i == gc->disks[CACHE_DISK].capacity) 
+            i = 0;
+        DMDEBUG("lru_extent: cursor at %llu", i);
+
+        ext = gc->cache_extents + i;
+        if (ext->vext == NULL) 
+            continue;       /* skip free extent */
+
+        if (ext->vext->state & (VES_ACCESS | VES_MIGRATE)) {
+            DMDEBUG("lru_extent: Extent %llu accessed", ext2id(gc, ext));
+            ext->vext->state &= ~VES_ACCESS;        /* clear access bit */
+        } else {
+            gc->eviction_cursor = i;
+            return ext;
         }
-        gc->eviction_cursor = list_first_entry(&gc->cache_use, 
-                struct extent, list);
-    }
-    ext = gc->eviction_cursor;
-    while (ext->vext->state & (VES_ACCESS | VES_MIGRATE)) { 
-        DMDEBUG("lru_extent: Extent %llu accessed", ext2id(gc, ext));
-        ext->vext->state ^= VES_ACCESS;     /* clear access bit */
-        ext = next_extent(&gc->cache_use, ext);
-        if (ext == gc->eviction_cursor) {   /* end of iteration */ 
-            DMDEBUG("lru_extent: No eviction candidate");
-            return NULL;
-        }
-    }
-    next = next_extent(&gc->cache_use, ext);    /* advance lru cursor */
-    gc->eviction_cursor = ((next == ext) ? NULL : next);
-    return ext;
+    } while (i != gc->eviction_cursor);
+
+    DMDEBUG("lru_extent: No demotion candidate");
+    return NULL;
 }
 
 /* Evict extents using WSClock algorithm */

@@ -60,7 +60,7 @@
 
 /* Magic for persistent green header */
 #define GREEN_MAGIC 0x45614567
-#define GREEN_VERSION 57
+#define GREEN_VERSION 58
 #define GREEN_DAEMON "kgreend"
 
 /* The first disk is cache disk. */
@@ -206,7 +206,7 @@ struct green_c {
     struct dm_kcopyd_client *kcp_client; /* data copy in device mapper */
 
     struct work_struct eviction_work;    /* work of evicting cache extent */
-    struct extent *eviction_cursor;
+    extent_t eviction_cursor;
     bool eviction_running; 				 /* current simple design does not need eviction thread */
 };
 
