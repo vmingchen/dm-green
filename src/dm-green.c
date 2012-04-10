@@ -1028,7 +1028,7 @@ static void promote_extent(struct green_c *gc, struct bio *bio)
     }
 
     spin_lock_irqsave(&gc->lock, flags);
-    r = get_from_cache(gc, &peid) < 0;
+    r = get_from_cache(gc, &peid);
     spin_unlock_irqrestore(&gc->lock, flags);
 
     if (r < 0) { 
