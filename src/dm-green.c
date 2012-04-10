@@ -399,9 +399,7 @@ static inline void locate_header(struct dm_io_region *where,
     VERIFY(where->count <= MAX_SECTORS);
 }
 
-/*
- * Dump metadata header to a disk.
- */
+/* Dump metadata header to a disk */
 static int dump_header(struct green_c *gc, unsigned idisk)
 {
     int r = 0;
@@ -548,9 +546,7 @@ free:
     return r;
 }
 
-/*
- * Check metadata header from a disk.
- */
+/* Check metadata header from a disk */
 static int check_header(struct green_c *gc, unsigned idisk)
 {
     int r = 0;
@@ -772,12 +768,13 @@ static void update_bio(struct green_c *gc, struct bio *bio, extent_t eid)
     struct dm_target *ti = gc->ti;
     sector_t offset;          /* sector offset within extent */
 
-//#ifdef OLD_KERNEL
-//    offset = (bio->bi_sector - ti->begin) % extent_size(gc);
-//#else
-//    offset = ((bio->bi_sector - ti->begin) & (extent_size(gc) - 1));
-//#endif
-//
+/*
+#ifdef OLD_KERNEL
+		offset = (bio->bi_sector - ti->begin) % extent_size(gc);
+#else
+		offset = ((bio->bi_sector - ti->begin) & (extent_size(gc) - 1));
+#endif
+*/
     offset = ((bio->bi_sector - ti->begin) & (extent_size(gc) - 1));
 
     extent_on_disk(gc, &eid, &idisk);
@@ -789,9 +786,7 @@ static void update_bio(struct green_c *gc, struct bio *bio, extent_t eid)
             (unsigned int)to_bytes(extent_size(gc) - offset));
 }
 
-/*
- * Callback when an extent being evictd has been copied to other disk. 
- */
+/* Callback when an extent being evictd has been copied to other disk */
 static void evict_callback(int read_err, unsigned long write_err, 
         void *context)
 {
