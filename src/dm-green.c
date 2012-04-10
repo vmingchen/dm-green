@@ -876,9 +876,13 @@ static struct extent *lru_extent(struct green_c *gc)
             gc->eviction_cursor = i;
             return ext;
         }
+#if 0
     } while (i != gc->eviction_cursor);
+#endif
+    } while (true);
 
-    DMERR("lru_extent: No demotion candidate");
+    VERIFY(false);
+    DMERR("lru_extent: it is a bug");
     return NULL;
 }
 
