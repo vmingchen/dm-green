@@ -60,7 +60,7 @@
 
 /* Magic for persistent green header */
 #define GREEN_MAGIC 0x45614567
-#define GREEN_VERSION 58
+#define GREEN_VERSION 60
 #define GREEN_DAEMON "kgreend"
 
 /* The first disk is cache disk. */
@@ -205,9 +205,11 @@ struct green_c {
     struct dm_io_client *io_client;
     struct dm_kcopyd_client *kcp_client; /* data copy in device mapper */
 
-    struct work_struct eviction_work;    /* work of evicting cache extent */
     extent_t eviction_cursor;
+#if 0
+    struct work_struct eviction_work;    /* work of evicting cache extent */
     bool eviction_running; 				 /* current simple design does not need eviction thread */
+#endif
 };
 
 /* Context information passed between promotion function and its callback */

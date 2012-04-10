@@ -303,7 +303,7 @@ static inline int get_from_cache(struct green_c *gc, extent_t *eid)
 
     green_bm_set(gc->bitmap, *eid);
 
-    DMDEBUG("get_from_cache: get %llu (%llu extents left)", 
+    DMERR("get_from_cache: get %llu (%llu extents left)", 
             *eid, gc->disks[CACHE_DISK].free_nr);
 
     return 0;
@@ -323,7 +323,7 @@ static inline void put_cache(struct green_c *gc, extent_t eid)
 
     green_bm_clear(gc->bitmap, eid);
 
-    DMDEBUG("put_cache: %llu cache extents left", gc->disks[CACHE_DISK].free_nr);
+    DMERR("put_cache: %llu cache extents left", gc->disks[CACHE_DISK].free_nr);
 }
 
 /* Get a physical extent */
@@ -339,7 +339,7 @@ static int get_extent(struct green_c *gc, extent_t *eid, bool cache)
         if (gc->disks[i].free_nr > 0) {
             *eid = find_next_zero_bit(gc->bitmap, vdisk_size(gc), 
                     gc->disks[i].offset);
-            DMDEBUG("get_extent: %llu obtained", *eid);
+            DMERR("get_extent: %llu obtained", *eid);
             gc->disks[i].free_nr--;
             green_bm_set(gc->bitmap, *eid);
             return 0;
@@ -503,7 +503,7 @@ static int dump_metadata(struct green_c *gc)
     for (veid = 0; veid < vdisk_size(gc); ++veid) { 
         extent_to_disk(gc->table + veid, extents + veid);
         if (gc->table[veid].state & VES_PRESENT) { 
-            DMDEBUG("dump_metadata: %llu -> %llu (%llu)", veid, 
+            DMERR("dump_metadata: %llu -> %llu (%llu)", veid, 
                     le64_to_cpu(extents[veid].eid), gc->table[veid].eid);
         }
     }
@@ -603,7 +603,7 @@ static int alloc_table(struct green_c *gc, bool zero)
 		/* zero out means no state for every reachable virtual extent */
         memset(gc->table, 0, size);
     }
-    DMDEBUG("alloc_table: table created");
+    DMERR("alloc_table: table created");
 
     return 0;
 }
@@ -619,7 +619,7 @@ static int alloc_bitmap(struct green_c *gc, bool zero)
 		/* zero out means no state for every reachable virtual extent */
         memset(gc->bitmap, 0, bitmap_size(vdisk_size(gc)));
     }
-    DMDEBUG("alloc_bitmap: bitmap created");
+    DMERR("alloc_bitmap: bitmap created");
 
     return 0;
 }
@@ -653,7 +653,7 @@ static int load_metadata(struct green_c *gc)
     for (i = 0; i < vdisk_size(gc); ++i) { 
         extent_from_disk(gc->table + i, extents + i);
         if (gc->table[i].state & VES_PRESENT) { 
-            DMDEBUG("mapping: %d -> %llu", i, gc->table[i].eid);
+            DMERR("mapping: %d -> %llu", i, gc->table[i].eid);
         }
     }
 
@@ -702,7 +702,7 @@ static int load_bitmap(struct green_c *gc)
 		for (k = 0; k < gc->disks[j].capacity; ++k) {
 			if (green_bm_check(gc->bitmap, i)) {
 				gc->disks[j].free_nr--;
-				DMDEBUG("extent %llu is set in bitmap", i);
+				DMERR("extent %llu is set in bitmap", i);
 			}
 			++i;
 		}
@@ -737,7 +737,7 @@ static int build_bitmap(struct green_c *gc, bool zero)
     } 
 
     for (j = 0; j < fdisk_nr(gc); ++j) {
-        DMDEBUG("free extent on disk %d: %llu", j, gc->disks[j].free_nr);
+        DMERR("free extent on disk %d: %llu", j, gc->disks[j].free_nr);
     }
 
     return 0;
@@ -808,7 +808,7 @@ static void evict_callback(int read_err, unsigned long write_err,
 
     next = next_extent(&gc->cache_use, ext);
     prev = prev_extent(&gc->cache_use, ext);
-    DMDEBUG("evict_callback: ext %llu -> %llu, next (%llu), prev (%llu)",
+    DMERR("evict_callback: ext %llu -> %llu, next (%llu), prev (%llu)",
             seid, deid, ext2id(gc, next), ext2id(gc, prev));
 
     spin_lock_irqsave(&gc->lock, flags);
@@ -821,17 +821,19 @@ static void evict_callback(int read_err, unsigned long write_err,
 		else if (write_err)
 			DMERR("evict_callback: Write error.");
         else
-            DMDEBUG("evict_callback: cancel eviction because of access");
+            DMERR("evict_callback: cancel eviction because of access");
         put_extent(gc, deid);
     } 
     else {
-        DMDEBUG("evict_callback: extent %u is remapped to extent %llu", 
+        DMERR("evict_callback: extent %u is remapped to extent %llu", 
                 (unsigned int)(ext->vext - gc->table), deid);
 		/* update mapping table for dest physical extent */
         ext->vext->eid = deid;
         put_extent(gc, seid);
     }
+#if 0
     gc->eviction_running = false;
+#endif
     spin_unlock_irqrestore(&gc->lock, flags);
     kfree(dinfo);
 }
@@ -861,14 +863,14 @@ static struct extent *lru_extent(struct green_c *gc)
         /* advance cursor, wrap if the end is reached */
         if (++i == gc->disks[CACHE_DISK].capacity) 
             i = 0;
-        DMDEBUG("lru_extent: cursor at %llu", i);
+        DMERR("lru_extent: cursor at %llu", i);
 
         ext = gc->cache_extents + i;
         if (ext->vext == NULL) 
             continue;       /* skip free extent */
 
         if (ext->vext->state & (VES_ACCESS | VES_MIGRATE)) {
-            DMDEBUG("lru_extent: Extent %llu accessed", ext2id(gc, ext));
+            DMERR("lru_extent: Extent %llu accessed", ext2id(gc, ext));
             ext->vext->state &= ~VES_ACCESS;        /* clear access bit */
         } else {
             gc->eviction_cursor = i;
@@ -876,7 +878,7 @@ static struct extent *lru_extent(struct green_c *gc)
         }
     } while (i != gc->eviction_cursor);
 
-    DMDEBUG("lru_extent: No demotion candidate");
+    DMERR("lru_extent: No demotion candidate");
     return NULL;
 }
 
@@ -893,40 +895,42 @@ static extent_t evict_extent(struct green_c *gc)
 
     dinfo = kmalloc(sizeof(struct evict_info), GFP_KERNEL);
     if (!dinfo) {
-        DMDEBUG("evict_extent: Could not allocate memory");
+        DMERR("evict_extent: Could not allocate memory");
         return (extent_t)(-1);
     }
 
-    DMDEBUG("evict_extent: Eviction");
+    DMERR("evict_extent: Eviction");
     spin_lock_irqsave(&gc->lock, flags);
     ext = lru_extent(gc);
     spin_unlock_irqrestore(&gc->lock, flags);
 
     if (ext == NULL) { 
-        DMDEBUG("evict_extent: Nothing to evict");
+        DMERR("evict_extent: Nothing to evict");
         goto quit_evict;
     }
     seid = ext2id(gc, ext);
-    DMDEBUG("evict_extent: LRU extent is %llu", seid);
+    DMERR("evict_extent: LRU extent is %llu", seid);
 
 	/* Get one free extent as the dest place */
     spin_lock_irqsave(&gc->lock, flags);
     r = get_extent(gc, &deid, false);
     spin_unlock_irqrestore(&gc->lock, flags);
     if (r < 0) { /* no space on disk */
-        DMDEBUG("evict_extent: No space on non-cache disk");
+        DMERR("evict_extent: No space on non-cache disk");
         goto quit_evict;
     }
 	/* TODO: spin up disk */
     ext->vext->state |= VES_MIGRATE;
+#if 0
     gc->eviction_running = true;
+#endif
 
     VERIFY(seid == ext->vext->eid && on_cache(gc, seid) && !on_cache(gc, deid));
     dinfo->gc = gc;
     dinfo->pext = ext;
     dinfo->seid = seid;
     dinfo->deid = deid;
-    DMDEBUG("evict_extent: Evict extent %llu from %llu to %llu", 
+    DMERR("evict_extent: Evict extent %llu from %llu to %llu", 
             vext2id(gc, ext->vext), seid, deid);
 
     src.bdev = gc->disks[CACHE_DISK].dev->bdev;
@@ -949,6 +953,7 @@ quit_evict:
 	return (extent_t)(-1); 
 }
 
+#if 0
 static void eviction_work(struct work_struct *work)
 {
     struct green_c *gc;
@@ -961,6 +966,7 @@ static void eviction_work(struct work_struct *work)
 	}
 	return; 
 }
+#endif
 
 /*
  * Callback of promote_extent. It should release resources allocated by
@@ -990,7 +996,7 @@ static void promote_callback(int read_err, unsigned long write_err,
         spin_unlock_irqrestore(&(gc->lock), flags);
     } else { 
         /* update mapping table */
-        DMDEBUG("promote: extent %llu is remapped to extent %llu", 
+        DMERR("promote: extent %llu is remapped to extent %llu", 
                 pinfo->veid, pinfo->peid);
         spin_lock_irqsave(&(gc->lock), flags);
         put_extent(gc, gc->table[pinfo->veid].eid); /* release old extent */
@@ -1021,7 +1027,7 @@ static void promote_extent(struct green_c *gc, struct bio *bio)
     unsigned long flags;
     int r;
 
-    DMDEBUG("promote_extent: promoting");
+    DMERR("promote_extent: promoting");
     pinfo = (struct promote_info *)kmalloc(
             sizeof(struct promote_info), GFP_KERNEL);
     if (!pinfo) {
@@ -1034,7 +1040,7 @@ static void promote_extent(struct green_c *gc, struct bio *bio)
     spin_unlock_irqrestore(&gc->lock, flags);
 
     if (r < 0) { 
-        DMDEBUG("promote_extent: no extent on cache disk");
+        DMERR("promote_extent: no extent on cache disk");
 		/* If cache is full, do cache replacement */
 		peid = evict_extent(gc); 
 		if(peid < 0) {
@@ -1107,7 +1113,7 @@ static int build_cache(struct green_c *gc)
             gc->cache_extents[eid].vext = gc->table + veid;
             list_del(&(gc->cache_extents[eid].list));
             list_add_tail(&(gc->cache_extents[eid].list), &gc->cache_use);
-            DMDEBUG("build_cache: cache extent %llu is in use", eid);
+            DMERR("build_cache: cache extent %llu is in use", eid);
         }
     }
 
@@ -1126,7 +1132,7 @@ static int green_ctr(struct dm_target *ti, unsigned int argc, char **argv)
     struct green_c *gc;
     int r;
 
-    DMDEBUG("green_ctr (argc: %d)", argc);
+    DMERR("green_ctr (argc: %d)", argc);
 
     if (argc < 4) {
         ti->error = "Not enough arguments";
@@ -1165,7 +1171,7 @@ static int green_ctr(struct dm_target *ti, unsigned int argc, char **argv)
         ti->error = "Fail to allocate memory for green context";
         return -ENOMEM;
     }
-    DMDEBUG("extent size: %u;  extent shift: %u", ext_size, gc->ext_shift);
+    DMERR("extent size: %u;  extent shift: %u", ext_size, gc->ext_shift);
 
     r = get_disks(gc, argv+2);
     if (r < 0) {
@@ -1200,7 +1206,7 @@ static int green_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
     r = check_header(gc, 0);
     if (r < 0) {
-        DMDEBUG("no useable metadata on disk");
+        DMERR("no useable metadata on disk");
 
         /* 
          * This happens when it is the first time the disk is used. 
@@ -1228,7 +1234,7 @@ static int green_ctr(struct dm_target *ti, unsigned int argc, char **argv)
             goto bad_bitmap;
         }
     } else {
-        DMDEBUG("loading metadata from disk");
+        DMERR("loading metadata from disk");
         r = load_metadata(gc);
         if (r < 0) {
             ti->error = "Fail to load metadata";
@@ -1244,15 +1250,18 @@ static int green_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	/* First use or use after loaded from disk */
     r = build_cache(gc);
     if (r < 0) {
-        DMDEBUG("building cache extents");
+        DMERR("building cache extents");
         ti->error = "Fail to build cache extents";
         goto bad_cache;
     }
 
     clear_table(gc);
 	/* map kernel thread id to thread work function */
+
+#if 0
     INIT_WORK(&gc->eviction_work, eviction_work);
     gc->eviction_running = false;
+#endif
 
     /* prevent io from acrossing extent */
     ti->split_io = ext_size;
@@ -1291,7 +1300,7 @@ static void green_dtr(struct dm_target *ti)
 {
     struct green_c *gc = (struct green_c*)ti->private;
 
-    DMDEBUG("green_dtr");
+    DMERR("green_dtr");
     flush_workqueue(kgreend_wq);
     if (dump_metadata(gc) < 0) 
         DMERR("Fail to dump metadata");
@@ -1310,7 +1319,11 @@ static int green_map(struct dm_target *ti, struct bio *bio,
 
 	/* bio->bi_sector is based on virtual sector specified in argv */
     extent_t eid, veid = (bio->bi_sector - ti->begin) >> gc->ext_shift;
+
+#if 0
     bool run_eviction = false;
+#endif
+
 #ifndef OLD_KERNEL
 	unsigned target_request_nr;
 
@@ -1322,8 +1335,9 @@ static int green_map(struct dm_target *ti, struct bio *bio,
     }
 #endif
 
-    DMDEBUG("%lu: map(sector %llu -> extent %llu)", jiffies, 
+    DMERR("%lu: map(sector %llu -> extent %llu)", jiffies, 
             (long long unsigned int)(bio->bi_sector - ti->begin), veid);
+
     spin_lock_irqsave(&gc->lock, flags);
     gc->table[veid].state |= VES_ACCESS;
 #if 0
@@ -1341,7 +1355,7 @@ static int green_map(struct dm_target *ti, struct bio *bio,
         map_extent(gc, veid, eid);
     }
 
-    DMDEBUG("map: virtual %llu -> physical %llu", veid, eid);
+    DMERR("map: virtual %llu -> physical %llu", veid, eid);
     /* cache miss */
     if (!on_cache(gc, eid)) {
         spin_unlock_irqrestore(&gc->lock, flags);
@@ -1355,14 +1369,16 @@ static int green_map(struct dm_target *ti, struct bio *bio,
         /* In the beginning: cache extent state is already set to be accessed */
     }
 
+    spin_unlock_irqrestore(&gc->lock, flags);
+#if 0
     run_eviction = (cache_free_nr(gc) < EXT_MIN_THRESHOLD) 
             && !gc->eviction_running;
-    spin_unlock_irqrestore(&gc->lock, flags);
+#endif
 
     update_bio(gc, bio, eid);
     generic_make_request(bio);
 
-#ifdef XXX
+#if 0
     if (run_eviction) {              /* schedule extent eviction */
 		/* remember to flush_work */
         queue_work(kgreend_wq, &gc->eviction_work);
@@ -1379,7 +1395,7 @@ static int green_status(struct dm_target *ti, status_type_t type,
     extent_t free = 0;
     struct green_c *gc = (struct green_c *)ti->private;
 
-    DMDEBUG("green_status");
+    DMERR("green_status");
     switch(type) {
         case STATUSTYPE_INFO:
             result[0] = '\0';
@@ -1424,7 +1440,7 @@ static int __init green_init(void)
         goto bad_register;
     }
 
-    DMDEBUG("green initialized");
+    DMERR("green initialized");
     return r;
 
 bad_register:
