@@ -1,0 +1,19 @@
+TEST How-To: 
+
+# Be super user
+make
+make install
+dmesg | tail -10
+dmsetup create green test/green-test1
+dmesg | tail -10
+
+# dd allows to seek write/read position by specifying seek=BLOCKS
+dd if=/dev/zero of=/dev/mapper/green bs=8K count=1
+dd if=/dev/zero of=/dev/mapper/green bs=8K count=16
+dd if=/dev/zero of=/dev/mapper/green bs=8K count=17
+dd if=/dev/zero of=/dev/mapper/green bs=8K count=32
+
+dmesg | tail -100
+
+# Then, power and performance measurement for real workloads
+# with effective trace study
