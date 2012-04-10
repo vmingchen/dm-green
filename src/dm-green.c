@@ -1013,7 +1013,7 @@ static void promote_callback(int read_err, unsigned long write_err,
 static void promote_extent(struct green_c *gc, struct bio *bio)
 {
     struct dm_io_region src, dst;
-    extent_t veid, peid, eid;
+    extent_t veid, peid = 0, eid;
     unsigned idisk;
     struct promote_info *pinfo;
     unsigned long flags;
@@ -1359,10 +1359,12 @@ static int green_map(struct dm_target *ti, struct bio *bio,
     update_bio(gc, bio, eid);
     generic_make_request(bio);
 
+#ifdef 0
     if (run_eviction) {              /* schedule extent eviction */
 		/* remember to flush_work */
         queue_work(kgreend_wq, &gc->eviction_work);
     }
+#endif
 
     return DM_MAPIO_SUBMITTED;
 }
