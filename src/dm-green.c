@@ -86,7 +86,6 @@ static struct green_c *alloc_context(struct dm_target *ti,
     gc->io_client = NULL;
     gc->kcp_client = NULL;
     gc->cache_extents = NULL;
-    gc->eviction_cursor = 0;
 
     return gc;
 }
@@ -221,6 +220,8 @@ static int get_disks(struct green_c *gc, char **argv)
         DMERR("Disk length dismatch");
         r = -EINVAL;
     }
+
+    gc->eviction_cursor = gc->disks[CACHE_DISK].capacity;
 
     return r;
 }
