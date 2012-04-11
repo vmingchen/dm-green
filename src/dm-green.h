@@ -122,7 +122,8 @@
  */
 #define EXT_MIN_THRESHOLD 1
 
-/* The total number of free extents on the cache disk after eviction. 
+/* 
+ * The total number of free extents on the cache disk after eviction. 
  * Initalized to 1 mimic CPU Cache. 
  */
 #define EXT_MAX_THRESHOLD 1
