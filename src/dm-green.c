@@ -1027,11 +1027,11 @@ static void promote_extent(struct green_c *gc, struct bio *bio)
     unsigned long flags;
     int r;
 
-    GREEN_ERROR("%s: promoting", __func__);
+    GREEN_ERROR("Promoting");
     pinfo = (struct promote_info *)kmalloc(
             sizeof(struct promote_info), GFP_KERNEL);
     if (!pinfo) {
-        GREEN_ERROR("%s: could not allocate memory", __func__);
+        GREEN_ERROR("Could not allocate memory");
         return;        /* out of memory */
     }
 
@@ -1040,11 +1040,11 @@ static void promote_extent(struct green_c *gc, struct bio *bio)
     spin_unlock_irqrestore(&gc->lock, flags);
 
     if (r < 0) { 
-        GREEN_ERROR("%s: no extent on cache disk", __func__);
+        GREEN_ERROR("No extent on cache disk");
 		/* If cache is full, do cache replacement */
 		peid = evict_extent(gc); 
 		if(peid < 0) {
-			GREEN_ERROR("%s: evict_extent error", __func__); 
+			GREEN_ERROR("Evict_extent error"); 
             kfree(pinfo);
 			return; 
 		}
