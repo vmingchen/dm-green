@@ -58,9 +58,17 @@
 		}\
 }while(0)
 
+#define GREEN_ERROR(f, arg...) \
+	printk(KERN_ERR DM_NAME ": " DM_MSG_PREFIX ": %s: " f "\n", \
+            __func__, ## arg)
+
+#define GREEN_DEBUG(f, arg...) \
+	printk(KERN_DEBUG DM_NAME ": " DM_MSG_PREFIX ": %s: " f "\n", \
+            __func__, ## arg)
+
 /* Magic for persistent green header */
 #define GREEN_MAGIC 0x45614567
-#define GREEN_VERSION 61
+#define GREEN_VERSION 63
 #define GREEN_DAEMON "kgreend"
 
 /* The first disk is cache disk. */
