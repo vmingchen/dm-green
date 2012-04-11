@@ -1,39 +1,49 @@
 [DONE] 1. Deploy linux kernel 3.0 (or above) on gr3.
 
-2. Code review for GreenDM. 
-	- basic comments [DONE]
-	- kernel control of user program to spin down/up disk
-	- metadata flush to be made periodical, similar to what
-	  pdflush does
-	- merge disks reliability concern into implementation 
-	- extend vs. sector tradeoff
-    - add special mechanism for disk initialization [DONE]
+[DONE] 2. Code review for GreenDM. 
+		- basic comments [DONE]
+    	- add special mechanism for disk initialization [DONE]
 
 [DONE] 3. Documentation for software stack. 
 
-4. Trace analysis and preparation (online vs. offline)
-	- Only offline study for CSE595 considering the time limit
+[DONE] 4. Review on the cache design and implementation.
 
-[REVISE] 5. Review on the cache design and implementation.
+5. Debug on virtual device when it is full by using RAM as temp 
+   storage for swapping between extents. 
+	- The reason is that eviction needs addtional temp space
 
-6. Evaluation of different workloads (web server, file server,
+6. Kernel control of disk spin down/up
+
+7. Consult on translating workloads to dataseries. 
+	- extent vs. sector tradeoff
+
+8. Involved issues 
+	- metadata management by DM kernel API (meet with Vasily, Mandar,
+	  Atul, Ming, Rajesh)
+	- Evolve to kernel version 3.3 from 3.0 because of new DM features
+	- Consistency issue doing data migration and updating the mapping table
+	- disks reliability concern, like how the user specifies the
+	  tradeoff between power, performance, and reliability [NOT CSE595]
+
+9. Evaluation of different workloads (web server, file server,
    database server, email server, etc) with three different approaches
 	- Naive sectors mapping without knowledge about workload [CSE595]
 	- Design test scenario by "dd" [CSE595]
 	- Offline trace analysis based [NOT CSE595]
 	- Online trace analysis based  [NOT CSE595]
 
-7. Optimization. [NOT CSE595 <-- Time limit]
+10. Optimization. [NOT CSE595 <-- Time limit]
 	- IO by-passing
 	- sequential pre-fetch by trace analysis
 	- reliability optimization with reliability aware policy
 	- extent overhead optimization
 	- explore workloads with different IO patterns 
 	- Two levels Cache (RAM)
+	- Online Trace study with more aggressive domain knowledge
 	- etc. 
 
-8. Paper submission.
-	- By May 1, write a report summarizing what has been done so far.
+11. Paper submission.
+	- By May 1, write a report summarizing what has been done so far [CSE595]
 	- Potentially extend the work with more domain knowledge and optimization
 	  techniques, submit as one potential paper, and carefully distinguish
-	  from massive other approaches.
+	  from massive other approaches [NOT CSE595]
