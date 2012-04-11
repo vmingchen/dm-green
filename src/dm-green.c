@@ -1085,6 +1085,80 @@ static void promote_extent(struct green_c *gc, struct bio *bio)
     return;
 }
 
+static struct dm_io_region locate_extent(struct green_c *gc, extent_t eid)
+{
+    unsigned idisk;
+    struct dm_io_region where;
+
+    extent_on_disk(gc, &eid, &idisk);
+    where.bdev = gc->disks[idisk].dev->bdev;
+    where.sector = (eid << gc->ext_shift);
+    where.count = 1;
+
+    return where;
+}
+
+/*
+ * Swap two disk extents using memory as temporal storage. 
+ * TODO: use mempool_t for memory allocation
+ */
+static int swap_extent(struct green_c *gc, extent_t eid1, extent_t eid2) 
+{
+    void *mext1, *mext2;
+    struct dm_io_region region1, region2;
+    unsigned long bits;
+    int r;
+
+    mext1 = vmalloc(extent_size(gc) << SECTOR_SHIFT);
+    if (!mext1) {
+        GREEN_ERROR("Unable to allocate memory");
+        return -ENOMEM;
+    }
+
+    mext2 = vmalloc(extent_size(gc) << SECTOR_SHIFT);
+    if (!mext2) {
+        GREEN_ERROR("Unable to allocate memory");
+        vfree(mext1);
+        return -ENOMEM;
+    }
+
+    /* load extent eid1 to mext1 */
+    region1 = locate_extent(gc, eid1);
+    r = dm_io_sync_vm(1, &region1, READ, mext1, &bits, gc);
+    if (r < 0) {
+        GREEN_ERROR("Unable to load extent %lld", eid1);
+        goto exit_swap;
+    }
+
+    /* load extent eid2 to mext2 */
+    region2 = locate_extent(gc, eid2);
+    r = dm_io_sync_vm(1, &region2, READ, mext2, &bits, gc);
+    if (r < 0) {
+        GREEN_ERROR("Unable to load extent %lld", eid2);
+        goto exit_swap;
+    }
+
+    /* write mext1 to extent eid2 */
+    r = dm_io_sync_vm(1, &region2, WRITE, mext1, &bits, gc);
+    if (r < 0) {
+        GREEN_ERROR("Unable to write extent %lld", eid2);
+        goto exit_swap;
+    }
+
+    /* write mext2 to extent eid1 */
+    r = dm_io_sync_vm(1, &region1, WRITE, mext2, &bits, gc);
+    if (r < 0) {
+        GREEN_ERROR("Unable to write extent %lld", eid1);
+        goto exit_swap;
+    }
+
+    GREEN_DEBUG("Extent %lld and %lld swapped", eid1, eid2);
+
+exit_swap:
+    vfree(mext2);
+    vfree(mext1);
+    return r;
+}
 
 /* Build free and used lists of extents on cache disk */
 static int build_cache(struct green_c *gc)
