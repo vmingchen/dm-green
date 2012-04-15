@@ -19,9 +19,10 @@
 
 8. Involved issues 
 	- metadata management by DM kernel API (meet with Vasily, Mandar,
-	  Atul, Ming, Rajesh)
+	  Atul, Ming, Rajesh) [Half-DONE]
 	- Evolve to kernel version 3.3 from 3.0 because of new DM features
-	- Consistency issue doing data migration and updating the mapping table
+	- Consistency issue doing data migration and updating the mapping
+	  table [Transaction Manager?]
 	- disks reliability concern, like how the user specifies the
 	  tradeoff between power, performance, and reliability [NOT CSE595]
 
