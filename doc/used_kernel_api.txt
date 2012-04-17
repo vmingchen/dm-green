@@ -102,3 +102,9 @@ flush work:
 
     /* make I/O requests of block devices */
     void generic_make_request(struct bio *bio); 
+
+# additional info on disk spin down/up
+  
+	hdparm [-S|-y|-Y|-Z] device	: -S (wait some time to spin down) 
+	-y (immediately spin down) -Y (immediately power down) -Z (disable 
+	low power mode)
