@@ -31,6 +31,12 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/version.h>
+#include <linux/kernel.h>
+#include <asm/siginfo.h>
+#include <linux/sched.h>
+#include <linux/debugfs.h>
+#include <linux/uaccess.h>
+#include <linux/rcupdate.h>
 
 #include <linux/device-mapper.h>
 
@@ -70,6 +76,9 @@
 #define GREEN_MAGIC 0x45614567
 #define GREEN_VERSION 63
 #define GREEN_DAEMON "kgreend"
+
+/* Define signal number */
+#define SIG_TEST 44
 
 /* The first disk is cache disk. */
 #define CACHE_DISK 0

@@ -18,6 +18,8 @@
 #include "dm-green.h"
 
 static struct workqueue_struct *kgreend_wq;
+static struct dentry * file; 
+static int disk_spin_pid; 
 
 /* Set a single bit of bitmap */
 static inline void green_bm_set(unsigned long *bitmap, int pos) 
@@ -1425,6 +1427,17 @@ static struct target_type green_target = {
     .status	     = green_status,
 };
 
+static ssize_t write_pid(struct file * f, const char __user *buf, 
+					size_t count, loff_t * ppos) 
+{
+	/* TODO: fill in */
+	return count; 
+}
+
+static const struct file_operations my_fops = {
+	.write 		 = write_pid, 
+}; 
+
 static int __init green_init(void)
 {
     int r = 0;
@@ -1436,6 +1449,14 @@ static int __init green_init(void)
         goto bad_workqueue;
     }
 
+	/* create one debugfs entry (read only) */
+	file = debugfs_create_file("signal_greendm", 0222, NULL, NULL, &my_fops); 
+	if(file == NULL) {
+		GREEN_ERROR("create debugfs entry failed\n"); 
+		goto bad_debugfs_entry; 	
+	}
+
+	/* register the green target */
     r = dm_register_target(&green_target);
     if (r < 0) {
         GREEN_ERROR("Green register failed %d\n", r);
@@ -1444,8 +1465,10 @@ static int __init green_init(void)
 
     GREEN_ERROR("Green initialized");
     return r;
-
-bad_register:
+	
+bad_register: 
+	debugfs_remove(file); 
+bad_debugfs_entry:
     destroy_workqueue(kgreend_wq);
 bad_workqueue:
     return r;
@@ -1454,6 +1477,7 @@ bad_workqueue:
 static void __exit green_exit(void)
 {
     dm_unregister_target(&green_target);
+	debugfs_remove(file); 
     destroy_workqueue(kgreend_wq);
 }
 
