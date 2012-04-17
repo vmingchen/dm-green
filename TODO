@@ -43,8 +43,13 @@
 	- Online Trace study with more aggressive domain knowledge
 	- etc. 
 
-11. Paper submission.
-	- By May 1, write a report summarizing what has been done so far [CSE595]
-	- Potentially extend the work with more domain knowledge and optimization
-	  techniques, submit as one potential paper, and carefully distinguish
-	  from massive other approaches [NOT CSE595]
+11. Report submission[CSE595]
+	- By May 1, Ming and Rajesh should write a report summarizing 
+	  what has been done so far. 
+
+12. Paper submission[NOT CSE595]
+	- Tweak for better results. And write one potential paper in a 
+	  perspective different from the report, carefully distinguishing 
+	  from several other approaches with more domain knowledge,
+	  optimization, and tradeoffs between power, performance, and 
+	  reliability.
