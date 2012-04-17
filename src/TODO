@@ -7,3 +7,4 @@
 	      branches and merge to the master branch when they are stable
 	      enough. 
 [ING]  5. Code merge with Ming & Rajesh for testing. 
+	   6. Add signal mechanism to user program for disk spin down/up. 
