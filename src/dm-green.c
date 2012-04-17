@@ -20,7 +20,7 @@
 static struct workqueue_struct *kgreend_wq;
 static struct dentry * file; 
 static int disk_spin_pid; 
-static struct task_struct * user_prog; 
+static struct task_struct * user_prog = NULL; 
 
 /* Set a single bit of bitmap */
 static inline void green_bm_set(unsigned long *bitmap, int pos) 
@@ -1445,6 +1445,7 @@ static void wrap_disk_spin_down(const char dev) {
     info.si_code = SI_QUEUE;    
     info.si_int = 1234 + dev - 'a';    	   /* real time signals may have 32 bits of data */
 
+	VERIFY(user_prog != NULL); 
     ret = send_sig_info(SIG_TEST, &info, user_prog);  				  /* send the signal */
     if (ret < 0) {
         GREEN_ERROR("error sending signal\n");

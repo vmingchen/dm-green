@@ -10,23 +10,29 @@
  */ 
 #define SIG_TEST 44 
 
-#define SPIN_DOWN 1234
+#define SPIN_DOWN_INIT 1234
+#define DISK_NUMS 4
+#define MAX_DEVICE_NAME_LEN	8
+#define CMD_LEN	100
 
 /* signal processing handler */
 void signal_handler(int signal_num, siginfo_t *info, void *unused) {
 	int ret; 
+	int dev_index; 
+	char s[CMD_LEN]; 
+	char dev_name [DISK_NUMS][MAX_DEVICE_NAME_LEN] = {"/dev/sda", 
+		"/dev/sdb", "/dev/sdc", "/dev/sdd"}; 
+
 	int value_from_kernel = info->si_int; 
+	dev_index = value_from_kernel - SPIN_DOWN_INIT; 
 
-	printf("signal number: %d\n", signal_num); 
+	sprintf(s, "hdparm -y %s", dev_name[dev_index]); 
 
-	if(value_from_kernel == SPIN_DOWN) {
-		/* TODO: specify device by signal */
-		ret = system("hdparm -y device"); 
-		if(ret == -1 ) 
-			perror("hdparm"); 
-		else
-			printf("spin down device\n"); 
-	}
+	ret = system(s); 
+	if(ret == -1 ) 
+		perror("hdparm"); 
+	else
+		printf("spin down device\n"); 
 }
 
 int main ( int argc, char **argv )
