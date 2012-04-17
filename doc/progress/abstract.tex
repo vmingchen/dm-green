@@ -9,17 +9,17 @@ integrate different characteristics of various kinds of disks in
 speed, capacity, price, and power consumption, is a promising solution
 to the problem.  Although previous hybrid disk systems have achieved
 significant performance boost over traditional magnetic disks, their
-energy usage is less studied. In this project, we consider the energy
+energy usage is less studied. In this project, we consider energy
 efficiency as one of the most important features of storage systems.
 To better trade-off among power consumption, I/O performance, and
-storage capacity, our multi-disk system maps more frequently accessed
-blocks (i.e., hot data) to energy-efficient, fast, but small disks
-such as SSD to exploit spatial locality of data. Meanwhile, temporal
-locality of data is also exploited by grouping blocks that are likely
-to be accessed simultaneously.  Instead of scattering blocks among
-several disks, we try to map them to a single disk.  The combination
-of spatial and temporal locality allows I/O be served using fewer
-disks and other disks can spin down to save energy. 
+storage capacity, our multi-disk system exploits the spatial locality
+of data by mapping more frequently accessed blocks (i.e., hot data) to
+energy-efficient, fast, but small disks such as SSD. Meanwhile, the
+temporal locality of data is also exploited by grouping blocks that
+are likely to be accessed simultaneously.  Instead of scattering
+blocks among several disks, we try to map them to a single disk. The
+combination of spatial and temporal locality allows I/O to be served
+using fewer disks and other disks can spin down to save energy. 
 
 In our experiments for XXX workloads, our system provides a capacity
 equal to the sum of all disks (SSD, SAS, and SATA), operates at the

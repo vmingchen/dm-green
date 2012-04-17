@@ -3,7 +3,7 @@
 
 Traces are used to collect information about the system workloads.
 Traces can be collected at different layers in storage stack. Block
-traces would contain information about disk offset, number of blocks
+traces contain information about disk offset, number of blocks
 accessed, Read/Write information and timestamp for every accessed I/O.
 This information can be used to characterize the workloads and
 identify I/O access patterns.  Trace analysis plays a crucial role in
@@ -22,8 +22,8 @@ suitable for this project. Workloads such as video server and file
 server are likely to exhibit this property. The distribution of
 popular files on disks may change dynamically but at any particular
 instant, only a fraction of files the disk are popular in the case of
-above workloads.  A workload which is completely random I/O access
-patterns would not benefit this approach as it would result in
+above workloads. A workload which is completely random I/O access
+patterns could not benefit this approach as it could result in
 frequent data migration between primary disks and secondary disks.
  
 Currently, we use I/O traces for analysis and tweaking parameters. I/O

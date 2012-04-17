@@ -1,22 +1,24 @@
 \section{Introduction}
 \label{intro}
 
-Increasing IT demand has seen 6X growth of server and 69X growth of
-storage during the last decade \cite{ibm_green_beyond}. Data centers
-energy use is doubling every 5 years, whereas the global electricity
-prices are increasing 10-25\% per year. This makes energy efficiency
-of computer systems a big concern recently in academic and industrial
-communities. Studies show that storage systems are responsible not
-only for the system performance bottleneck but also for up to 40\% of
-the power consumption\cite{storage_40}. This situation is largely
-caused by the inherent drawback of traditional hard disks (HHD), which
-consist of physical moving parts. They consume a lot of power to keep
-disk platters spin at a high speed and they are slow as disk heads
-have to move to the right position before serving random I/O access.
+
+Increasing IT demand has seen 6$\times$ growth of server and
+69$\times$ growth of storage during the last decade
+\cite{ibm_green_beyond}. Data centers energy use is doubling every 5
+years, whereas the global electricity prices are increasing 10--25\%
+per year. The energy efficiency of computer systems becomes
+increasingly interesting to academic and industrial communities.
+Studies show that storage systems are responsible not only for the
+system performance bottleneck but also for up to 40\% of the power
+consumption\cite{storage_40}. This is largely due to the inherent
+drawback of traditional hard disks (HDD), which consist of physical
+moving parts. They consume a lot of power to keep disk platters
+spinning at a high speed and they are slow as disk heads have to move
+to the right position before serving random I/O.
 
 Thanks to the development of solid state drive (SSD) technology, many
 of the problems related to performance and energy efficiency are
-alleviated. However, despite of having the above advantages, SSD are
+alleviated. However, despite having the above advantages, SSDs are
 not widely adopted in the server storage stack due to their high
 capital cost per byte. To overcome this limit, hybrid disks are
 proposed. Hybrid disks achieve better trade-off between performance
@@ -25,70 +27,77 @@ the storage hierarchy.
 
 The most common type of hybrid disks \cite{Bisson07ahybrid} tries to
 reap the benefits of SSDs by having a small flash memory on each hard
-disk and using this flash memory as non-volatile cache for the hard
-disk. A host can use this non-volatile cache to achieve faster random
-reads since it is fast and takes constant time to access any block in
-the SSD cache. Though this type of hybrid disks improves performance
-over traditional disks, the improvement was modest due to the
-relatively small size of non-volatile cache on each disk. It is also
-difficult to balance cache load among disks because the SSD caches are
-separated. For example, if a workload accesses one disk much more
-frequently than others, then this would result in frequent cache
-misses on that particular disk, whereas the caches on other disks are
-under-utilized. 
+disk and using this flash memory as \mbox{non-volatile} cache for the
+hard disk. A host can use this \mbox{non-volatile} cache to achieve
+faster random reads since it is fast and takes constant time to access
+any block in the SSD cache. Although this type of hybrid disk improves
+performance over traditional disks, the improvement was modest due to
+the relatively small size of \mbox{non-volatile} cache on each disk.
+It is also difficult to balance the cache load among disks because the
+SSD caches are separated among disks. For example, if a workload
+accesses one disk more frequently than others, then this could result
+in frequent cache misses on that particular disk, while the caches on
+other disks are under-utilized. 
 
 To enable servers to benefit more from the power efficiency and high
 performance of solid state media, we used a single but relatively
-large SSD as cache (it has similar effect as cache but is not exactly
-cache) for all other disks (referred to as secondary disks). This
-approach would achieve a good cache hit ratio because of the large
-size of the cache. Thanks to data locality, it would also make the SSD
-capable of serving majority of the disk accesses as we can see in
+large SSD to store hot data. We store other data in other less
+efficient disks. The SSD is referred as cache disk, and all other
+disks are referred as secondary disks. This approach achieves a good
+cache hit ratio because of the large size of the cache. Thanks to data
+locality, it makes the SSD capable of serving the majority of the disk
+accesses as we can see in previous systems with large SSD cache
 \cite{Debnath_SkimpyStash, Debnath_Bloomflash,
 flashcache_experiments}. Therefore, other disks are idle for longer
 periods of time and thus can be powered down to save energy. 
 
-The difference between the above two types of hybrid disks seems to be
-not very clear if we consider the virtualization of disk such as Linux
-Logical Volume Management (LVM). By grouping all hard disks to form a
-single virtual disk, the cache on all these hard disks can be gathered
-together which becomes equivalent to the large SSD we are using. This
-workaround alleviates the load balance problem. However, it is less
-helpful in saving energy because the virtualization of multi-disk is
-not aware of energy efficiency. If there are non-adjacent blocks which
-are often simultaneously accessed, we can perform data grouping and
-store them onto one physical disk so that only this disk has to spin
-up when they are accessed. In this case, the optimization cannot be
-achieved if the LVM virtualization approach is employed. 
+%The difference between the above two types of hybrid disks seems to be
+%not clear if we consider the virtualization of disk such as Linux
+%Logical Volume Management (LVM). By grouping all hard disks to form a
+%single virtual disk, the cache on all these hard disks can be gathered
+%together which becomes equivalent to the large SSD we are using. This
+%workaround alleviates the load balance problem. However, it is less
+%helpful in saving energy because the virtualization of multi-disk is
+%not aware of energy efficiency. If there are non-adjacent blocks that
+%are often simultaneously accessed, we can perform data grouping and
+%store them onto one physical disk so that only this disk has to spin
+%up when they are accessed. In this case, the optimization cannot be
+%achieved if the LVM virtualization approach is employed. 
 
 To exploit spatial and temporal data locality to the largest extent,
 we collected workload-specific traces and are trying to find hot data
 and block groups of working sets. For hot data, we simply find blocks
-which are most frequently accessed. We realize that hot data changed
-over time, however this offline study is still helpful because some
-data is inherent hot, e.g., filesystem metadata and latest data.
-Moreover, because our analysis is workload specific it is likely the
-same I/O pattern will repeat in same or similar workload. We also try
-to keep hot data in cache online using the LRU heuristic algorithm. To
-identify block groups, we will use methods in \cite{Wildani_grouping}.
-Blocks fall into same group but spread multiple disk will be mapped to
-same physical disk so that less disks are required to power up.
-Additionally, data grouping has the benefit of isolating faults
-\cite{Sivathanu_dgraid, Wildani_grouping}. 
+that are most frequently accessed. We realize that hot data changed
+over time. However, this offline study is still helpful because some
+data is inherently hot. (e.g., file-system metadata and latest data).
+Moreover, because our analysis is workload specific, it is likely the
+same I/O pattern repeats in the same or similar workload. We also try
+to keep hot data in the cache online using an LRU algorithm. To
+identify block groups, we use methods in Avani's work
+\cite{Wildani_grouping} to map blocks that are simultaneously accessed
+to same physical disk so that fewer disks are required to power up.
+Additionally, data grouping has a benefit of isolating faults because
+blocks of working sets are more concentrated and physical failure of
+one disk affects fewer working sets \cite{Sivathanu_dgraid,
+Wildani_grouping}. 
 
-We use the Linux Device Mapper framework and implement our hybrid
+We use the Linux Device Mapper (DM) framework and implement our hybrid
 model as a Device Mapper target. This provides modularity and
 transparency as it enables us to create virtual disks without exposing
-the details of underlying physical disks. By leveraging the strengths
-of different disks, our virtual disk can better trade-off among power
-consumption, I/O performance, and storage capacity.
+the details of underlying physical disks. To be reliable, we use
+SSD-aware algorithms in our implementation to alleviate the short life
+time problem of SSD. We also periodically flush metadata onto disks to
+prevent machine failure from destroying our block mapping. By
+leveraging the strengths of different kinds of disks, our virtual disk
+can better trade-off among power consumption, I/O performance, and
+storage capacity.
 
 The rest of the paper is organized as follows. Section
 \ref{sec:design} describes our design and implementation. Section
-\ref{sec:trace} presents some block trace analysis.  The energy
-efficiency and I/O performance of our system is evaluated in Section
-\ref{sec:eval}. Related work is discussed in Section
-\ref{sec:related}. Conclusions are drawn in Section \ref{sec:conc}.
+\ref{sec:trace} presents block trace analysis. We evaluate the energy
+efficiency and I/O performance of our system in Section
+\ref{sec:eval}. We analyze related work in Section \ref{sec:related}
+and conclude our work in Section \ref{sec:conc}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% For Emacs:

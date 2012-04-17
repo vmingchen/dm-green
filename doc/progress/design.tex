@@ -90,15 +90,15 @@ and so on. In Figure \ref{fig:dm}, '/dev/sdb' is the most
 energy-efficient one but with smallest capacity, i.e., SSD; '/dev/sdc'
 and '/dev/sdd' follow decreasingly in energy efficiency and
 increasingly in capacity. This makes the addressing of physical
-sectors easy. An extent index and an offset within extent would
-suffice. We have noticed the case that one I/O request on logically
-sequential blocks might be mapped to multiple I/O requests on
-physically non-sequential blocks. Namely, the translation is performed
-per extent instead of per request. However, extent is of big size, so
-it is unlikely that the extent by extent translation becomes a
-performance bottleneck. Furthermore, the Device Mapper framework
-provides interface to merge adjacent I/O requests, which also
-alleviate this problem.
+sectors easy. An extent index and an offset within extent suffice. We
+have noticed the case that one I/O request on logically sequential
+blocks might be mapped to multiple I/O requests on physically
+non-sequential blocks. Namely, the translation is performed per extent
+instead of per request. However, extent is of big size, so it is
+unlikely that the extent by extent translation becomes a performance
+bottleneck. Furthermore, the Device Mapper framework provides
+interface to merge adjacent I/O requests, which also alleviate this
+problem.
 
 The exact size of extent is an important factor as it affects not only
 memory consumption but also granularity of mapping and data migration.
