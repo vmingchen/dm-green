@@ -20,6 +20,7 @@
 static struct workqueue_struct *kgreend_wq;
 static struct dentry * file; 
 static int disk_spin_pid; 
+static struct task_struct * user_prog; 
 
 /* Set a single bit of bitmap */
 static inline void green_bm_set(unsigned long *bitmap, int pos) 
@@ -1425,15 +1426,62 @@ static struct target_type green_target = {
     .dtr	     = green_dtr,
     .map	     = green_map,
     .status	     = green_status,
+	/* .message is not used for now */
 };
 
-static ssize_t write_pid(struct file * f, const char __user *buf, 
-					size_t count, loff_t * ppos) 
-{
-	/* TODO: fill in */
-	return count; 
+/* 
+ * send signal to spin down specific device.
+ *
+ * @dev is the last char of devices (e.g., 'b', 'c', 'd' stands 
+ * 	    for /dev/sdb, /dev/sdc, /dev/sdd, etc)
+ */
+static void wrap_disk_spin_down(const char dev) {
+    int ret;
+    struct siginfo info;
+
+    /* send the signal */
+    memset(&info, 0, sizeof(struct siginfo));
+    info.si_signo = SIG_TEST;
+    info.si_code = SI_QUEUE;    
+    info.si_int = 1234 + dev - 'a';    	   /* real time signals may have 32 bits of data */
+
+    ret = send_sig_info(SIG_TEST, &info, user_prog);  				  /* send the signal */
+    if (ret < 0) {
+        GREEN_ERROR("error sending signal\n");
+        return; 
+    }
 }
 
+/* get the user level program pid for disk spin down */
+static ssize_t write_pid(struct file *f, const char __user *buf, 
+					size_t count, loff_t *ppos) 
+{
+    char pid_buf[10];
+	struct pid * pid; 
+
+    if(count > 10)
+        return -EINVAL;
+
+    /* read the value from user space */
+    copy_from_user(pid_buf, buf, count);
+    sscanf(pid_buf, "%d", &disk_spin_pid);
+    printk("user_disk_spin pid = %d\n", disk_spin_pid);
+
+    rcu_read_lock();
+	/* NOTE: get_pid_task is exported from Linux 3.0 */
+	pid = find_get_pid(disk_spin_pid); 
+    user_prog = get_pid_task(pid, PIDTYPE_PID);   /* find the task_struct associated */
+    if(user_prog == NULL){
+        GREEN_ERROR("no such pid\n");
+        rcu_read_unlock();
+        return -ENODEV;
+    }
+    rcu_read_unlock();
+
+    return count;
+}
+
+/* file operations used by debugfs */
 static const struct file_operations my_fops = {
 	.write 		 = write_pid, 
 }; 
@@ -1449,7 +1497,7 @@ static int __init green_init(void)
         goto bad_workqueue;
     }
 
-	/* create one debugfs entry (read only) */
+	/* create one debugfs entry (write only) */
 	file = debugfs_create_file("signal_greendm", 0222, NULL, NULL, &my_fops); 
 	if(file == NULL) {
 		GREEN_ERROR("create debugfs entry failed\n"); 
