@@ -12,7 +12,7 @@
    storage for swapping between extents. 
 	- The reason is that eviction needs addtional temp space
 
-6. Kernel control of disk spin down/up
+[DONE] 6. Kernel control of disk spin down/up
 
 7. Consult on translating workloads to dataseries. 
 	- extent vs. sector tradeoff
