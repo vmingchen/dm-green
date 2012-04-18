@@ -1093,14 +1093,14 @@ static struct dm_io_region locate_extent(struct green_c *gc, extent_t eid)
     extent_on_disk(gc, &eid, &idisk);
     where.bdev = gc->disks[idisk].dev->bdev;
     where.sector = (eid << gc->ext_shift);
-    where.count = 1;
+    where.count = extent_size(gc);
 
     return where;
 }
 
 /*
  * Swap two disk extents using memory as temporal storage. 
- * TODO: use mempool_t for memory allocation
+ * TODO: use memcache for memory allocation
  */
 static int swap_extent(struct green_c *gc, extent_t eid1, extent_t eid2) 
 {
@@ -1108,6 +1108,8 @@ static int swap_extent(struct green_c *gc, extent_t eid1, extent_t eid2)
     struct dm_io_region region1, region2;
     unsigned long bits;
     int r;
+
+    GREEN_DEBUG("Swapping %lld and %lld", eid1, eid2);
 
     mext1 = vmalloc(extent_size(gc) << SECTOR_SHIFT);
     if (!mext1) {
@@ -1123,6 +1125,7 @@ static int swap_extent(struct green_c *gc, extent_t eid1, extent_t eid2)
     }
 
     /* load extent eid1 to mext1 */
+    GREEN_DEBUG("Loading extent %lld", eid1);
     region1 = locate_extent(gc, eid1);
     r = dm_io_sync_vm(1, &region1, READ, mext1, &bits, gc);
     if (r < 0) {
@@ -1131,6 +1134,7 @@ static int swap_extent(struct green_c *gc, extent_t eid1, extent_t eid2)
     }
 
     /* load extent eid2 to mext2 */
+    GREEN_DEBUG("Loading extent %lld", eid2);
     region2 = locate_extent(gc, eid2);
     r = dm_io_sync_vm(1, &region2, READ, mext2, &bits, gc);
     if (r < 0) {
@@ -1139,6 +1143,7 @@ static int swap_extent(struct green_c *gc, extent_t eid1, extent_t eid2)
     }
 
     /* write mext1 to extent eid2 */
+    GREEN_DEBUG("Writing %lld to %lld", eid1, eid2);
     r = dm_io_sync_vm(1, &region2, WRITE, mext1, &bits, gc);
     if (r < 0) {
         GREEN_ERROR("Unable to write extent %lld", eid2);
@@ -1146,18 +1151,77 @@ static int swap_extent(struct green_c *gc, extent_t eid1, extent_t eid2)
     }
 
     /* write mext2 to extent eid1 */
+    GREEN_DEBUG("Writing %lld to %lld", eid2, eid1);
     r = dm_io_sync_vm(1, &region1, WRITE, mext2, &bits, gc);
     if (r < 0) {
         GREEN_ERROR("Unable to write extent %lld", eid1);
         goto exit_swap;
     }
 
-    GREEN_DEBUG("Extent %lld and %lld swapped", eid1, eid2);
-
 exit_swap:
     vfree(mext2);
     vfree(mext1);
     return r;
+}
+
+/*
+ * Swap two extent mappings in the mapping table.
+ * veid_c: virtual extent id that is mapped onto the cache disk
+ * veid_s: virtual extent id that is mapped onto one secondary disk
+ */
+static void swap_entry(struct green_c *gc, extent_t veid_c, extent_t veid_s)
+{
+    extent_t eid_c; /* physical extent id on the cache disk */
+    extent_t eid_s; /* physical extent id on the secondary disk */
+
+    eid_c = gc->table[veid_c].eid;
+    eid_s = gc->table[veid_s].eid;
+    map_extent(gc, veid_s, eid_c);
+    map_extent(gc, veid_c, eid_s);
+}
+
+static int migrate_extent(struct green_c *gc, extent_t veid_s, extent_t eid_s)
+{
+    extent_t veid_c, eid_c;
+    struct extent *ext;
+    unsigned long flags;
+    int r;
+
+    GREEN_ERROR("Migrating extent (%lld, %lld)", veid_s, eid_s);
+    spin_lock_irqsave(&gc->lock, flags);
+    if (unlikely(on_cache(gc, eid_s))) {
+        spin_unlock_irqrestore(&gc->lock, flags);
+        return eid_s;
+    }
+    /* get extent to be evicted */
+    ext = lru_extent(gc);
+    veid_c = vext2id(gc, ext->vext);
+    eid_c = ext->vext->eid;
+    /* set states */
+    gc->table[veid_s].state |= VES_MIGRATE;
+    gc->table[veid_c].state |= VES_MIGRATE;
+    spin_unlock_irqrestore(&gc->lock, flags);
+
+    r = swap_extent(gc, eid_c, eid_s);
+
+    if (r < 0) {
+        /* Fail to replace extent on cache disk, roll back */
+        GREEN_ERROR("Cannot swap %lld and %lld", eid_c, eid_s);
+        spin_lock_irqsave(&gc->lock, flags);
+        gc->table[veid_c].state &= ~VES_MIGRATE;
+        gc->table[veid_s].state &= ~VES_MIGRATE;
+        spin_unlock_irqrestore(&gc->lock, flags);
+    } else {
+        /* Update mapping table */
+        GREEN_ERROR("%lld and %lld swapped", eid_c, eid_s);
+        spin_lock_irqsave(&gc->lock, flags);
+        swap_entry(gc, veid_c, veid_s);
+        gc->table[veid_c].state &= ~VES_MIGRATE;
+        gc->table[veid_s].state &= ~VES_MIGRATE;
+        spin_unlock_irqrestore(&gc->lock, flags);
+    }
+
+    return r < 0 ? eid_s : eid_c;
 }
 
 /* Build free and used lists of extents on cache disk */
@@ -1426,28 +1490,36 @@ static int green_map(struct dm_target *ti, struct bio *bio,
 
 	/* if the mapping table is setup already */
     if (gc->table[veid].state & VES_PRESENT) {
+        if (gc->table[veid].state & VES_MIGRATE) {
+            /* Right now, this issue is not handled. It will be addressed
+             * later. */
+            GREEN_ERROR("Extent %lld is under migration", veid);
+        }
         eid = gc->table[veid].eid;
     } else {
      /* If the mapping is not present yet, get one free physical extent */
         VERIFY(get_extent(gc, &eid, true) >= 0);   /* out of space */
         map_extent(gc, veid, eid);
     }
+    spin_unlock_irqrestore(&gc->lock, flags);
 
     GREEN_ERROR("virtual %llu -> physical %llu", veid, eid);
     /* cache miss */
     if (!on_cache(gc, eid)) {
-        spin_unlock_irqrestore(&gc->lock, flags);
 
+        eid = migrate_extent(gc, veid, eid);
+
+        /* 
         promote_extent(gc, bio); 
 
         return DM_MAPIO_SUBMITTED;
+        */
     }/* end of cache miss */ 
     /* If cache hits, then performance benefits from Design */
     else {
         /* In the beginning: cache extent state is already set to be accessed */
     }
 
-    spin_unlock_irqrestore(&gc->lock, flags);
 #if 0
     run_eviction = (cache_free_nr(gc) < EXT_MIN_THRESHOLD) 
             && !gc->eviction_running;
@@ -1538,7 +1610,9 @@ static ssize_t write_pid(struct file *f, const char __user *buf,
         return -EINVAL;
 
     /* read the value from user space */
-    copy_from_user(pid_buf, buf, count);
+    if (copy_from_user(pid_buf, buf, count)) 
+        return -EFAULT;
+
     sscanf(pid_buf, "%d", &disk_spin_pid);
     printk("user_disk_spin pid = %d\n", disk_spin_pid);
 

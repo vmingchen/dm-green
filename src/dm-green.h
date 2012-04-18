@@ -74,7 +74,7 @@
 
 /* Magic for persistent green header */
 #define GREEN_MAGIC 0x45614567
-#define GREEN_VERSION 63
+#define GREEN_VERSION 65
 #define GREEN_DAEMON "kgreend"
 
 /* Define signal number */
@@ -175,6 +175,8 @@ struct green_header_disk {
 struct vextent {
     extent_t eid;               /* physical extent id */
 	/* TODO: move folowing fields to struct extent */
+    /* There is no need to move, because these information should goes with
+     * virtual extents. */
     uint32_t state;             /* extent states and flags */
     uint32_t counter;           /* how many times are accessed */
     uint64_t tick;              /* timestamp of latest access */
