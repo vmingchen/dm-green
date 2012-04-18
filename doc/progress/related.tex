@@ -9,37 +9,39 @@ aspects: save energy, hybrid disk, data grouping and workload trace
 study.
 
 \textbf{Save Energy}. Energy efficiency of storage systems is an
-interesting problem that is being actively researched.
-\cite{fast10fsgreen} studies the power consumption of servers when
-different workloads are running.  \cite{systor09greencomp} presents
-empirical analysis of how lossless compression influences power
-consumption of servers. \cite{fast12emc-energy} presents the first
-study of power consumption of really running enterprise-scale backup
-systems. A category of method to save energy is using data replication
-to decrease either disk head movement \cite{huangfs2,
-pred_data_grouping} or the number of active disks being used
-\cite{Weddle07paraid}. 
+interesting problem that is being actively researched. Sehgal et al.
+\cite{fast10fsgreen} studied the power consumption of servers when
+different workloads are running. Kothiyal et al.
+\cite{systor09greencomp} presented empirical analysis of how lossless
+compression influences power consumption of servers. Li et al.
+\cite{fast12emc-energy} presented the first study of power consumption
+of really running enterprise-scale backup systems. A category of
+methods to save energy is using data replication to decrease either
+disk head movement \cite{huangfs2, pred_data_grouping} or the number
+of active disks being used \cite{Weddle07paraid}. 
 
-\textbf{Hybrid disk}. \cite{Bisson07ahybrid, Debnath_SkimpyStash,
-Debnath_Bloomflash, flashcache_experiments} are studying hybrid disk
-models, where SSD is used as cache. Among them, only
-\cite{Bisson07ahybrid} is focusing on the energy efficiency aspect.
-Although \cite{Zhu04reducingenergy} is also studying power aware
-cache, their cache is in volatile RAM instead of non-volatile disk.
-\cite{slow_fast} is also a hybrid storage system that combines low and
-high speed disks to save energy.
+\textbf{Hybrid disk}. There are various studies of hybrid disk,
+wherein SSDs were used as cache disks \cite{Bisson07ahybrid,
+Debnath_SkimpyStash, Debnath_Bloomflash, flashcache_experiments}.
+Among them, few of them was really focusing on the energy efficiency
+aspect of hybrid disk\cite{Bisson07ahybrid}. Although Zhu et al.
+\cite{Zhu04reducingenergy} was also studying power aware cache, their
+cache was in volatile RAM instead of non-volatile disk. Carrera et al.
+\cite{slow_fast} presented a hybrid storage system that combines low
+and high speed disks to save energy.
 
-\textbf{Data grouping}. \cite{Wildani_grouping} presents data
-grouping of working set, however, it only contains analysis of offline
-traces. It is not implemented or experimented on real system. The
-Energy-Efficient File System (EEFS) groups files with high temporal
-access locality \cite{Li06highperformance}. \cite{pred_data_grouping}
+\textbf{Data grouping}. Wildani et al. \cite{Wildani_grouping}
+presented data grouping of working set, however, their work only
+contained analysis of offline traces. It was not implemented or
+experimented on real system. The Energy-Efficient File System (EEFS)
+groups files with high temporal access locality
+\cite{Li06highperformance}. Essary et al. \cite{pred_data_grouping}
 also performed predictive data grouping to reduce head movements for
-saving energy. \cite{migration04} used the fact that regularly only a
-small subset of data is accessed by a system, and migrated frequently
-accessed data to a small number of active disks, keeping the remaining
-disks off, which is a kind of data grouping.
-
+saving energy.  Pinheiro and Bianchini \cite{migration04} used the
+fact that regularly only a small subset of data is accessed by a
+system, and migrated frequently accessed data to a small number of
+active disks, keeping the remaining disks off, which is a kind of data
+grouping.
 
 \textbf{Trace study}. Trace extraction is a popular method used by
 system researchers to analyze the system behavior. The analysis can be

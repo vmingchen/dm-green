@@ -25,15 +25,24 @@ proposed. Hybrid disks achieve better trade-off between performance
 and capacity by organizing different disks in the manner conformant to
 the storage hierarchy. 
 
+%\NOTE{mchen}{Test footnote. }
+%\texttt{newread(\textsl{ptr}, \textsl{username})}
+%\begin{verbatim}
+%int read(int fd, ...)
+%{
+%  return 0;
+%}
+%\end{verbatim}
+
 The most common type of hybrid disks \cite{Bisson07ahybrid} tries to
 reap the benefits of SSDs by having a small flash memory on each hard
 disk and using this flash memory as \mbox{non-volatile} cache for the
-hard disk. A host can use this \mbox{non-volatile} cache to achieve
-faster random reads since it is fast and takes constant time to access
-any block in the SSD cache. Although this type of hybrid disk improves
-performance over traditional disks, the improvement was modest due to
-the relatively small size of \mbox{non-volatile} cache on each disk.
-It is also difficult to balance the cache load among disks because the
+hard disk. A host can use this flash memory to achieve faster random
+reads since it is fast and takes constant time to access any block in
+the SSD cache. Although this type of hybrid disk improves performance
+over traditional disks, the improvement was modest due to the
+relatively small size of \mbox{non-volatile} cache on each disk.  It
+is also difficult to balance the cache load among disks because the
 SSD caches are separated among disks. For example, if a workload
 accesses one disk more frequently than others, then this could result
 in frequent cache misses on that particular disk, while the caches on
