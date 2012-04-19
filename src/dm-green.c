@@ -353,6 +353,7 @@ static int get_extent(struct green_c *gc, extent_t *eid, bool cache)
     return -ENOSPC;
 }
 
+#if 0
 /* Free a physcial extent */
 static void put_extent(struct green_c *gc, extent_t eid)
 {
@@ -370,6 +371,7 @@ static void put_extent(struct green_c *gc, extent_t eid)
         green_bm_clear(gc->bitmap, eid);
     }
 }
+#endif
 
 /* 
  * Wrapper function for new dm_io API 
@@ -789,6 +791,7 @@ static void update_bio(struct green_c *gc, struct bio *bio, extent_t eid)
             (unsigned int)to_bytes(extent_size(gc) - offset));
 }
 
+#if 0
 /* Callback when an extent being evictd has been copied to other disk */
 static void evict_callback(int read_err, unsigned long write_err, 
         void *context)
@@ -836,6 +839,7 @@ static void evict_callback(int read_err, unsigned long write_err,
     spin_unlock_irqrestore(&gc->lock, flags);
     kfree(dinfo);
 }
+#endif
 
 /*
  * Return a least-recently-used physical extent on cache disk, NULL if not exist.
@@ -885,6 +889,7 @@ static struct extent *lru_extent(struct green_c *gc)
     return NULL;
 }
 
+#if 0
 /* Evict extents using WSClock algorithm */
 static extent_t evict_extent(struct green_c *gc)
 {
@@ -955,6 +960,7 @@ quit_evict:
     kfree(dinfo);
 	return (extent_t)(-1); 
 }
+#endif
 
 #if 0
 static void eviction_work(struct work_struct *work)
