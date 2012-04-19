@@ -1110,7 +1110,7 @@ static struct dm_io_region locate_extent(struct green_c *gc, extent_t eid)
 
 /*
  * Swap two disk extents using memory as temporal storage. 
- * TODO: use memcache for memory allocation
+ * TODO: use kmem_cache for memory allocation
  */
 static int swap_extent(struct green_c *gc, extent_t eid1, extent_t eid2) 
 {
@@ -1198,22 +1198,21 @@ static int migrate_extent(struct green_c *gc, extent_t veid_s, extent_t eid_s)
     int r;
 
     GREEN_ERROR("Migrating extent (%lld, %lld)", veid_s, eid_s);
+
+	/* Keep lock for now for potential consistency issue */
     spin_lock_irqsave(&gc->lock, flags);
-    if (unlikely(on_cache(gc, eid_s))) {
-        spin_unlock_irqrestore(&gc->lock, flags);
-        return eid_s;
-    }
     /* get extent to be evicted */
     ext = lru_extent(gc);
     veid_c = vext2id(gc, ext->vext);
     eid_c = ext->vext->eid;
+	VERIFY(on_cache(gc, eid_c)&&(!on_cache(gc, eid_s))); 
+
     /* set states */
     gc->table[veid_s].state |= VES_MIGRATE;
     gc->table[veid_c].state |= VES_MIGRATE;
     spin_unlock_irqrestore(&gc->lock, flags);
 
     r = swap_extent(gc, eid_c, eid_s);
-
     if (r < 0) {
         /* Fail to replace extent on cache disk, roll back */
         GREEN_ERROR("Cannot swap %lld and %lld", eid_c, eid_s);

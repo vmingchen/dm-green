@@ -174,9 +174,6 @@ struct green_header_disk {
 /* Virtual extent in memory */
 struct vextent {
     extent_t eid;               /* physical extent id */
-	/* TODO: move folowing fields to struct extent */
-    /* There is no need to move, because these information should goes with
-     * virtual extents. */
     uint32_t state;             /* extent states and flags */
     uint32_t counter;           /* how many times are accessed */
     uint64_t tick;              /* timestamp of latest access */
