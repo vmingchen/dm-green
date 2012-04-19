@@ -978,6 +978,7 @@ static void eviction_work(struct work_struct *work)
  * Moreover, this a pending IO request of this promotion. It should be issued 
  * no matter the promotion succeeds or fails.
  */
+#if 0
 static void promote_callback(int read_err, unsigned long write_err,
         void *context)
 {
@@ -1015,6 +1016,7 @@ static void promote_callback(int read_err, unsigned long write_err,
 
     kfree(pinfo);
 }
+#endif 
 
 /*
  * Promote virtual extent 'veid'. This function returns immediately, but it
@@ -1022,6 +1024,7 @@ static void promote_callback(int read_err, unsigned long write_err,
  * simply gives up. 
  *
  */
+#if 0
 static void promote_extent(struct green_c *gc, struct bio *bio)
 {
     struct dm_io_region src, dst;
@@ -1084,6 +1087,7 @@ static void promote_extent(struct green_c *gc, struct bio *bio)
 
     return;
 }
+#endif
 
 static struct dm_io_region locate_extent(struct green_c *gc, extent_t eid)
 {
@@ -1460,7 +1464,8 @@ static int green_map(struct dm_target *ti, struct bio *bio,
 	unsigned long flags; 
 
 	/* bio->bi_sector is based on virtual sector specified in argv */
-    extent_t eid, veid = (bio->bi_sector - ti->begin) >> gc->ext_shift;
+    extent_t eid = 0; 
+	extent_t veid = (bio->bi_sector - ti->begin) >> gc->ext_shift;
 
 #if 0
     bool run_eviction = false;
