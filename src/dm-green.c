@@ -1121,6 +1121,7 @@ static int swap_extent(struct green_c *gc, extent_t eid1, extent_t eid2)
 
     GREEN_DEBUG("Swapping %lld and %lld", eid1, eid2);
 
+	/* vmalloc while holds spin lock; change to kmalloc(size, GFP_ATOMIC) */
     mext1 = vmalloc(extent_size(gc) << SECTOR_SHIFT);
     if (!mext1) {
         GREEN_ERROR("Unable to allocate memory");
@@ -1210,20 +1211,26 @@ static int migrate_extent(struct green_c *gc, extent_t veid_s, extent_t eid_s)
     /* set states */
     gc->table[veid_s].state |= VES_MIGRATE;
     gc->table[veid_c].state |= VES_MIGRATE;
+#if 0
     spin_unlock_irqrestore(&gc->lock, flags);
+#endif
 
     r = swap_extent(gc, eid_c, eid_s);
     if (r < 0) {
         /* Fail to replace extent on cache disk, roll back */
         GREEN_ERROR("Cannot swap %lld and %lld", eid_c, eid_s);
+#if 0
         spin_lock_irqsave(&gc->lock, flags);
+#endif
         gc->table[veid_c].state &= ~VES_MIGRATE;
         gc->table[veid_s].state &= ~VES_MIGRATE;
         spin_unlock_irqrestore(&gc->lock, flags);
     } else {
         /* Update mapping table */
         GREEN_ERROR("%lld and %lld swapped", eid_c, eid_s);
+#if 0
         spin_lock_irqsave(&gc->lock, flags);
+#endif
         swap_entry(gc, veid_c, veid_s);
         gc->table[veid_c].state &= ~VES_MIGRATE;
         gc->table[veid_s].state &= ~VES_MIGRATE;
