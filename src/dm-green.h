@@ -233,6 +233,7 @@ struct green_c {
 struct migration_info {
     extent_t    veid_s;     /* virtual extent id mapped onto secondary disk */
     extent_t    eid_s;      /* physical extent id on secondary disk to migrate */
+    struct bio_list     pending_bios;  /* bio queue to submit after migration */
     struct list_head    list;
 };
 

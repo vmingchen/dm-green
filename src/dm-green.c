@@ -767,7 +767,7 @@ static void map_extent(struct green_c *gc, extent_t veid, extent_t eid)
 }
 
 /* Update bio's request onto physcial extent eid */
-static void update_bio(struct green_c *gc, struct bio *bio, extent_t eid)
+static void map_bio(struct green_c *gc, struct bio *bio, extent_t eid)
 {
     unsigned idisk;
     struct dm_target *ti = gc->ti;
@@ -1002,7 +1002,7 @@ static void promote_callback(int read_err, unsigned long write_err,
         spin_unlock_irqrestore(&(gc->lock), flags);
     }
     /* resubmit bio */
-    update_bio(gc, pinfo->bio, eid);
+    map_bio(gc, pinfo->bio, eid);
     generic_make_request(pinfo->bio);
 
     kfree(pinfo);
@@ -1224,6 +1224,7 @@ static void migration_work(struct work_struct *work)
     struct green_c *gc;
     struct migration_info *minfo;
     unsigned long flags;
+    struct bio *bio;
     int eid;
 
     GREEN_ERROR("Migration work called");
@@ -1237,10 +1238,18 @@ static void migration_work(struct work_struct *work)
 
     eid = migrate_extent(gc, minfo->veid_s, minfo->eid_s);
 
+    /* no matter migration succeed or not, submit all bios */
+    while (!bio_list_empty(&minfo->pending_bios)) {
+        bio = bio_list_pop(&minfo->pending_bios);
+        map_bio(gc, bio, eid);
+        generic_make_request(bio);
+    }
+
     kfree(minfo);
 }
 
-static bool queue_migration(struct green_c *gc, extent_t veid, extent_t eid)
+static bool queue_migration(struct green_c *gc, struct bio *bio, 
+        extent_t veid, extent_t eid)
 {
     struct migration_info *minfo;
 
@@ -1250,10 +1259,13 @@ static bool queue_migration(struct green_c *gc, extent_t veid, extent_t eid)
         return false;
     }
 
+    /* setup migration_info */
     minfo->veid_s = veid;
     minfo->eid_s = eid;
+    bio_list_init(&minfo->pending_bios);
+    bio_list_add(&minfo->pending_bios, bio);
 
-    list_add_tail(&gc->migration_list, &minfo->list);
+    list_add_tail(&minfo->list, &gc->migration_list);
     queue_work(kgreend_wq, &gc->migration_work);
 
     GREEN_ERROR("Migration of extent %lld queued", eid);
@@ -1534,7 +1546,7 @@ static int green_map(struct dm_target *ti, struct bio *bio,
              * later. */
             GREEN_ERROR("Extent %lld is under migration", veid);
             spin_unlock_irqrestore(&gc->lock, flags);
-            update_bio(gc, bio, 1);
+            map_bio(gc, bio, 1);
             return DM_MAPIO_REMAPPED;
         }
         eid = gc->table[veid].eid;
@@ -1546,7 +1558,7 @@ static int green_map(struct dm_target *ti, struct bio *bio,
 
     GREEN_ERROR("virtual %llu -> physical %llu", veid, eid);
     /* cache miss */
-    if (!on_cache(gc, eid) && queue_migration(gc, veid, eid)) {
+    if (!on_cache(gc, eid) && queue_migration(gc, bio, veid, eid)) {
 
         /* 
         eid = migrate_extent(gc, veid, eid);
@@ -1567,7 +1579,7 @@ static int green_map(struct dm_target *ti, struct bio *bio,
             && !gc->eviction_running;
 #endif
 
-    update_bio(gc, bio, eid);
+    map_bio(gc, bio, eid);
     generic_make_request(bio);
 
 #if 0
