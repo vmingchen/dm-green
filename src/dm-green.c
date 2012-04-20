@@ -962,21 +962,6 @@ quit_evict:
 }
 #endif
 
-#if 0
-static void eviction_work(struct work_struct *work)
-{
-    struct green_c *gc;
-	extent_t peid; 
-
-    gc = container_of(work, struct green_c, eviction_work);
-    peid = evict_extent(gc);
-	if(peid < 0) {
-		GREEN_ERROR("Evict_extent error"); 
-	}
-	return; 
-}
-#endif
-
 /*
  * Callback of promote_extent. It should release resources allocated by
  * promote_extent properly upon either success or failure.
@@ -1211,26 +1196,20 @@ static int migrate_extent(struct green_c *gc, extent_t veid_s, extent_t eid_s)
     /* set states */
     gc->table[veid_s].state |= VES_MIGRATE;
     gc->table[veid_c].state |= VES_MIGRATE;
-#if 0
     spin_unlock_irqrestore(&gc->lock, flags);
-#endif
 
     r = swap_extent(gc, eid_c, eid_s);
     if (r < 0) {
         /* Fail to replace extent on cache disk, roll back */
         GREEN_ERROR("Cannot swap %lld and %lld", eid_c, eid_s);
-#if 0
         spin_lock_irqsave(&gc->lock, flags);
-#endif
         gc->table[veid_c].state &= ~VES_MIGRATE;
         gc->table[veid_s].state &= ~VES_MIGRATE;
         spin_unlock_irqrestore(&gc->lock, flags);
     } else {
         /* Update mapping table */
         GREEN_ERROR("%lld and %lld swapped", eid_c, eid_s);
-#if 0
         spin_lock_irqsave(&gc->lock, flags);
-#endif
         swap_entry(gc, veid_c, veid_s);
         gc->table[veid_c].state &= ~VES_MIGRATE;
         gc->table[veid_s].state &= ~VES_MIGRATE;
@@ -1238,6 +1217,48 @@ static int migrate_extent(struct green_c *gc, extent_t veid_s, extent_t eid_s)
     }
 
     return r < 0 ? eid_s : eid_c;
+}
+
+static void migration_work(struct work_struct *work)
+{
+    struct green_c *gc;
+    struct migration_info *minfo;
+    unsigned long flags;
+    int eid;
+
+    GREEN_ERROR("Migration work called");
+    gc = container_of(work, struct green_c, migration_work);
+
+    spin_lock_irqsave(&gc->lock, flags);
+    VERIFY(!list_empty(&gc->migration_list));
+    minfo = list_first_entry(&gc->migration_list, struct migration_info, list);
+    list_del(&minfo->list);
+    spin_unlock_irqrestore(&gc->lock, flags);
+
+    eid = migrate_extent(gc, minfo->veid_s, minfo->eid_s);
+
+    kfree(minfo);
+}
+
+static bool queue_migration(struct green_c *gc, extent_t veid, extent_t eid)
+{
+    struct migration_info *minfo;
+
+    minfo = kmalloc(sizeof(struct migration_info), GFP_NOIO);
+    if (!minfo) {
+        GREEN_ERROR("Cannot allocate memory");
+        return false;
+    }
+
+    minfo->veid_s = veid;
+    minfo->eid_s = eid;
+
+    list_add_tail(&gc->migration_list, &minfo->list);
+    queue_work(kgreend_wq, &gc->migration_work);
+
+    GREEN_ERROR("Migration of extent %lld queued", eid);
+
+    return true;
 }
 
 /* Build free and used lists of extents on cache disk */
@@ -1416,8 +1437,9 @@ static int green_ctr(struct dm_target *ti, unsigned int argc, char **argv)
     clear_table(gc);
 	/* map kernel thread id to thread work function */
 
+    INIT_WORK(&gc->migration_work, migration_work);
+    INIT_LIST_HEAD(&gc->migration_list);
 #if 0
-    INIT_WORK(&gc->eviction_work, eviction_work);
     gc->eviction_running = false;
 #endif
 
@@ -1511,6 +1533,9 @@ static int green_map(struct dm_target *ti, struct bio *bio,
             /* Right now, this issue is not handled. It will be addressed
              * later. */
             GREEN_ERROR("Extent %lld is under migration", veid);
+            spin_unlock_irqrestore(&gc->lock, flags);
+            update_bio(gc, bio, 1);
+            return DM_MAPIO_REMAPPED;
         }
         eid = gc->table[veid].eid;
     } else {
@@ -1518,24 +1543,24 @@ static int green_map(struct dm_target *ti, struct bio *bio,
         VERIFY(get_extent(gc, &eid, true) >= 0);   /* out of space */
         map_extent(gc, veid, eid);
     }
-    spin_unlock_irqrestore(&gc->lock, flags);
 
     GREEN_ERROR("virtual %llu -> physical %llu", veid, eid);
     /* cache miss */
-    if (!on_cache(gc, eid)) {
-
-        eid = migrate_extent(gc, veid, eid);
+    if (!on_cache(gc, eid) && queue_migration(gc, veid, eid)) {
 
         /* 
-        promote_extent(gc, bio); 
+        eid = migrate_extent(gc, veid, eid);
 
-        return DM_MAPIO_SUBMITTED;
+        promote_extent(gc, bio); 
         */
+        spin_unlock_irqrestore(&gc->lock, flags);
+        return DM_MAPIO_SUBMITTED;
     }/* end of cache miss */ 
     /* If cache hits, then performance benefits from Design */
     else {
         /* In the beginning: cache extent state is already set to be accessed */
     }
+    spin_unlock_irqrestore(&gc->lock, flags);
 
 #if 0
     run_eviction = (cache_free_nr(gc) < EXT_MIN_THRESHOLD) 

@@ -223,10 +223,17 @@ struct green_c {
     struct dm_kcopyd_client *kcp_client; /* data copy in device mapper */
 
     extent_t eviction_cursor;
+    struct work_struct migration_work;    /* work of evicting cache extent */
+    struct list_head migration_list;    /* list of migration_info */
 #if 0
-    struct work_struct eviction_work;    /* work of evicting cache extent */
     bool eviction_running; 				 /* current simple design does not need eviction thread */
 #endif
+};
+
+struct migration_info {
+    extent_t    veid_s;     /* virtual extent id mapped onto secondary disk */
+    extent_t    eid_s;      /* physical extent id on secondary disk to migrate */
+    struct list_head    list;
 };
 
 /* Context information passed between promotion function and its callback */
