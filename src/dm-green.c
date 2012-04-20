@@ -873,7 +873,7 @@ static struct extent *lru_extent(struct green_c *gc)
             continue;       /* skip free extent */
 
         if (ext->vext->state & (VES_ACCESS | VES_MIGRATE)) {
-            GREEN_ERROR("Extent %llu accessed", ext2id(gc, ext));
+            GREEN_ERROR("Extent %llu accessed or migrating", ext2id(gc, ext));
             ext->vext->state &= ~VES_ACCESS;        /* clear access bit */
         } else {
             gc->eviction_cursor = i;
@@ -1176,49 +1176,65 @@ static void swap_entry(struct green_c *gc, extent_t veid_c, extent_t veid_s)
     map_extent(gc, veid_c, eid_s);
 }
 
-static int migrate_extent(struct green_c *gc, extent_t veid_s, extent_t eid_s)
+/* 
+ * Undertake migration work.
+ * On success, it returns the new physical extent on cache disk;
+ * On failure, it returns the old physical extent on secondary disk.
+ */
+static int migrate_extent(struct green_c *gc, struct migration_info *minfo)
 {
-    extent_t veid_c, eid_c;
+    extent_t veid_c, eid_c, veid_s, eid_s;
     struct extent *ext;
     unsigned long flags;
     int r;
 
-    GREEN_ERROR("Migrating extent (%lld, %lld)", veid_s, eid_s);
+    veid_s = minfo->veid_s;
+    eid_s = minfo->eid_s;
 
-	/* Keep lock for now for potential consistency issue */
+    GREEN_ERROR("Migrating extent (v%lld, %lld)", veid_s, eid_s);
+
+	/* Grab a cache extent (LRU) and setup migration states */
     spin_lock_irqsave(&gc->lock, flags);
     /* get extent to be evicted */
     ext = lru_extent(gc);
-    veid_c = vext2id(gc, ext->vext);
-    eid_c = ext->vext->eid;
+    veid_c = minfo->veid_c = vext2id(gc, ext->vext);
+    eid_c = minfo->eid_c = ext->vext->eid;
 	VERIFY(on_cache(gc, eid_c)&&(!on_cache(gc, eid_s))); 
-
     /* set states */
     gc->table[veid_s].state |= VES_MIGRATE;
     gc->table[veid_c].state |= VES_MIGRATE;
     spin_unlock_irqrestore(&gc->lock, flags);
 
     r = swap_extent(gc, eid_c, eid_s);
+
+    spin_lock_irqsave(&gc->lock, flags);
     if (r < 0) {
         /* Fail to replace extent on cache disk, roll back */
         GREEN_ERROR("Cannot swap %lld and %lld", eid_c, eid_s);
-        spin_lock_irqsave(&gc->lock, flags);
-        gc->table[veid_c].state &= ~VES_MIGRATE;
-        gc->table[veid_s].state &= ~VES_MIGRATE;
-        spin_unlock_irqrestore(&gc->lock, flags);
     } else {
         /* Update mapping table */
         GREEN_ERROR("%lld and %lld swapped", eid_c, eid_s);
-        spin_lock_irqsave(&gc->lock, flags);
         swap_entry(gc, veid_c, veid_s);
-        gc->table[veid_c].state &= ~VES_MIGRATE;
-        gc->table[veid_s].state &= ~VES_MIGRATE;
-        spin_unlock_irqrestore(&gc->lock, flags);
     }
+    gc->table[veid_c].state &= ~VES_MIGRATE;
+    gc->table[veid_s].state &= ~VES_MIGRATE;
+    spin_unlock_irqrestore(&gc->lock, flags);
 
     return r < 0 ? eid_s : eid_c;
 }
 
+/* Extract a migration_info from queue. */
+static struct migration_info *dequeue_migration(struct green_c *gc)
+{
+    struct migration_info *minfo;
+
+    VERIFY(!list_empty(&gc->migration_list));
+    minfo = list_first_entry(&gc->migration_list, struct migration_info, list);
+    list_del(&minfo->list);
+    return minfo;
+}
+
+/* Process a migration job. */
 static void migration_work(struct work_struct *work)
 {
     struct green_c *gc;
@@ -1231,12 +1247,10 @@ static void migration_work(struct work_struct *work)
     gc = container_of(work, struct green_c, migration_work);
 
     spin_lock_irqsave(&gc->lock, flags);
-    VERIFY(!list_empty(&gc->migration_list));
-    minfo = list_first_entry(&gc->migration_list, struct migration_info, list);
-    list_del(&minfo->list);
+    minfo = dequeue_migration(gc);
     spin_unlock_irqrestore(&gc->lock, flags);
 
-    eid = migrate_extent(gc, minfo->veid_s, minfo->eid_s);
+    eid = migrate_extent(gc, minfo);
 
     /* no matter migration succeed or not, submit all bios */
     while (!bio_list_empty(&minfo->pending_bios)) {
@@ -1248,6 +1262,7 @@ static void migration_work(struct work_struct *work)
     kfree(minfo);
 }
 
+/* Submit a migration work by add a migration_info into queue */
 static bool queue_migration(struct green_c *gc, struct bio *bio, 
         extent_t veid, extent_t eid)
 {
@@ -1262,6 +1277,7 @@ static bool queue_migration(struct green_c *gc, struct bio *bio,
     /* setup migration_info */
     minfo->veid_s = veid;
     minfo->eid_s = eid;
+    minfo->veid_c = -1;     /* uninitialized yet */
     bio_list_init(&minfo->pending_bios);
     bio_list_add(&minfo->pending_bios, bio);
 
@@ -1271,6 +1287,20 @@ static bool queue_migration(struct green_c *gc, struct bio *bio,
     GREEN_ERROR("Migration of extent %lld queued", eid);
 
     return true;
+}
+
+/* Pend a bio for an extent which is under migration. */
+static void pend_bio(struct green_c *gc, struct bio *bio, extent_t veid)
+{
+    struct migration_info *minfo;
+
+    list_for_each_entry(minfo, &gc->migration_list, list) {
+        if (minfo->veid_s == veid || minfo->veid_c == veid) {
+            /* TODO: differentiate between pending bio on veid_s and veid_c */
+            bio_list_add(&minfo->pending_bios, bio);
+            break;
+        }
+    }
 }
 
 /* Build free and used lists of extents on cache disk */
@@ -1542,12 +1572,10 @@ static int green_map(struct dm_target *ti, struct bio *bio,
 	/* if the mapping table is setup already */
     if (gc->table[veid].state & VES_PRESENT) {
         if (gc->table[veid].state & VES_MIGRATE) {
-            /* Right now, this issue is not handled. It will be addressed
-             * later. */
-            GREEN_ERROR("Extent %lld is under migration", veid);
+            pend_bio(gc, bio, veid);
             spin_unlock_irqrestore(&gc->lock, flags);
-            map_bio(gc, bio, 1);
-            return DM_MAPIO_REMAPPED;
+            GREEN_ERROR("Extent %lld is under migration", veid);
+            return DM_MAPIO_SUBMITTED;
         }
         eid = gc->table[veid].eid;
     } else {
