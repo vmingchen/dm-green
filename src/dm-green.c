@@ -1253,7 +1253,7 @@ static bool queue_migration(struct green_c *gc, struct bio *bio,
 {
     struct migration_info *minfo;
 
-    minfo = kmalloc(sizeof(struct migration_info), GFP_NOIO);
+    minfo = kmalloc(sizeof(struct migration_info), GFP_ATOMIC);
     if (!minfo) {
         GREEN_ERROR("Cannot allocate memory");
         return false;

@@ -74,7 +74,7 @@
 
 /* Magic for persistent green header */
 #define GREEN_MAGIC 0x45614567
-#define GREEN_VERSION 65
+#define GREEN_VERSION 66
 #define GREEN_DAEMON "kgreend"
 
 /* Define signal number */

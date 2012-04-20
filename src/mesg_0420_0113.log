@@ -1,0 +1,1208 @@
+Initializing cgroup subsys cpuset
+Initializing cgroup subsys cpu
+Linux version 3.0.0-rc3 (ming@vm-centos-pc) (gcc version 4.4.6 20110731 (Red Hat 4.4.6-3) (GCC) ) #1 SMP Fri Mar 16 02:38:58 EDT 2012
+BIOS-provided physical RAM map:
+ BIOS-e820: 0000000000000000 - 000000000009fc00 (usable)
+ BIOS-e820: 000000000009fc00 - 00000000000a0000 (reserved)
+ BIOS-e820: 00000000000f0000 - 0000000000100000 (reserved)
+ BIOS-e820: 0000000000100000 - 000000003fff0000 (usable)
+ BIOS-e820: 000000003fff0000 - 0000000040000000 (ACPI data)
+ BIOS-e820: 00000000fffc0000 - 0000000100000000 (reserved)
+NX (Execute Disable) protection: active
+DMI 2.5 present.
+DMI: innotek GmbH VirtualBox, BIOS VirtualBox 12/01/2006
+e820 update range: 0000000000000000 - 0000000000010000 (usable) ==> (reserved)
+e820 remove range: 00000000000a0000 - 0000000000100000 (usable)
+last_pfn = 0x3fff0 max_arch_pfn = 0x1000000
+MTRR default type: uncachable
+MTRR variable ranges disabled:
+x86 PAT enabled: cpu 0, old 0x7040600070406, new 0x7010600070106
+CPU MTRRs all blank - virtualized system.
+initial memory mapped : 0 - 01000000
+Base memory trampoline at [c009b000] 9b000 size 16384
+init_memory_mapping: 0000000000000000-00000000375fe000
+ 0000000000 - 0000200000 page 4k
+ 0000200000 - 0037400000 page 2M
+ 0037400000 - 00375fe000 page 4k
+kernel direct mapping tables up to 375fe000 @ ff8000-1000000
+RAMDISK: 37291000 - 37ff0000
+Allocated new RAMDISK: 36532000 - 37290659
+Move RAMDISK from 0000000037291000 - 0000000037fef658 to 36532000 - 37290658
+crashkernel: memory value expected
+ACPI: RSDP 000e0000 00024 (v02 VBOX  )
+ACPI: XSDT 3fff0030 00034 (v01 VBOX   VBOXXSDT 00000001 ASL  00000061)
+ACPI: FACP 3fff00f0 000F4 (v04 VBOX   VBOXFACP 00000001 ASL  00000061)
+ACPI: DSDT 3fff0410 01B96 (v01 VBOX   VBOXBIOS 00000002 INTL 20100528)
+ACPI: FACS 3fff0200 00040
+ACPI: SSDT 3fff0240 001CC (v01 VBOX   VBOXCPUT 00000002 INTL 20100528)
+137MB HIGHMEM available.
+885MB LOWMEM available.
+  mapped low ram: 0 - 375fe000
+  low ram: 0 - 375fe000
+Zone PFN ranges:
+  DMA      0x00000010 -> 0x00001000
+  Normal   0x00001000 -> 0x000375fe
+  HighMem  0x000375fe -> 0x0003fff0
+Movable zone start PFN for each node
+early_node_map[2] active PFN ranges
+    0: 0x00000010 -> 0x0000009f
+    0: 0x00000100 -> 0x0003fff0
+On node 0 totalpages: 262015
+  DMA zone: 32 pages used for memmap
+  DMA zone: 0 pages reserved
+  DMA zone: 3951 pages, LIFO batch:0
+  Normal zone: 1740 pages used for memmap
+  Normal zone: 220978 pages, LIFO batch:31
+  HighMem zone: 276 pages used for memmap
+  HighMem zone: 35038 pages, LIFO batch:7
+Using APIC driver default
+ACPI: PM-Timer IO Port: 0x4008
+SMP: Allowing 1 CPUs, 0 hotplug CPUs
+Found and enabled local APIC!
+nr_irqs_gsi: 16
+PM: Registered nosave memory: 000000000009f000 - 00000000000a0000
+PM: Registered nosave memory: 00000000000a0000 - 00000000000f0000
+PM: Registered nosave memory: 00000000000f0000 - 0000000000100000
+Allocating PCI resources starting at 40000000 (gap: 40000000:bffc0000)
+Booting paravirtualized kernel on bare hardware
+setup_percpu: NR_CPUS:32 nr_cpumask_bits:32 nr_cpu_ids:1 nr_node_ids:1
+PERCPU: Embedded 13 pages/cpu @f5a00000 s29312 r0 d23936 u2097152
+pcpu-alloc: s29312 r0 d23936 u2097152 alloc=1*2097152
+pcpu-alloc: [0] 0 
+Built 1 zonelists in Zone order, mobility grouping on.  Total pages: 259967
+Kernel command line: ro root=/dev/mapper/vg_vmcentospc-lv_root rd_NO_LUKS LANG=en_US.UTF-8 rd_NO_MD quiet SYSFONT=latarcyrheb-sun16 rhgb crashkernel=auto rd_LVM_LV=vg_vmcentospc/lv_swap rd_LVM_LV=vg_vmcentospc/lv_root  KEYBOARDTYPE=pc KEYTABLE=us rd_NO_DM
+PID hash table entries: 4096 (order: 2, 16384 bytes)
+Dentry cache hash table entries: 131072 (order: 7, 524288 bytes)
+Inode-cache hash table entries: 65536 (order: 6, 262144 bytes)
+Initializing CPU#0
+Initializing HighMem for node 0 (000375fe:0003fff0)
+Memory: 1017472k/1048512k available (3876k kernel code, 30588k reserved, 2046k data, 476k init, 141256k highmem)
+virtual kernel memory layout:
+    fixmap  : 0xffa95000 - 0xfffff000   (5544 kB)
+    pkmap   : 0xff600000 - 0xff800000   (2048 kB)
+    vmalloc : 0xf7dfe000 - 0xff5fe000   ( 120 MB)
+    lowmem  : 0xc0000000 - 0xf75fe000   ( 885 MB)
+      .init : 0xc09c9000 - 0xc0a40000   ( 476 kB)
+      .data : 0xc07c92ea - 0xc09c8e80   (2046 kB)
+      .text : 0xc0400000 - 0xc07c92ea   (3876 kB)
+Checking if this processor honours the WP bit even in supervisor mode...Ok.
+Hierarchical RCU implementation.
+NR_IRQS:2304 nr_irqs:256 16
+CPU 0 irqstacks, hard=f5408000 soft=f540a000
+Console: colour VGA+ 80x25
+console [tty0] enabled
+allocated 4194304 bytes of page_cgroup
+please try 'cgroup_disable=memory' option if you don't want memory cgroups
+Fast TSC calibration using PIT
+Detected 3065.358 MHz processor.
+Calibrating delay loop (skipped), value calculated using timer frequency.. 6130.71 BogoMIPS (lpj=3065358)
+pid_max: default: 32768 minimum: 301
+Security Framework initialized
+Mount-cache hash table entries: 512
+Initializing cgroup subsys cpuacct
+Initializing cgroup subsys memory
+Initializing cgroup subsys devices
+Initializing cgroup subsys freezer
+Initializing cgroup subsys net_cls
+Initializing cgroup subsys blkio
+Initializing cgroup subsys perf_event
+mce: CPU supports 0 MCE banks
+using mwait in idle threads.
+SMP alternatives: switching to UP code
+Freeing SMP alternatives: 16k freed
+ACPI: Core revision 20110413
+ACPI: setting ELCR to 0200 (from 0e20)
+weird, boot CPU (#0) not listed by the BIOS.
+SMP motherboard not detected.
+Enabling APIC mode:  Flat.  Using 0 I/O APICs
+SMP disabled
+Performance Events: unsupported p6 CPU model 42 no PMU driver, software events only.
+NMI watchdog disabled (cpu0): hardware events not enabled
+Brought up 1 CPUs
+Total of 1 processors activated (6130.71 BogoMIPS).
+devtmpfs: initialized
+print_constraints: dummy: 
+NET: Registered protocol family 16
+ACPI: bus type pci registered
+PCI : PCI BIOS aera is rw and x. Use pci=nobios if you want it NX.
+PCI: PCI BIOS revision 2.10 entry at 0xfc040, last bus=0
+PCI: Using configuration type 1 for base access
+bio: create slab <bio-0> at 0
+ACPI: EC: Look up EC in DSDT
+ACPI: Executed 1 blocks of module-level executable AML code
+ACPI: Interpreter enabled
+ACPI: (supports S0 S5)
+ACPI: Using PIC for interrupt routing
+ACPI: No dock devices found.
+HEST: Table not found.
+PCI: Ignoring host bridge windows from ACPI; if necessary, use "pci=use_crs" and report a bug
+ACPI: PCI Root Bridge [PCI0] (domain 0000 [bus 00-ff])
+pci_root PNP0A03:00: host bridge window [io  0x0000-0x0cf7] (ignored)
+pci_root PNP0A03:00: host bridge window [io  0x0d00-0xffff] (ignored)
+pci_root PNP0A03:00: host bridge window [mem 0x000a0000-0x000bffff] (ignored)
+pci_root PNP0A03:00: host bridge window [mem 0x40000000-0xffdfffff] (ignored)
+pci 0000:00:00.0: [8086:1237] type 0 class 0x000600
+pci 0000:00:01.0: [8086:7000] type 0 class 0x000601
+pci 0000:00:01.1: [8086:7111] type 0 class 0x000101
+pci 0000:00:01.1: reg 20: [io  0xd000-0xd00f]
+pci 0000:00:02.0: [80ee:beef] type 0 class 0x000300
+pci 0000:00:02.0: reg 10: [mem 0xe0000000-0xe0ffffff pref]
+pci 0000:00:03.0: [8086:100e] type 0 class 0x000200
+pci 0000:00:03.0: reg 10: [mem 0xf0000000-0xf001ffff]
+pci 0000:00:03.0: reg 18: [io  0xd010-0xd017]
+pci 0000:00:04.0: [80ee:cafe] type 0 class 0x000880
+pci 0000:00:04.0: reg 10: [io  0xd020-0xd03f]
+pci 0000:00:04.0: reg 14: [mem 0xf0400000-0xf07fffff]
+pci 0000:00:04.0: reg 18: [mem 0xf0800000-0xf0803fff pref]
+pci 0000:00:05.0: [8086:2415] type 0 class 0x000401
+pci 0000:00:05.0: reg 10: [io  0xd100-0xd1ff]
+pci 0000:00:05.0: reg 14: [io  0xd200-0xd23f]
+pci 0000:00:06.0: [106b:003f] type 0 class 0x000c03
+pci 0000:00:06.0: reg 10: [mem 0xf0804000-0xf0804fff]
+pci 0000:00:07.0: [8086:7113] type 0 class 0x000680
+pci 0000:00:0d.0: [8086:2829] type 0 class 0x000106
+pci 0000:00:0d.0: reg 10: [io  0xd240-0xd247]
+pci 0000:00:0d.0: reg 18: [io  0xd250-0xd257]
+pci 0000:00:0d.0: reg 20: [io  0xd260-0xd26f]
+pci 0000:00:0d.0: reg 24: [mem 0xf0806000-0xf0807fff]
+pci_bus 0000:00: on NUMA node 0
+ACPI: PCI Interrupt Routing Table [\_SB_.PCI0._PRT]
+ pci0000:00: Unable to request _OSC control (_OSC support mask: 0x1e)
+ACPI: PCI Interrupt Link [LNKA] (IRQs *5 9 10 11)
+ACPI: PCI Interrupt Link [LNKB] (IRQs 5 9 10 *11)
+ACPI: PCI Interrupt Link [LNKC] (IRQs 5 9 *10 11)
+ACPI: PCI Interrupt Link [LNKD] (IRQs 5 *9 10 11)
+SCSI subsystem initialized
+libata version 3.00 loaded.
+PCI: Using ACPI for IRQ routing
+PCI: pci_cache_line_size set to 64 bytes
+reserve RAM buffer: 000000000009fc00 - 000000000009ffff 
+reserve RAM buffer: 000000003fff0000 - 000000003fffffff 
+NetLabel: Initializing
+NetLabel:  domain hash size = 128
+NetLabel:  protocols = UNLABELED CIPSOv4
+NetLabel:  unlabeled traffic allowed by default
+pnp: PnP ACPI init
+ACPI: bus type pnp registered
+pnp 00:00: [bus 00-ff]
+pnp 00:00: [io  0x0cf8-0x0cff]
+pnp 00:00: [io  0x0000-0x0cf7 window]
+pnp 00:00: [io  0x0d00-0xffff window]
+pnp 00:00: [mem 0x000a0000-0x000bffff window]
+pnp 00:00: [mem 0x40000000-0xffdfffff window]
+pnp 00:00: Plug and Play ACPI device, IDs PNP0a03 (active)
+pnp 00:01: [io  0x0060]
+pnp 00:01: [io  0x0064]
+pnp 00:01: [irq 1]
+pnp 00:01: Plug and Play ACPI device, IDs PNP0303 (active)
+pnp 00:02: [io  0x0000-0x000f]
+pnp 00:02: [io  0x0080-0x008f]
+pnp 00:02: [io  0x00c0-0x00df]
+pnp 00:02: [dma 4]
+pnp 00:02: Plug and Play ACPI device, IDs PNP0200 (active)
+pnp 00:03: [irq 12]
+pnp 00:03: Plug and Play ACPI device, IDs PNP0f03 (active)
+pnp 00:04: [io  0x0378-0x037f]
+pnp 00:04: [io  0x0778-0x077f]
+pnp 00:04: [irq 7]
+pnp 00:04: Plug and Play ACPI device, IDs PNP0400 (active)
+pnp: PnP ACPI: found 5 devices
+ACPI: ACPI bus type pnp unregistered
+Switching to clocksource acpi_pm
+PCI: max bus depth: 0 pci_try_num: 1
+pci_bus 0000:00: resource 0 [io  0x0000-0xffff]
+pci_bus 0000:00: resource 1 [mem 0x00000000-0xfffffffff]
+NET: Registered protocol family 2
+IP route cache hash table entries: 32768 (order: 5, 131072 bytes)
+TCP established hash table entries: 131072 (order: 8, 1048576 bytes)
+Switched to NOHz mode on CPU #0
+TCP bind hash table entries: 65536 (order: 7, 524288 bytes)
+TCP: Hash tables configured (established 131072 bind 65536)
+TCP reno registered
+UDP hash table entries: 512 (order: 2, 16384 bytes)
+UDP-Lite hash table entries: 512 (order: 2, 16384 bytes)
+NET: Registered protocol family 1
+pci 0000:00:00.0: Limiting direct PCI/PCI transfers
+pci 0000:00:01.0: Activating ISA DMA hang workarounds
+pci 0000:00:02.0: Boot video device
+PCI: CLS 0 bytes, default 64
+Trying to unpack rootfs image as initramfs...
+Freeing initrd memory: 13692k freed
+platform rtc_cmos: registered platform RTC device (no PNP device found)
+apm: BIOS version 1.2 Flags 0x03 (Driver version 1.16ac)
+apm: overridden by ACPI.
+audit: initializing netlink socket (disabled)
+type=2000 audit(1334897227.398:1): initialized
+highmem bounce pool size: 64 pages
+HugeTLB registered 2 MB page size, pre-allocated 0 pages
+VFS: Disk quotas dquot_6.5.2
+Dquot-cache hash table entries: 1024 (order 0, 4096 bytes)
+msgmni has been set to 1738
+Block layer SCSI generic (bsg) driver version 0.4 loaded (major 253)
+io scheduler noop registered
+io scheduler deadline registered
+io scheduler cfq registered (default)
+pci_hotplug: PCI Hot Plug PCI Core version: 0.5
+pciehp: PCI Express Hot Plug Controller Driver version: 0.4
+acpiphp: ACPI Hot Plug PCI Controller Driver version: 0.5
+ACPI: Deprecated procfs I/F for AC is loaded, please retry with CONFIG_ACPI_PROCFS_POWER cleared
+ACPI: AC Adapter [AC] (on-line)
+input: Power Button as /devices/LNXSYSTM:00/LNXPWRBN:00/input/input0
+ACPI: Power Button [PWRF]
+input: Sleep Button as /devices/LNXSYSTM:00/LNXSLPBN:00/input/input1
+ACPI: Sleep Button [SLPF]
+ACPI: acpi_idle registered with cpuidle
+ERST: Table is not found!
+GHES: HEST is not enabled!
+isapnp: Scanning for PnP cards...
+isapnp: No Plug & Play device found
+Serial: 8250/16550 driver, 4 ports, IRQ sharing enabled
+Non-volatile memory driver v1.3
+brd: module loaded
+loop: module loaded
+Fixed MDIO Bus: probed
+i8042: PNP: PS/2 Controller [PNP0303:PS2K,PNP0f03:PS2M] at 0x60,0x64 irq 1,12
+serio: i8042 KBD port at 0x60,0x64 irq 1
+serio: i8042 AUX port at 0x60,0x64 irq 12
+mousedev: PS/2 mouse device common for all mice
+input: AT Translated Set 2 keyboard as /devices/platform/i8042/serio0/input/input2
+rtc_cmos rtc_cmos: rtc core: registered rtc_cmos as rtc0
+rtc0: alarms up to one day, 114 bytes nvram
+cpuidle: using governor ladder
+cpuidle: using governor menu
+EFI Variables Facility v0.08 2004-May-17
+TCP cubic registered
+Initializing XFRM netlink socket
+NET: Registered protocol family 17
+Using IPI No-Shortcut mode
+registered taskstats version 1
+IMA: No TPM chip found, activating TPM-bypass!
+rtc_cmos rtc_cmos: setting system clock to 2012-04-20 04:47:08 UTC (1334897228)
+Initializing network drop monitor service
+Freeing unused kernel memory: 476k freed
+Write protecting the kernel text: 3880k
+Write protecting the kernel read-only data: 1692k
+NX-protecting the kernel data: 4312k
+input: ImExPS/2 Generic Explorer Mouse as /devices/platform/i8042/serio1/input/input3
+dracut: dracut-004-256.el6
+dracut: rd_NO_LUKS: removing cryptoluks activation
+device-mapper: uevent: version 1.0.3
+device-mapper: ioctl: 4.20.0-ioctl (2011-02-02) initialised: dm-devel@redhat.com
+udev: starting version 147
+udevd (65): /proc/65/oom_adj is deprecated, please use /proc/65/oom_score_adj instead.
+dracut: Starting plymouth daemon
+ahci 0000:00:0d.0: version 3.0
+ACPI: PCI Interrupt Link [LNKA] enabled at IRQ 5
+PCI: setting IRQ 5 as level-triggered
+ahci 0000:00:0d.0: PCI INT A -> Link[LNKA] -> GSI 5 (level, low) -> IRQ 5
+ahci: SSS flag set, parallel bus scan disabled
+ahci 0000:00:0d.0: AHCI 0001.0100 32 slots 3 ports 3 Gbps 0x7 impl SATA mode
+ahci 0000:00:0d.0: flags: 64bit ncq stag only ccc 
+ahci 0000:00:0d.0: setting latency timer to 64
+scsi0 : ahci
+scsi1 : ahci
+scsi2 : ahci
+ata1: SATA max UDMA/133 abar m8192@0xf0806000 port 0xf0806100 irq 5
+ata2: SATA max UDMA/133 abar m8192@0xf0806000 port 0xf0806180 irq 5
+ata3: SATA max UDMA/133 abar m8192@0xf0806000 port 0xf0806200 irq 5
+Switching to clocksource tsc
+ata1: SATA link up 3.0 Gbps (SStatus 123 SControl 300)
+ata1.00: ATA-6: VBOX HARDDISK, 1.0, max UDMA/133
+ata1.00: 62914560 sectors, multi 128: LBA48 NCQ (depth 31/32)
+ata1.00: configured for UDMA/133
+scsi 0:0:0:0: Direct-Access     ATA      VBOX HARDDISK    1.0  PQ: 0 ANSI: 5
+ata2: SATA link up 3.0 Gbps (SStatus 123 SControl 300)
+ata2.00: ATA-6: VBOX HARDDISK, 1.0, max UDMA/133
+ata2.00: 10201088 sectors, multi 128: LBA48 NCQ (depth 31/32)
+ata2.00: configured for UDMA/133
+scsi 1:0:0:0: Direct-Access     ATA      VBOX HARDDISK    1.0  PQ: 0 ANSI: 5
+ata3: SATA link up 3.0 Gbps (SStatus 123 SControl 300)
+ata3.00: ATA-6: VBOX HARDDISK, 1.0, max UDMA/133
+ata3.00: 8577024 sectors, multi 128: LBA48 NCQ (depth 31/32)
+ata3.00: configured for UDMA/133
+scsi 2:0:0:0: Direct-Access     ATA      VBOX HARDDISK    1.0  PQ: 0 ANSI: 5
+ata_piix 0000:00:01.1: version 2.13
+ata_piix 0000:00:01.1: setting latency timer to 64
+scsi3 : ata_piix
+scsi4 : ata_piix
+ata4: PATA max UDMA/33 cmd 0x1f0 ctl 0x3f6 bmdma 0xd000 irq 14
+ata5: PATA max UDMA/33 cmd 0x170 ctl 0x376 bmdma 0xd008 irq 15
+ata5.00: ATAPI: VBOX CD-ROM, 1.0, max UDMA/133
+ata5.00: configured for UDMA/33
+scsi 4:0:0:0: CD-ROM            VBOX     CD-ROM           1.0  PQ: 0 ANSI: 5
+sd 0:0:0:0: [sda] 62914560 512-byte logical blocks: (32.2 GB/30.0 GiB)
+sd 0:0:0:0: [sda] Write Protect is off
+sd 0:0:0:0: [sda] Mode Sense: 00 3a 00 00
+sd 0:0:0:0: [sda] Write cache: enabled, read cache: enabled, doesn't support DPO or FUA
+sd 1:0:0:0: [sdb] 10201088 512-byte logical blocks: (5.22 GB/4.86 GiB)
+sd 1:0:0:0: [sdb] Write Protect is off
+sd 1:0:0:0: [sdb] Mode Sense: 00 3a 00 00
+sd 1:0:0:0: [sdb] Write cache: enabled, read cache: enabled, doesn't support DPO or FUA
+ sda: sda1 sda2
+sd 0:0:0:0: [sda] Attached SCSI disk
+ sdb: unknown partition table
+sd 1:0:0:0: [sdb] Attached SCSI disk
+sd 2:0:0:0: [sdc] 8577024 512-byte logical blocks: (4.39 GB/4.08 GiB)
+sd 2:0:0:0: [sdc] Write Protect is off
+sd 2:0:0:0: [sdc] Mode Sense: 00 3a 00 00
+sd 2:0:0:0: [sdc] Write cache: enabled, read cache: enabled, doesn't support DPO or FUA
+ sdc: unknown partition table
+sd 2:0:0:0: [sdc] Attached SCSI disk
+sr0: scsi3-mmc drive: 32x/32x xa/form2 tray
+cdrom: Uniform CD-ROM driver Revision: 3.20
+sr 4:0:0:0: Attached scsi CD-ROM sr0
+dracut: Scanning devices sda2  for LVM logical volumes vg_vmcentospc/lv_swap vg_vmcentospc/lv_root 
+dracut: inactive '/dev/vg_vmcentospc/lv_root' [27.54 GiB] inherit
+dracut: inactive '/dev/vg_vmcentospc/lv_swap' [1.97 GiB] inherit
+EXT4-fs (dm-0): INFO: recovery required on readonly filesystem
+EXT4-fs (dm-0): write access will be enabled during recovery
+EXT4-fs (dm-0): recovery complete
+EXT4-fs (dm-0): mounted filesystem with ordered data mode. Opts: (null)
+dracut: Mounted root filesystem /dev/mapper/vg_vmcentospc-lv_root
+dracut: Loading SELinux policy
+dracut: /sbin/load_policy: Can't load policy: No such device
+dracut: Switching root
+udev: starting version 147
+input: PC Speaker as /devices/platform/pcspkr/input/input4
+piix4_smbus 0000:00:07.0: SMBus base address uninitialized - upgrade BIOS or use force_addr=0xaddr
+e1000: Intel(R) PRO/1000 Network Driver - version 7.3.21-k8-NAPI
+e1000: Copyright (c) 1999-2006 Intel Corporation.
+ACPI: PCI Interrupt Link [LNKC] enabled at IRQ 10
+PCI: setting IRQ 10 as level-triggered
+e1000 0000:00:03.0: PCI INT A -> Link[LNKC] -> GSI 10 (level, low) -> IRQ 10
+e1000 0000:00:03.0: setting latency timer to 64
+e1000 0000:00:03.0: eth0: (PCI:33MHz:32-bit) 08:00:27:3b:c8:3e
+e1000 0000:00:03.0: eth0: Intel(R) PRO/1000 Network Connection
+parport_pc 00:04: reported by Plug and Play ACPI
+sd 0:0:0:0: Attached scsi generic sg0 type 0
+sd 1:0:0:0: Attached scsi generic sg1 type 0
+sd 2:0:0:0: Attached scsi generic sg2 type 0
+sr 4:0:0:0: Attached scsi generic sg3 type 5
+ppdev: user-space parallel port driver
+EXT4-fs (dm-0): re-mounted. Opts: (null)
+EXT4-fs (sda1): mounted filesystem with ordered data mode. Opts: (null)
+Adding 2064380k swap on /dev/mapper/vg_vmcentospc-lv_swap.  Priority:-1 extents:1 across:2064380k 
+ip_tables: (C) 2000-2006 Netfilter Core Team
+nf_conntrack version 0.5.0 (16119 buckets, 64476 max)
+e1000: eth0 NIC Link is Up 1000 Mbps Full Duplex, Flow Control: RX
+RPC: Registered named UNIX socket transport module.
+RPC: Registered udp transport module.
+RPC: Registered tcp transport module.
+RPC: Registered tcp NFSv4.1 backchannel transport module.
+cnic: Broadcom NetXtreme II CNIC Driver cnic v2.2.14 (Mar 30, 2011)
+bnx2fc: Broadcom NetXtreme II FCoE Driver bnx2fc v1.0.1 (Mar 17, 2011)
+802.1Q VLAN Support v1.8
+8021q: adding VLAN 0 to HW filter on device eth0
+workqueue: max_active -134543072 requested for (null) is out of range, clamping between 1 and 512
+device-mapper: green: green_init: Green initialized
+device-mapper: green: green_ctr: argc is 6
+device-mapper: green: green_ctr: Extent size: 16;  extent shift: 4
+device-mapper: green: check_header: Metadata header dismatch
+device-mapper: green: green_ctr: No useable metadata on disk
+device-mapper: green: alloc_table: Table created
+device-mapper: green: build_bitmap: Free extent on disk 0: 16
+device-mapper: green: build_bitmap: Free extent on disk 1: 16
+device-mapper: green: green_map: 863891: map(sector 0 -> extent 0)
+device-mapper: green: get_from_cache: Get 0 (15 extents left)
+device-mapper: green: green_map: virtual 0 -> physical 0
+device-mapper: green: green_map: 863893: map(sector 64 -> extent 4)
+device-mapper: green: get_from_cache: Get 1 (14 extents left)
+device-mapper: green: green_map: virtual 4 -> physical 1
+device-mapper: green: green_map: 863896: map(sector 16 -> extent 1)
+device-mapper: green: get_from_cache: Get 2 (13 extents left)
+device-mapper: green: green_map: virtual 1 -> physical 2
+device-mapper: green: green_map: 863897: map(sector 128 -> extent 8)
+device-mapper: green: get_from_cache: Get 3 (12 extents left)
+device-mapper: green: green_map: virtual 8 -> physical 3
+device-mapper: green: green_map: 863899: map(sector 24 -> extent 1)
+device-mapper: green: green_map: virtual 1 -> physical 2
+device-mapper: green: green_map: 863901: map(sector 32 -> extent 2)
+device-mapper: green: get_from_cache: Get 4 (11 extents left)
+device-mapper: green: green_map: virtual 2 -> physical 4
+device-mapper: green: green_map: 863905: map(sector 8 -> extent 0)
+device-mapper: green: green_map: virtual 0 -> physical 0
+device-mapper: green: green_map: 876936: map(sector 0 -> extent 0)
+device-mapper: green: green_map: virtual 0 -> physical 0
+device-mapper: green: green_map: 876940: map(sector 8 -> extent 0)
+device-mapper: green: green_map: virtual 0 -> physical 0
+device-mapper: green: green_map: 876943: map(sector 16 -> extent 1)
+device-mapper: green: green_map: virtual 1 -> physical 2
+device-mapper: green: green_map: 876946: map(sector 24 -> extent 1)
+device-mapper: green: green_map: virtual 1 -> physical 2
+device-mapper: green: green_map: 876948: map(sector 32 -> extent 2)
+device-mapper: green: green_map: virtual 2 -> physical 4
+device-mapper: green: green_map: 876950: map(sector 40 -> extent 2)
+device-mapper: green: green_map: virtual 2 -> physical 4
+device-mapper: green: green_map: 876952: map(sector 48 -> extent 3)
+device-mapper: green: get_from_cache: Get 5 (10 extents left)
+device-mapper: green: green_map: virtual 3 -> physical 5
+device-mapper: green: green_map: 876956: map(sector 56 -> extent 3)
+device-mapper: green: green_map: virtual 3 -> physical 5
+device-mapper: green: green_map: 876957: map(sector 64 -> extent 4)
+device-mapper: green: green_map: virtual 4 -> physical 1
+device-mapper: green: green_map: 876959: map(sector 72 -> extent 4)
+device-mapper: green: green_map: virtual 4 -> physical 1
+device-mapper: green: green_map: 876961: map(sector 80 -> extent 5)
+device-mapper: green: get_from_cache: Get 6 (9 extents left)
+device-mapper: green: green_map: virtual 5 -> physical 6
+device-mapper: green: green_map: 876965: map(sector 88 -> extent 5)
+device-mapper: green: green_map: virtual 5 -> physical 6
+device-mapper: green: green_map: 876966: map(sector 96 -> extent 6)
+device-mapper: green: get_from_cache: Get 7 (8 extents left)
+device-mapper: green: green_map: virtual 6 -> physical 7
+device-mapper: green: green_map: 876969: map(sector 104 -> extent 6)
+device-mapper: green: green_map: virtual 6 -> physical 7
+device-mapper: green: green_map: 876972: map(sector 112 -> extent 7)
+device-mapper: green: get_from_cache: Get 8 (7 extents left)
+device-mapper: green: green_map: virtual 7 -> physical 8
+device-mapper: green: green_map: 876975: map(sector 120 -> extent 7)
+device-mapper: green: green_map: virtual 7 -> physical 8
+device-mapper: green: green_map: 876977: map(sector 128 -> extent 8)
+device-mapper: green: green_map: virtual 8 -> physical 3
+device-mapper: green: green_map: 876979: map(sector 136 -> extent 8)
+device-mapper: green: green_map: virtual 8 -> physical 3
+device-mapper: green: green_map: 876981: map(sector 144 -> extent 9)
+device-mapper: green: get_from_cache: Get 9 (6 extents left)
+device-mapper: green: green_map: virtual 9 -> physical 9
+device-mapper: green: green_map: 876984: map(sector 152 -> extent 9)
+device-mapper: green: green_map: virtual 9 -> physical 9
+device-mapper: green: green_map: 876985: map(sector 160 -> extent 10)
+device-mapper: green: get_from_cache: Get 10 (5 extents left)
+device-mapper: green: green_map: virtual 10 -> physical 10
+device-mapper: green: green_map: 876987: map(sector 168 -> extent 10)
+device-mapper: green: green_map: virtual 10 -> physical 10
+device-mapper: green: green_map: 876987: map(sector 176 -> extent 11)
+device-mapper: green: get_from_cache: Get 11 (4 extents left)
+device-mapper: green: green_map: virtual 11 -> physical 11
+device-mapper: green: green_map: 876989: map(sector 184 -> extent 11)
+device-mapper: green: green_map: virtual 11 -> physical 11
+device-mapper: green: green_map: 876990: map(sector 192 -> extent 12)
+device-mapper: green: get_from_cache: Get 12 (3 extents left)
+device-mapper: green: green_map: virtual 12 -> physical 12
+device-mapper: green: green_map: 876992: map(sector 200 -> extent 12)
+device-mapper: green: green_map: virtual 12 -> physical 12
+device-mapper: green: green_map: 876992: map(sector 208 -> extent 13)
+device-mapper: green: get_from_cache: Get 13 (2 extents left)
+device-mapper: green: green_map: virtual 13 -> physical 13
+device-mapper: green: green_map: 876994: map(sector 216 -> extent 13)
+device-mapper: green: green_map: virtual 13 -> physical 13
+device-mapper: green: green_map: 876994: map(sector 224 -> extent 14)
+device-mapper: green: get_from_cache: Get 14 (1 extents left)
+device-mapper: green: green_map: virtual 14 -> physical 14
+device-mapper: green: green_map: 876996: map(sector 232 -> extent 14)
+device-mapper: green: green_map: virtual 14 -> physical 14
+device-mapper: green: green_map: 876997: map(sector 240 -> extent 15)
+device-mapper: green: get_from_cache: Get 15 (0 extents left)
+device-mapper: green: green_map: virtual 15 -> physical 15
+device-mapper: green: green_map: 876998: map(sector 248 -> extent 15)
+device-mapper: green: green_map: virtual 15 -> physical 15
+device-mapper: green: green_map: 881762: map(sector 0 -> extent 0)
+device-mapper: green: green_map: virtual 0 -> physical 0
+device-mapper: green: green_map: 881764: map(sector 8 -> extent 0)
+device-mapper: green: green_map: virtual 0 -> physical 0
+device-mapper: green: green_map: 881767: map(sector 16 -> extent 1)
+device-mapper: green: green_map: virtual 1 -> physical 2
+device-mapper: green: green_map: 881768: map(sector 24 -> extent 1)
+device-mapper: green: green_map: virtual 1 -> physical 2
+device-mapper: green: green_map: 881770: map(sector 32 -> extent 2)
+device-mapper: green: green_map: virtual 2 -> physical 4
+device-mapper: green: green_map: 881773: map(sector 40 -> extent 2)
+device-mapper: green: green_map: virtual 2 -> physical 4
+device-mapper: green: green_map: 881775: map(sector 48 -> extent 3)
+device-mapper: green: green_map: virtual 3 -> physical 5
+device-mapper: green: green_map: 881777: map(sector 56 -> extent 3)
+device-mapper: green: green_map: virtual 3 -> physical 5
+device-mapper: green: green_map: 881779: map(sector 64 -> extent 4)
+device-mapper: green: green_map: virtual 4 -> physical 1
+device-mapper: green: green_map: 881781: map(sector 72 -> extent 4)
+device-mapper: green: green_map: virtual 4 -> physical 1
+device-mapper: green: green_map: 881782: map(sector 80 -> extent 5)
+device-mapper: green: green_map: virtual 5 -> physical 6
+device-mapper: green: green_map: 881785: map(sector 88 -> extent 5)
+device-mapper: green: green_map: virtual 5 -> physical 6
+device-mapper: green: green_map: 881786: map(sector 96 -> extent 6)
+device-mapper: green: green_map: virtual 6 -> physical 7
+device-mapper: green: green_map: 881787: map(sector 104 -> extent 6)
+device-mapper: green: green_map: virtual 6 -> physical 7
+device-mapper: green: green_map: 881787: map(sector 112 -> extent 7)
+device-mapper: green: green_map: virtual 7 -> physical 8
+device-mapper: green: green_map: 881789: map(sector 120 -> extent 7)
+device-mapper: green: green_map: virtual 7 -> physical 8
+device-mapper: green: green_map: 881789: map(sector 128 -> extent 8)
+device-mapper: green: green_map: virtual 8 -> physical 3
+device-mapper: green: green_map: 881791: map(sector 136 -> extent 8)
+device-mapper: green: green_map: virtual 8 -> physical 3
+device-mapper: green: green_map: 881791: map(sector 144 -> extent 9)
+device-mapper: green: green_map: virtual 9 -> physical 9
+device-mapper: green: green_map: 881793: map(sector 152 -> extent 9)
+device-mapper: green: green_map: virtual 9 -> physical 9
+device-mapper: green: green_map: 881793: map(sector 160 -> extent 10)
+device-mapper: green: green_map: virtual 10 -> physical 10
+device-mapper: green: green_map: 881794: map(sector 168 -> extent 10)
+device-mapper: green: green_map: virtual 10 -> physical 10
+device-mapper: green: green_map: 881796: map(sector 176 -> extent 11)
+device-mapper: green: green_map: virtual 11 -> physical 11
+device-mapper: green: green_map: 881796: map(sector 184 -> extent 11)
+device-mapper: green: green_map: virtual 11 -> physical 11
+device-mapper: green: green_map: 881797: map(sector 192 -> extent 12)
+device-mapper: green: green_map: virtual 12 -> physical 12
+device-mapper: green: green_map: 881798: map(sector 200 -> extent 12)
+device-mapper: green: green_map: virtual 12 -> physical 12
+device-mapper: green: green_map: 881800: map(sector 208 -> extent 13)
+device-mapper: green: green_map: virtual 13 -> physical 13
+device-mapper: green: green_map: 881800: map(sector 216 -> extent 13)
+device-mapper: green: green_map: virtual 13 -> physical 13
+device-mapper: green: green_map: 881802: map(sector 224 -> extent 14)
+device-mapper: green: green_map: virtual 14 -> physical 14
+device-mapper: green: green_map: 881803: map(sector 232 -> extent 14)
+device-mapper: green: green_map: virtual 14 -> physical 14
+device-mapper: green: green_map: 881803: map(sector 240 -> extent 15)
+device-mapper: green: green_map: virtual 15 -> physical 15
+device-mapper: green: green_map: 881806: map(sector 248 -> extent 15)
+device-mapper: green: green_map: virtual 15 -> physical 15
+device-mapper: green: green_map: 881807: map(sector 256 -> extent 16)
+device-mapper: green: get_extent: 16 obtained
+device-mapper: green: green_map: virtual 16 -> physical 16
+BUG: sleeping function called from invalid context at mm/slab.c:3103
+in_atomic(): 0, irqs_disabled(): 1, pid: 2096, name: dd
+Pid: 2096, comm: dd Not tainted 3.0.0-rc3 #1
+Call Trace:
+ [<c043b6bc>] __might_sleep+0xdc/0x110
+ [<c0510fa1>] kmem_cache_alloc_trace+0xe1/0x120
+ [<f7faed91>] green_map+0x181/0x350 [dm_green]
+ [<f7fb7413>] __map_bio+0x33/0x110 [dm_mod]
+ [<f7fb76df>] ? clone_bio+0x3f/0xe0 [dm_mod]
+ [<f7fb788a>] __clone_and_map+0x10a/0x5b0 [dm_mod]
+ [<c04dbcce>] ? mempool_alloc_slab+0xe/0x10
+ [<c04dbe13>] ? mempool_alloc+0x43/0x100
+ [<f7fb8f57>] __split_and_process_bio+0x167/0x180 [dm_mod]
+ [<c05cae16>] ? cfq_bio_merged+0x26/0x30
+ [<f7fb9028>] _dm_request+0xb8/0x100 [dm_mod]
+ [<f7fb908d>] dm_request+0x1d/0x30 [dm_mod]
+ [<c05b92af>] generic_make_request+0x45f/0x6b0
+ [<c04dbcce>] ? mempool_alloc_slab+0xe/0x10
+ [<c05b956a>] submit_bio+0x6a/0x100
+ [<c0546e4b>] ? bio_alloc_bioset+0x3b/0xb0
+ [<c0541ac3>] submit_bh+0xe3/0x130
+ [<c05437cb>] __block_write_full_page+0x23b/0x3a0
+ [<c0547560>] ? blkdev_get_blocks+0x170/0x170
+ [<c0543000>] ? lock_buffer+0x40/0x40
+ [<c054420a>] block_write_full_page_endio+0xfa/0x120
+ [<c0543000>] ? lock_buffer+0x40/0x40
+ [<c0547560>] ? blkdev_get_blocks+0x170/0x170
+ [<c0544242>] block_write_full_page+0x12/0x20
+ [<c0543000>] ? lock_buffer+0x40/0x40
+ [<c054828f>] blkdev_writepage+0xf/0x20
+ [<c04e0d1b>] __writepage+0xb/0x30
+ [<c04e1d75>] write_cache_pages+0x165/0x3a0
+ [<c04e0d10>] ? set_page_dirty+0x60/0x60
+ [<c04e1fe9>] generic_writepages+0x39/0x60
+ [<c04e2027>] do_writepages+0x17/0x30
+ [<c04da099>] __filemap_fdatawrite_range+0x59/0x70
+ [<c04da3d6>] filemap_fdatawrite+0x26/0x30
+ [<c04da40d>] filemap_write_and_wait+0x2d/0x50
+ [<c054851d>] __sync_blockdev+0x1d/0x30
+ [<c054853d>] sync_blockdev+0xd/0x10
+ [<c0548588>] __blkdev_put+0x48/0x160
+ [<c05486c4>] blkdev_put+0x24/0x110
+ [<c05487c8>] blkdev_close+0x18/0x20
+ [<c051dbe3>] __fput+0xa3/0x200
+ [<c051dd55>] fput+0x15/0x20
+ [<c051a39d>] filp_close+0x4d/0x80
+ [<c051a427>] sys_close+0x57/0xa0
+ [<c07c801f>] sysenter_do_call+0x12/0x28
+device-mapper: green: queue_migration: Migration of extent 16 queued
+device-mapper: green: migration_work: Migration work called
+device-mapper: green: migrate_extent: Migrating extent (16, 16)
+device-mapper: green: lru_extent: Cursor at 0
+device-mapper: green: lru_extent: Extent 0 accessed
+device-mapper: green: lru_extent: Cursor at 1
+device-mapper: green: lru_extent: Extent 1 accessed
+device-mapper: green: lru_extent: Cursor at 2
+device-mapper: green: lru_extent: Extent 2 accessed
+device-mapper: green: lru_extent: Cursor at 3
+device-mapper: green: lru_extent: Extent 3 accessed
+device-mapper: green: lru_extent: Cursor at 4
+device-mapper: green: lru_extent: Extent 4 accessed
+device-mapper: green: lru_extent: Cursor at 5
+device-mapper: green: lru_extent: Extent 5 accessed
+device-mapper: green: lru_extent: Cursor at 6
+device-mapper: green: lru_extent: Extent 6 accessed
+device-mapper: green: lru_extent: Cursor at 7
+device-mapper: green: lru_extent: Extent 7 accessed
+device-mapper: green: lru_extent: Cursor at 8
+device-mapper: green: lru_extent: Extent 8 accessed
+device-mapper: green: lru_extent: Cursor at 9
+device-mapper: green: lru_extent: Extent 9 accessed
+device-mapper: green: lru_extent: Cursor at 10
+device-mapper: green: lru_extent: Extent 10 accessed
+device-mapper: green: lru_extent: Cursor at 11
+device-mapper: green: lru_extent: Extent 11 accessed
+device-mapper: green: lru_extent: Cursor at 12
+device-mapper: green: lru_extent: Extent 12 accessed
+device-mapper: green: lru_extent: Cursor at 13
+device-mapper: green: lru_extent: Extent 13 accessed
+device-mapper: green: lru_extent: Cursor at 14
+device-mapper: green: lru_extent: Extent 14 accessed
+device-mapper: green: lru_extent: Cursor at 15
+device-mapper: green: lru_extent: Extent 15 accessed
+device-mapper: green: lru_extent: Cursor at 0
+device-mapper: green: swap_extent: Swapping 0 and 16
+device-mapper: green: green_map: 881845: map(sector 264 -> extent 16)
+device-mapper: green: green_map: Extent 16 is under migration
+device-mapper: green: swap_extent: Loading extent 0
+device-mapper: green: swap_extent: Loading extent 16
+device-mapper: green: swap_extent: Writing 0 to 16
+device-mapper: green: swap_extent: Writing 16 to 0
+device-mapper: green: migrate_extent: 0 and 16 swapped
+device-mapper: green: green_dtr: green_dtr
+device-mapper: green: dump_metadata: 0 -> 16 (16)
+device-mapper: green: dump_metadata: 1 -> 2 (2)
+device-mapper: green: dump_metadata: 2 -> 4 (4)
+device-mapper: green: dump_metadata: 3 -> 5 (5)
+device-mapper: green: dump_metadata: 4 -> 1 (1)
+device-mapper: green: dump_metadata: 5 -> 6 (6)
+device-mapper: green: dump_metadata: 6 -> 7 (7)
+device-mapper: green: dump_metadata: 7 -> 8 (8)
+device-mapper: green: dump_metadata: 8 -> 3 (3)
+device-mapper: green: dump_metadata: 9 -> 9 (9)
+device-mapper: green: dump_metadata: 10 -> 10 (10)
+device-mapper: green: dump_metadata: 11 -> 11 (11)
+device-mapper: green: dump_metadata: 12 -> 12 (12)
+device-mapper: green: dump_metadata: 13 -> 13 (13)
+device-mapper: green: dump_metadata: 14 -> 14 (14)
+device-mapper: green: dump_metadata: 15 -> 15 (15)
+device-mapper: green: dump_metadata: 16 -> 0 (0)
+workqueue: max_active -134104800 requested for (null) is out of range, clamping between 1 and 512
+device-mapper: green: green_init: Green initialized
+device-mapper: green: green_ctr: argc is 6
+device-mapper: green: green_ctr: Extent size: 16;  extent shift: 4
+device-mapper: green: check_header: Metadata header dismatch
+device-mapper: green: green_ctr: No useable metadata on disk
+device-mapper: green: alloc_table: Table created
+device-mapper: green: build_bitmap: Free extent on disk 0: 16
+device-mapper: green: build_bitmap: Free extent on disk 1: 16
+device-mapper: green: green_map: 1181892: map(sector 0 -> extent 0)
+device-mapper: green: get_from_cache: Get 0 (15 extents left)
+device-mapper: green: green_map: virtual 0 -> physical 0
+device-mapper: green: green_map: 1181896: map(sector 64 -> extent 4)
+device-mapper: green: get_from_cache: Get 1 (14 extents left)
+device-mapper: green: green_map: virtual 4 -> physical 1
+device-mapper: green: green_map: 1181897: map(sector 16 -> extent 1)
+device-mapper: green: get_from_cache: Get 2 (13 extents left)
+device-mapper: green: green_map: virtual 1 -> physical 2
+device-mapper: green: green_map: 1181898: map(sector 128 -> extent 8)
+device-mapper: green: get_from_cache: Get 3 (12 extents left)
+device-mapper: green: green_map: virtual 8 -> physical 3
+device-mapper: green: green_map: 1181900: map(sector 24 -> extent 1)
+device-mapper: green: green_map: virtual 1 -> physical 2
+device-mapper: green: green_map: 1181901: map(sector 32 -> extent 2)
+device-mapper: green: get_from_cache: Get 4 (11 extents left)
+device-mapper: green: green_map: virtual 2 -> physical 4
+device-mapper: green: green_map: 1181903: map(sector 8 -> extent 0)
+device-mapper: green: green_map: virtual 0 -> physical 0
+device-mapper: green: green_map: 1186044: map(sector 0 -> extent 0)
+device-mapper: green: green_map: virtual 0 -> physical 0
+device-mapper: green: green_map: 1186046: map(sector 8 -> extent 0)
+device-mapper: green: green_map: virtual 0 -> physical 0
+device-mapper: green: green_map: 1186049: map(sector 16 -> extent 1)
+device-mapper: green: green_map: virtual 1 -> physical 2
+device-mapper: green: green_map: 1186051: map(sector 24 -> extent 1)
+device-mapper: green: green_map: virtual 1 -> physical 2
+device-mapper: green: green_map: 1186053: map(sector 32 -> extent 2)
+device-mapper: green: green_map: virtual 2 -> physical 4
+device-mapper: green: green_map: 1186055: map(sector 40 -> extent 2)
+device-mapper: green: green_map: virtual 2 -> physical 4
+device-mapper: green: green_map: 1186057: map(sector 48 -> extent 3)
+device-mapper: green: get_from_cache: Get 5 (10 extents left)
+device-mapper: green: green_map: virtual 3 -> physical 5
+device-mapper: green: green_map: 1186061: map(sector 56 -> extent 3)
+device-mapper: green: green_map: virtual 3 -> physical 5
+device-mapper: green: green_map: 1186063: map(sector 64 -> extent 4)
+device-mapper: green: green_map: virtual 4 -> physical 1
+device-mapper: green: green_map: 1186064: map(sector 72 -> extent 4)
+device-mapper: green: green_map: virtual 4 -> physical 1
+device-mapper: green: green_map: 1186065: map(sector 80 -> extent 5)
+device-mapper: green: get_from_cache: Get 6 (9 extents left)
+device-mapper: green: green_map: virtual 5 -> physical 6
+device-mapper: green: green_map: 1186067: map(sector 88 -> extent 5)
+device-mapper: green: green_map: virtual 5 -> physical 6
+device-mapper: green: green_map: 1186068: map(sector 96 -> extent 6)
+device-mapper: green: get_from_cache: Get 7 (8 extents left)
+device-mapper: green: green_map: virtual 6 -> physical 7
+device-mapper: green: green_map: 1186070: map(sector 104 -> extent 6)
+device-mapper: green: green_map: virtual 6 -> physical 7
+device-mapper: green: green_map: 1186071: map(sector 112 -> extent 7)
+device-mapper: green: get_from_cache: Get 8 (7 extents left)
+device-mapper: green: green_map: virtual 7 -> physical 8
+device-mapper: green: green_map: 1186072: map(sector 120 -> extent 7)
+device-mapper: green: green_map: virtual 7 -> physical 8
+device-mapper: green: green_map: 1186074: map(sector 128 -> extent 8)
+device-mapper: green: green_map: virtual 8 -> physical 3
+device-mapper: green: green_map: 1186075: map(sector 136 -> extent 8)
+device-mapper: green: green_map: virtual 8 -> physical 3
+device-mapper: green: green_map: 1186076: map(sector 144 -> extent 9)
+device-mapper: green: get_from_cache: Get 9 (6 extents left)
+device-mapper: green: green_map: virtual 9 -> physical 9
+device-mapper: green: green_map: 1186077: map(sector 152 -> extent 9)
+device-mapper: green: green_map: virtual 9 -> physical 9
+device-mapper: green: green_map: 1186078: map(sector 160 -> extent 10)
+device-mapper: green: get_from_cache: Get 10 (5 extents left)
+device-mapper: green: green_map: virtual 10 -> physical 10
+device-mapper: green: green_map: 1186081: map(sector 168 -> extent 10)
+device-mapper: green: green_map: virtual 10 -> physical 10
+device-mapper: green: green_map: 1186081: map(sector 176 -> extent 11)
+device-mapper: green: get_from_cache: Get 11 (4 extents left)
+device-mapper: green: green_map: virtual 11 -> physical 11
+device-mapper: green: green_map: 1186083: map(sector 184 -> extent 11)
+device-mapper: green: green_map: virtual 11 -> physical 11
+device-mapper: green: green_map: 1186084: map(sector 192 -> extent 12)
+device-mapper: green: get_from_cache: Get 12 (3 extents left)
+device-mapper: green: green_map: virtual 12 -> physical 12
+device-mapper: green: green_map: 1186086: map(sector 200 -> extent 12)
+device-mapper: green: green_map: virtual 12 -> physical 12
+device-mapper: green: green_map: 1186086: map(sector 208 -> extent 13)
+device-mapper: green: get_from_cache: Get 13 (2 extents left)
+device-mapper: green: green_map: virtual 13 -> physical 13
+device-mapper: green: green_map: 1186088: map(sector 216 -> extent 13)
+device-mapper: green: green_map: virtual 13 -> physical 13
+device-mapper: green: green_map: 1186089: map(sector 224 -> extent 14)
+device-mapper: green: get_from_cache: Get 14 (1 extents left)
+device-mapper: green: green_map: virtual 14 -> physical 14
+device-mapper: green: green_map: 1186091: map(sector 232 -> extent 14)
+device-mapper: green: green_map: virtual 14 -> physical 14
+device-mapper: green: green_map: 1186091: map(sector 240 -> extent 15)
+device-mapper: green: get_from_cache: Get 15 (0 extents left)
+device-mapper: green: green_map: virtual 15 -> physical 15
+device-mapper: green: green_map: 1186093: map(sector 248 -> extent 15)
+device-mapper: green: green_map: virtual 15 -> physical 15
+device-mapper: green: green_map: 1206540: map(sector 0 -> extent 0)
+device-mapper: green: green_map: virtual 0 -> physical 0
+device-mapper: green: green_map: 1206543: map(sector 8 -> extent 0)
+device-mapper: green: green_map: virtual 0 -> physical 0
+device-mapper: green: green_map: 1206547: map(sector 16 -> extent 1)
+device-mapper: green: green_map: virtual 1 -> physical 2
+device-mapper: green: green_map: 1206549: map(sector 24 -> extent 1)
+device-mapper: green: green_map: virtual 1 -> physical 2
+device-mapper: green: green_map: 1206552: map(sector 32 -> extent 2)
+device-mapper: green: green_map: virtual 2 -> physical 4
+device-mapper: green: green_map: 1206553: map(sector 40 -> extent 2)
+device-mapper: green: green_map: virtual 2 -> physical 4
+device-mapper: green: green_map: 1206556: map(sector 48 -> extent 3)
+device-mapper: green: green_map: virtual 3 -> physical 5
+device-mapper: green: green_map: 1206557: map(sector 56 -> extent 3)
+device-mapper: green: green_map: virtual 3 -> physical 5
+device-mapper: green: green_map: 1206558: map(sector 64 -> extent 4)
+device-mapper: green: green_map: virtual 4 -> physical 1
+device-mapper: green: green_map: 1206560: map(sector 72 -> extent 4)
+device-mapper: green: green_map: virtual 4 -> physical 1
+device-mapper: green: green_map: 1206560: map(sector 80 -> extent 5)
+device-mapper: green: green_map: virtual 5 -> physical 6
+device-mapper: green: green_map: 1206561: map(sector 88 -> extent 5)
+device-mapper: green: green_map: virtual 5 -> physical 6
+device-mapper: green: green_map: 1206562: map(sector 96 -> extent 6)
+device-mapper: green: green_map: virtual 6 -> physical 7
+device-mapper: green: green_map: 1206563: map(sector 104 -> extent 6)
+device-mapper: green: green_map: virtual 6 -> physical 7
+device-mapper: green: green_map: 1206565: map(sector 112 -> extent 7)
+device-mapper: green: green_map: virtual 7 -> physical 8
+device-mapper: green: green_map: 1206565: map(sector 120 -> extent 7)
+device-mapper: green: green_map: virtual 7 -> physical 8
+device-mapper: green: green_map: 1206566: map(sector 128 -> extent 8)
+device-mapper: green: green_map: virtual 8 -> physical 3
+device-mapper: green: green_map: 1206567: map(sector 136 -> extent 8)
+device-mapper: green: green_map: virtual 8 -> physical 3
+device-mapper: green: green_map: 1206568: map(sector 144 -> extent 9)
+device-mapper: green: green_map: virtual 9 -> physical 9
+device-mapper: green: green_map: 1206569: map(sector 152 -> extent 9)
+device-mapper: green: green_map: virtual 9 -> physical 9
+device-mapper: green: green_map: 1206571: map(sector 160 -> extent 10)
+device-mapper: green: green_map: virtual 10 -> physical 10
+device-mapper: green: green_map: 1206571: map(sector 168 -> extent 10)
+device-mapper: green: green_map: virtual 10 -> physical 10
+device-mapper: green: green_map: 1206573: map(sector 176 -> extent 11)
+device-mapper: green: green_map: virtual 11 -> physical 11
+device-mapper: green: green_map: 1206574: map(sector 184 -> extent 11)
+device-mapper: green: green_map: virtual 11 -> physical 11
+device-mapper: green: green_map: 1206575: map(sector 192 -> extent 12)
+device-mapper: green: green_map: virtual 12 -> physical 12
+device-mapper: green: green_map: 1206575: map(sector 200 -> extent 12)
+device-mapper: green: green_map: virtual 12 -> physical 12
+device-mapper: green: green_map: 1206576: map(sector 208 -> extent 13)
+device-mapper: green: green_map: virtual 13 -> physical 13
+device-mapper: green: green_map: 1206578: map(sector 216 -> extent 13)
+device-mapper: green: green_map: virtual 13 -> physical 13
+device-mapper: green: green_map: 1206579: map(sector 224 -> extent 14)
+device-mapper: green: green_map: virtual 14 -> physical 14
+device-mapper: green: green_map: 1206580: map(sector 232 -> extent 14)
+device-mapper: green: green_map: virtual 14 -> physical 14
+device-mapper: green: green_map: 1206580: map(sector 240 -> extent 15)
+device-mapper: green: green_map: virtual 15 -> physical 15
+device-mapper: green: green_map: 1206581: map(sector 248 -> extent 15)
+device-mapper: green: green_map: virtual 15 -> physical 15
+device-mapper: green: green_map: 1206583: map(sector 256 -> extent 16)
+device-mapper: green: get_extent: 16 obtained
+device-mapper: green: green_map: virtual 16 -> physical 16
+device-mapper: green: queue_migration: Migration of extent 16 queued
+device-mapper: green: migration_work: Migration work called
+device-mapper: green: migrate_extent: Migrating extent (16, 16)
+device-mapper: green: lru_extent: Cursor at 0
+device-mapper: green: lru_extent: Extent 0 accessed
+device-mapper: green: lru_extent: Cursor at 1
+device-mapper: green: lru_extent: Extent 1 accessed
+device-mapper: green: lru_extent: Cursor at 2
+device-mapper: green: lru_extent: Extent 2 accessed
+device-mapper: green: lru_extent: Cursor at 3
+device-mapper: green: lru_extent: Extent 3 accessed
+device-mapper: green: lru_extent: Cursor at 4
+device-mapper: green: lru_extent: Extent 4 accessed
+device-mapper: green: lru_extent: Cursor at 5
+device-mapper: green: lru_extent: Extent 5 accessed
+device-mapper: green: lru_extent: Cursor at 6
+device-mapper: green: lru_extent: Extent 6 accessed
+device-mapper: green: lru_extent: Cursor at 7
+device-mapper: green: lru_extent: Extent 7 accessed
+device-mapper: green: lru_extent: Cursor at 8
+device-mapper: green: lru_extent: Extent 8 accessed
+device-mapper: green: lru_extent: Cursor at 9
+device-mapper: green: lru_extent: Extent 9 accessed
+device-mapper: green: lru_extent: Cursor at 10
+device-mapper: green: lru_extent: Extent 10 accessed
+device-mapper: green: lru_extent: Cursor at 11
+device-mapper: green: lru_extent: Extent 11 accessed
+device-mapper: green: lru_extent: Cursor at 12
+device-mapper: green: lru_extent: Extent 12 accessed
+device-mapper: green: lru_extent: Cursor at 13
+device-mapper: green: lru_extent: Extent 13 accessed
+device-mapper: green: lru_extent: Cursor at 14
+device-mapper: green: lru_extent: Extent 14 accessed
+device-mapper: green: lru_extent: Cursor at 15
+device-mapper: green: lru_extent: Extent 15 accessed
+device-mapper: green: lru_extent: Cursor at 0
+device-mapper: green: swap_extent: Swapping 0 and 16
+device-mapper: green: green_map: 1206599: map(sector 264 -> extent 16)
+device-mapper: green: green_map: Extent 16 is under migration
+device-mapper: green: swap_extent: Loading extent 0
+device-mapper: green: swap_extent: Loading extent 16
+device-mapper: green: swap_extent: Writing 0 to 16
+device-mapper: green: swap_extent: Writing 16 to 0
+device-mapper: green: migrate_extent: 0 and 16 swapped
+device-mapper: green: green_map: 1231566: map(sector 240 -> extent 15)
+device-mapper: green: green_map: virtual 15 -> physical 15
+device-mapper: green: green_map: 1231569: map(sector 248 -> extent 15)
+device-mapper: green: green_map: virtual 15 -> physical 15
+device-mapper: green: green_map: 1231572: map(sector 256 -> extent 16)
+device-mapper: green: green_map: virtual 16 -> physical 0
+device-mapper: green: green_map: 1231574: map(sector 264 -> extent 16)
+device-mapper: green: green_map: virtual 16 -> physical 0
+device-mapper: green: green_map: 1231576: map(sector 272 -> extent 17)
+device-mapper: green: get_extent: 17 obtained
+device-mapper: green: green_map: virtual 17 -> physical 17
+device-mapper: green: queue_migration: Migration of extent 17 queued
+device-mapper: green: migration_work: Migration work called
+device-mapper: green: migrate_extent: Migrating extent (17, 17)
+device-mapper: green: lru_extent: Cursor at 1
+device-mapper: green: swap_extent: Swapping 1 and 17
+device-mapper: green: swap_extent: Loading extent 1
+device-mapper: green: swap_extent: Loading extent 17
+device-mapper: green: green_map: 1231583: map(sector 280 -> extent 17)
+device-mapper: green: green_map: Extent 17 is under migration
+device-mapper: green: green_map: 1231586: map(sector 288 -> extent 18)
+device-mapper: green: get_extent: 18 obtained
+device-mapper: green: green_map: virtual 18 -> physical 18
+device-mapper: green: queue_migration: Migration of extent 18 queued
+device-mapper: green: green_map: 1231589: map(sector 296 -> extent 18)
+device-mapper: green: green_map: virtual 18 -> physical 18
+device-mapper: green: queue_migration: Migration of extent 18 queued
+device-mapper: green: green_map: 1231592: map(sector 304 -> extent 19)
+device-mapper: green: get_extent: 19 obtained
+device-mapper: green: green_map: virtual 19 -> physical 19
+device-mapper: green: queue_migration: Migration of extent 19 queued
+device-mapper: green: green_map: 1231597: map(sector 312 -> extent 19)
+device-mapper: green: green_map: virtual 19 -> physical 19
+device-mapper: green: queue_migration: Migration of extent 19 queued
+device-mapper: green: swap_extent: Writing 1 to 17
+device-mapper: green: swap_extent: Writing 17 to 1
+device-mapper: green: migrate_extent: 1 and 17 swapped
+device-mapper: green: migration_work: Migration work called
+device-mapper: green: migrate_extent: Migrating extent (18, 18)
+device-mapper: green: lru_extent: Cursor at 2
+device-mapper: green: swap_extent: Swapping 2 and 18
+device-mapper: green: swap_extent: Loading extent 2
+device-mapper: green: swap_extent: Loading extent 18
+device-mapper: green: green_map: 1231605: map(sector 320 -> extent 20)
+device-mapper: green: get_extent: 20 obtained
+device-mapper: green: green_map: virtual 20 -> physical 20
+device-mapper: green: queue_migration: Migration of extent 20 queued
+device-mapper: green: swap_extent: Writing 2 to 18
+device-mapper: green: swap_extent: Writing 18 to 2
+device-mapper: green: migrate_extent: 2 and 18 swapped
+device-mapper: green: migration_work: Migration work called
+device-mapper: green: migrate_extent: Migrating extent (18, 18)
+device-mapper: green: lru_extent: Cursor at 3
+device-mapper: green: swap_extent: Swapping 3 and 18
+device-mapper: green: swap_extent: Loading extent 3
+device-mapper: green: swap_extent: Loading extent 18
+device-mapper: green: swap_extent: Writing 3 to 18
+device-mapper: green: swap_extent: Writing 18 to 3
+device-mapper: green: green_map: 1231611: map(sector 328 -> extent 20)
+device-mapper: green: green_map: virtual 20 -> physical 20
+device-mapper: green: queue_migration: Migration of extent 20 queued
+device-mapper: green: migrate_extent: 3 and 18 swapped
+device-mapper: green: migration_work: Migration work called
+device-mapper: green: migrate_extent: Migrating extent (19, 19)
+device-mapper: green: lru_extent: Cursor at 4
+device-mapper: green: swap_extent: Swapping 4 and 19
+device-mapper: green: swap_extent: Loading extent 4
+device-mapper: green: swap_extent: Loading extent 19
+device-mapper: green: green_map: 1231615: map(sector 336 -> extent 21)
+device-mapper: green: get_extent: 21 obtained
+device-mapper: green: green_map: virtual 21 -> physical 21
+device-mapper: green: queue_migration: Migration of extent 21 queued
+device-mapper: green: swap_extent: Writing 4 to 19
+device-mapper: green: swap_extent: Writing 19 to 4
+device-mapper: green: migrate_extent: 4 and 19 swapped
+device-mapper: green: migration_work: Migration work called
+device-mapper: green: migrate_extent: Migrating extent (19, 19)
+device-mapper: green: lru_extent: Cursor at 5
+device-mapper: green: swap_extent: Swapping 5 and 19
+device-mapper: green: green_map: 1231619: map(sector 344 -> extent 21)
+device-mapper: green: green_map: virtual 21 -> physical 21
+device-mapper: green: queue_migration: Migration of extent 21 queued
+device-mapper: green: green_map: 1231620: map(sector 352 -> extent 22)
+device-mapper: green: get_extent: 22 obtained
+device-mapper: green: green_map: virtual 22 -> physical 22
+device-mapper: green: queue_migration: Migration of extent 22 queued
+device-mapper: green: swap_extent: Loading extent 5
+device-mapper: green: swap_extent: Loading extent 19
+device-mapper: green: swap_extent: Writing 5 to 19
+device-mapper: green: swap_extent: Writing 19 to 5
+device-mapper: green: migrate_extent: 5 and 19 swapped
+device-mapper: green: migration_work: Migration work called
+device-mapper: green: migrate_extent: Migrating extent (20, 20)
+device-mapper: green: lru_extent: Cursor at 6
+device-mapper: green: swap_extent: Swapping 6 and 20
+device-mapper: green: swap_extent: Loading extent 6
+device-mapper: green: swap_extent: Loading extent 20
+device-mapper: green: green_map: 1231625: map(sector 360 -> extent 22)
+device-mapper: green: green_map: virtual 22 -> physical 22
+device-mapper: green: queue_migration: Migration of extent 22 queued
+device-mapper: green: swap_extent: Writing 6 to 20
+device-mapper: green: swap_extent: Writing 20 to 6
+device-mapper: green: migrate_extent: 6 and 20 swapped
+device-mapper: green: migration_work: Migration work called
+device-mapper: green: migrate_extent: Migrating extent (20, 20)
+device-mapper: green: lru_extent: Cursor at 7
+device-mapper: green: swap_extent: Swapping 7 and 20
+device-mapper: green: swap_extent: Loading extent 7
+device-mapper: green: swap_extent: Loading extent 20
+device-mapper: green: swap_extent: Writing 7 to 20
+device-mapper: green: swap_extent: Writing 20 to 7
+device-mapper: green: migrate_extent: 7 and 20 swapped
+device-mapper: green: green_map: 1231630: map(sector 368 -> extent 23)
+device-mapper: green: get_extent: 23 obtained
+device-mapper: green: green_map: virtual 23 -> physical 23
+device-mapper: green: queue_migration: Migration of extent 23 queued
+device-mapper: green: migration_work: Migration work called
+device-mapper: green: migrate_extent: Migrating extent (21, 21)
+device-mapper: green: lru_extent: Cursor at 8
+device-mapper: green: swap_extent: Swapping 8 and 21
+device-mapper: green: swap_extent: Loading extent 8
+device-mapper: green: swap_extent: Loading extent 21
+device-mapper: green: green_map: 1231634: map(sector 376 -> extent 23)
+device-mapper: green: green_map: virtual 23 -> physical 23
+device-mapper: green: queue_migration: Migration of extent 23 queued
+device-mapper: green: green_map: 1231635: map(sector 384 -> extent 24)
+device-mapper: green: get_extent: 24 obtained
+device-mapper: green: green_map: virtual 24 -> physical 24
+device-mapper: green: queue_migration: Migration of extent 24 queued
+device-mapper: green: swap_extent: Writing 8 to 21
+device-mapper: green: swap_extent: Writing 21 to 8
+device-mapper: green: migrate_extent: 8 and 21 swapped
+device-mapper: green: migration_work: Migration work called
+device-mapper: green: migrate_extent: Migrating extent (21, 21)
+device-mapper: green: lru_extent: Cursor at 9
+device-mapper: green: swap_extent: Swapping 9 and 21
+device-mapper: green: green_map: 1231640: map(sector 392 -> extent 24)
+device-mapper: green: green_map: virtual 24 -> physical 24
+device-mapper: green: queue_migration: Migration of extent 24 queued
+device-mapper: green: swap_extent: Loading extent 9
+device-mapper: green: swap_extent: Loading extent 21
+device-mapper: green: swap_extent: Writing 9 to 21
+device-mapper: green: swap_extent: Writing 21 to 9
+device-mapper: green: migrate_extent: 9 and 21 swapped
+device-mapper: green: migration_work: Migration work called
+device-mapper: green: migrate_extent: Migrating extent (22, 22)
+device-mapper: green: lru_extent: Cursor at 10
+device-mapper: green: swap_extent: Swapping 10 and 22
+device-mapper: green: swap_extent: Loading extent 10
+device-mapper: green: swap_extent: Loading extent 22
+device-mapper: green: green_map: 1231643: map(sector 400 -> extent 25)
+device-mapper: green: get_extent: 25 obtained
+device-mapper: green: green_map: virtual 25 -> physical 25
+device-mapper: green: queue_migration: Migration of extent 25 queued
+device-mapper: green: swap_extent: Writing 10 to 22
+device-mapper: green: swap_extent: Writing 22 to 10
+device-mapper: green: migrate_extent: 10 and 22 swapped
+device-mapper: green: migration_work: Migration work called
+device-mapper: green: migrate_extent: Migrating extent (22, 22)
+device-mapper: green: lru_extent: Cursor at 11
+device-mapper: green: swap_extent: Swapping 11 and 22
+device-mapper: green: green_map: 1231647: map(sector 408 -> extent 25)
+device-mapper: green: green_map: virtual 25 -> physical 25
+device-mapper: green: queue_migration: Migration of extent 25 queued
+device-mapper: green: swap_extent: Loading extent 11
+device-mapper: green: swap_extent: Loading extent 22
+device-mapper: green: swap_extent: Writing 11 to 22
+device-mapper: green: swap_extent: Writing 22 to 11
+device-mapper: green: migrate_extent: 11 and 22 swapped
+device-mapper: green: migration_work: Migration work called
+device-mapper: green: migrate_extent: Migrating extent (23, 23)
+device-mapper: green: lru_extent: Cursor at 12
+device-mapper: green: swap_extent: Swapping 12 and 23
+device-mapper: green: green_map: 1231651: map(sector 416 -> extent 26)
+device-mapper: green: get_extent: 26 obtained
+device-mapper: green: green_map: virtual 26 -> physical 26
+device-mapper: green: queue_migration: Migration of extent 26 queued
+device-mapper: green: swap_extent: Loading extent 12
+device-mapper: green: swap_extent: Loading extent 23
+device-mapper: green: green_map: 1231654: map(sector 424 -> extent 26)
+device-mapper: green: green_map: virtual 26 -> physical 26
+device-mapper: green: queue_migration: Migration of extent 26 queued
+device-mapper: green: swap_extent: Writing 12 to 23
+device-mapper: green: swap_extent: Writing 23 to 12
+device-mapper: green: migrate_extent: 12 and 23 swapped
+device-mapper: green: migration_work: Migration work called
+device-mapper: green: migrate_extent: Migrating extent (23, 23)
+device-mapper: green: lru_extent: Cursor at 13
+device-mapper: green: swap_extent: Swapping 13 and 23
+device-mapper: green: swap_extent: Loading extent 13
+device-mapper: green: swap_extent: Loading extent 23
+device-mapper: green: swap_extent: Writing 13 to 23
+device-mapper: green: swap_extent: Writing 23 to 13
+device-mapper: green: migrate_extent: 13 and 23 swapped
+device-mapper: green: green_map: 1231658: map(sector 432 -> extent 27)
+device-mapper: green: get_extent: 27 obtained
+device-mapper: green: green_map: virtual 27 -> physical 27
+device-mapper: green: queue_migration: Migration of extent 27 queued
+device-mapper: green: migration_work: Migration work called
+device-mapper: green: migrate_extent: Migrating extent (24, 24)
+device-mapper: green: lru_extent: Cursor at 14
+device-mapper: green: swap_extent: Swapping 14 and 24
+device-mapper: green: swap_extent: Loading extent 14
+device-mapper: green: swap_extent: Loading extent 24
+device-mapper: green: green_map: 1231661: map(sector 440 -> extent 27)
+device-mapper: green: green_map: virtual 27 -> physical 27
+device-mapper: green: queue_migration: Migration of extent 27 queued
+device-mapper: green: swap_extent: Writing 14 to 24
+device-mapper: green: swap_extent: Writing 24 to 14
+device-mapper: green: migrate_extent: 14 and 24 swapped
+device-mapper: green: migration_work: Migration work called
+device-mapper: green: migrate_extent: Migrating extent (24, 24)
+device-mapper: green: lru_extent: Cursor at 15
+device-mapper: green: lru_extent: Extent 15 accessed
+device-mapper: green: lru_extent: Cursor at 0
+device-mapper: green: lru_extent: Extent 0 accessed
+device-mapper: green: lru_extent: Cursor at 1
+device-mapper: green: lru_extent: Extent 1 accessed
+device-mapper: green: lru_extent: Cursor at 2
+device-mapper: green: swap_extent: Swapping 2 and 24
+device-mapper: green: green_map: 1231667: map(sector 448 -> extent 28)
+device-mapper: green: get_extent: 28 obtained
+device-mapper: green: green_map: virtual 28 -> physical 28
+device-mapper: green: queue_migration: Migration of extent 28 queued
+device-mapper: green: swap_extent: Loading extent 2
+device-mapper: green: swap_extent: Loading extent 24
+device-mapper: green: swap_extent: Writing 2 to 24
+device-mapper: green: swap_extent: Writing 24 to 2
+device-mapper: green: migrate_extent: 2 and 24 swapped
+device-mapper: green: migration_work: Migration work called
+device-mapper: green: migrate_extent: Migrating extent (25, 25)
+device-mapper: green: lru_extent: Cursor at 3
+device-mapper: green: lru_extent: Extent 3 accessed
+device-mapper: green: lru_extent: Cursor at 4
+device-mapper: green: swap_extent: Swapping 4 and 25
+device-mapper: green: green_map: 1231673: map(sector 456 -> extent 28)
+device-mapper: green: green_map: virtual 28 -> physical 28
+device-mapper: green: queue_migration: Migration of extent 28 queued
+device-mapper: green: swap_extent: Loading extent 4
+device-mapper: green: swap_extent: Loading extent 25
+device-mapper: green: green_map: 1231674: map(sector 464 -> extent 29)
+device-mapper: green: get_extent: 29 obtained
+device-mapper: green: green_map: virtual 29 -> physical 29
+device-mapper: green: queue_migration: Migration of extent 29 queued
+device-mapper: green: swap_extent: Writing 4 to 25
+device-mapper: green: swap_extent: Writing 25 to 4
+device-mapper: green: migrate_extent: 4 and 25 swapped
+device-mapper: green: migration_work: Migration work called
+device-mapper: green: migrate_extent: Migrating extent (25, 25)
+device-mapper: green: lru_extent: Cursor at 5
+device-mapper: green: lru_extent: Extent 5 accessed
+device-mapper: green: lru_extent: Cursor at 6
+device-mapper: green: swap_extent: Swapping 6 and 25
+device-mapper: green: swap_extent: Loading extent 6
+device-mapper: green: swap_extent: Loading extent 25
+device-mapper: green: green_map: 1231679: map(sector 472 -> extent 29)
+device-mapper: green: green_map: virtual 29 -> physical 29
+device-mapper: green: queue_migration: Migration of extent 29 queued
+device-mapper: green: green_map: 1231681: map(sector 480 -> extent 30)
+device-mapper: green: get_extent: 30 obtained
+device-mapper: green: green_map: virtual 30 -> physical 30
+device-mapper: green: queue_migration: Migration of extent 30 queued
+device-mapper: green: swap_extent: Writing 6 to 25
+device-mapper: green: swap_extent: Writing 25 to 6
+device-mapper: green: migrate_extent: 6 and 25 swapped
+device-mapper: green: migration_work: Migration work called
+device-mapper: green: migrate_extent: Migrating extent (26, 26)
+device-mapper: green: lru_extent: Cursor at 7
+device-mapper: green: lru_extent: Extent 7 accessed
+device-mapper: green: lru_extent: Cursor at 8
+device-mapper: green: swap_extent: Swapping 8 and 26
+device-mapper: green: swap_extent: Loading extent 8
+device-mapper: green: swap_extent: Loading extent 26
+device-mapper: green: green_map: 1231686: map(sector 488 -> extent 30)
+device-mapper: green: green_map: virtual 30 -> physical 30
+device-mapper: green: queue_migration: Migration of extent 30 queued
+device-mapper: green: swap_extent: Writing 8 to 26
+device-mapper: green: swap_extent: Writing 26 to 8
+device-mapper: green: migrate_extent: 8 and 26 swapped
+device-mapper: green: migration_work: Migration work called
+device-mapper: green: migrate_extent: Migrating extent (26, 26)
+device-mapper: green: lru_extent: Cursor at 9
+device-mapper: green: lru_extent: Extent 9 accessed
+device-mapper: green: lru_extent: Cursor at 10
+device-mapper: green: swap_extent: Swapping 10 and 26
+device-mapper: green: green_map: 1231691: map(sector 496 -> extent 31)
+device-mapper: green: get_extent: 31 obtained
+device-mapper: green: green_map: virtual 31 -> physical 31
+device-mapper: green: queue_migration: Migration of extent 31 queued
+device-mapper: green: swap_extent: Loading extent 10
+device-mapper: green: swap_extent: Loading extent 26
+device-mapper: green: swap_extent: Writing 10 to 26
+device-mapper: green: swap_extent: Writing 26 to 10
+device-mapper: green: migrate_extent: 10 and 26 swapped
+device-mapper: green: migration_work: Migration work called
+device-mapper: green: migrate_extent: Migrating extent (27, 27)
+device-mapper: green: lru_extent: Cursor at 11
+device-mapper: green: lru_extent: Extent 11 accessed
+device-mapper: green: lru_extent: Cursor at 12
+device-mapper: green: swap_extent: Swapping 12 and 27
+device-mapper: green: green_map: 1231698: map(sector 504 -> extent 31)
+device-mapper: green: green_map: virtual 31 -> physical 31
+device-mapper: green: queue_migration: Migration of extent 31 queued
+device-mapper: green: swap_extent: Loading extent 12
+device-mapper: green: swap_extent: Loading extent 27
+device-mapper: green: swap_extent: Writing 12 to 27
+device-mapper: green: swap_extent: Writing 27 to 12
+device-mapper: green: migrate_extent: 12 and 27 swapped
+device-mapper: green: migration_work: Migration work called
+device-mapper: green: migrate_extent: Migrating extent (27, 27)
+device-mapper: green: lru_extent: Cursor at 13
+device-mapper: green: lru_extent: Extent 13 accessed
+device-mapper: green: lru_extent: Cursor at 14
+device-mapper: green: swap_extent: Swapping 14 and 27
+device-mapper: green: swap_extent: Loading extent 14
+device-mapper: green: swap_extent: Loading extent 27
+device-mapper: green: swap_extent: Writing 14 to 27
+device-mapper: green: swap_extent: Writing 27 to 14
+device-mapper: green: migrate_extent: 14 and 27 swapped
