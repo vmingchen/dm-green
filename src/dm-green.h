@@ -74,7 +74,7 @@
 
 /* Magic for persistent green header */
 #define GREEN_MAGIC 0x45614567
-#define GREEN_VERSION 66
+#define GREEN_VERSION 68
 #define GREEN_DAEMON "kgreend"
 
 /* Define signal number */
@@ -224,7 +224,8 @@ struct green_c {
 
     extent_t eviction_cursor;
     struct work_struct migration_work;    /* work of evicting cache extent */
-    struct list_head migration_list;    /* list of migration_info */
+    struct list_head migration_queue;   /* queue of unhandled migration_info */
+    struct list_head migration_list;    /* list of ongoing migration */
 #if 0
     bool eviction_running; 				 /* current simple design does not need eviction thread */
 #endif

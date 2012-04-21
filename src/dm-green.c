@@ -753,6 +753,12 @@ static void clear_table(struct green_c *gc)
         gc->table[i].state &= ~VES_ACCESS;
 }
 
+/* Get virtual extent id of bio offset  */
+static inline extent_t get_bio_offset(struct green_c *gc, struct bio *bio)
+{
+	return (bio->bi_sector - gc->ti->begin) >> gc->ext_shift;
+}
+
 /* Map virtual extent 'veid' to physcial extent 'eid' */
 static void map_extent(struct green_c *gc, extent_t veid, extent_t eid)
 {
@@ -773,13 +779,7 @@ static void map_bio(struct green_c *gc, struct bio *bio, extent_t eid)
     struct dm_target *ti = gc->ti;
     sector_t offset;          /* sector offset within extent */
 
-/*
-#ifdef OLD_KERNEL
-		offset = (bio->bi_sector - ti->begin) % extent_size(gc);
-#else
-		offset = ((bio->bi_sector - ti->begin) & (extent_size(gc) - 1));
-#endif
-*/
+    /* Get offset within extent. */
     offset = ((bio->bi_sector - ti->begin) & (extent_size(gc) - 1));
 
     extent_on_disk(gc, &eid, &idisk);
@@ -1177,9 +1177,7 @@ static void swap_entry(struct green_c *gc, extent_t veid_c, extent_t veid_s)
 }
 
 /* 
- * Undertake migration work.
- * On success, it returns the new physical extent on cache disk;
- * On failure, it returns the old physical extent on secondary disk.
+ * Undertake migration work. It returns 0 on success, <0 on failure. 
  */
 static int migrate_extent(struct green_c *gc, struct migration_info *minfo)
 {
@@ -1220,17 +1218,18 @@ static int migrate_extent(struct green_c *gc, struct migration_info *minfo)
     gc->table[veid_s].state &= ~VES_MIGRATE;
     spin_unlock_irqrestore(&gc->lock, flags);
 
-    return r < 0 ? eid_s : eid_c;
+    return r;
 }
 
-/* Extract a migration_info from queue. */
+/* Extract a migration_info from queue; put it into migration_list. */
 static struct migration_info *dequeue_migration(struct green_c *gc)
 {
     struct migration_info *minfo;
 
-    VERIFY(!list_empty(&gc->migration_list));
-    minfo = list_first_entry(&gc->migration_list, struct migration_info, list);
+    VERIFY(!list_empty(&gc->migration_queue));
+    minfo = list_first_entry(&gc->migration_queue, struct migration_info, list);
     list_del(&minfo->list);
+    list_add(&minfo->list, &gc->migration_list);
     return minfo;
 }
 
@@ -1241,7 +1240,8 @@ static void migration_work(struct work_struct *work)
     struct migration_info *minfo;
     unsigned long flags;
     struct bio *bio;
-    int eid;
+    extent_t veid;
+    int r;
 
     GREEN_ERROR("Migration work called");
     gc = container_of(work, struct green_c, migration_work);
@@ -1250,14 +1250,40 @@ static void migration_work(struct work_struct *work)
     minfo = dequeue_migration(gc);
     spin_unlock_irqrestore(&gc->lock, flags);
 
-    eid = migrate_extent(gc, minfo);
+    r = migrate_extent(gc, minfo);
 
-    /* no matter migration succeed or not, submit all bios */
+    /* 
     while (!bio_list_empty(&minfo->pending_bios)) {
         bio = bio_list_pop(&minfo->pending_bios);
-        map_bio(gc, bio, eid);
-        generic_make_request(bio);
+    */
+
+    /* no matter migration succeed or not, submit all bios. */
+    bio_list_for_each(bio, &minfo->pending_bios) { 
+        veid = get_bio_offset(gc, bio);
+        /*
+         * How bio is mapped depends on two factors: 1) the extent it is pending
+         * on; 2) the migration succeeds or not.
+         * 1. pending on the extent on secondary disk (which is being promoted)
+         *      a. migration succeeds: mapped to eid_c
+         *      b. migration fails: mapped to eid_s
+         * 2. pending on the extent on cache disk (which is being demoted)
+         *      a. migration succeeds: mapped to eid_s
+         *      b. migration fails: mapped to eid_c
+         */
+        if (veid == minfo->veid_s) { 
+            GREEN_ERROR("Bio %lld submitted to %lld", bio->bi_sector, 
+                    r == 0 ? minfo->eid_c : minfo->eid_s);
+            map_bio(gc, bio, r == 0 ? minfo->eid_c : minfo->eid_s);
+        } else { 
+            GREEN_ERROR("Bio %lld submitted to %lld", bio->bi_sector, 
+                    r == 0 ? minfo->eid_s : minfo->eid_c);
+            map_bio(gc, bio, r == 0 ? minfo->eid_s : minfo->eid_c);
+        }
+//        generic_make_request(bio);
     }
+
+    /* delete from migration list */
+    list_del(&minfo->list);
 
     kfree(minfo);
 }
@@ -1281,7 +1307,7 @@ static bool queue_migration(struct green_c *gc, struct bio *bio,
     bio_list_init(&minfo->pending_bios);
     bio_list_add(&minfo->pending_bios, bio);
 
-    list_add_tail(&minfo->list, &gc->migration_list);
+    list_add_tail(&minfo->list, &gc->migration_queue);
     queue_work(kgreend_wq, &gc->migration_work);
 
     GREEN_ERROR("Migration of extent %lld queued", eid);
@@ -1289,17 +1315,32 @@ static bool queue_migration(struct green_c *gc, struct bio *bio,
     return true;
 }
 
-/* Pend a bio for an extent which is under migration. */
-static void pend_bio(struct green_c *gc, struct bio *bio, extent_t veid)
+/* Insert a bio into a list of migration_info */
+static bool insert_bio(struct list_head *mlist, struct bio *bio, extent_t veid)
 {
     struct migration_info *minfo;
 
-    list_for_each_entry(minfo, &gc->migration_list, list) {
+    list_for_each_entry(minfo, mlist, list) {
+        GREEN_ERROR("minfo->veid_c: %lld; minfo->veid_s: %lld", 
+                minfo->veid_s, minfo->veid_c);
         if (minfo->veid_s == veid || minfo->veid_c == veid) {
-            /* TODO: differentiate between pending bio on veid_s and veid_c */
             bio_list_add(&minfo->pending_bios, bio);
-            break;
+            GREEN_ERROR("bio with offset %lld inserted", bio->bi_sector);
+            return true;
         }
+    }
+    return false;
+}
+
+/* Pend a bio for an extent which is under migration. */
+static void pend_bio(struct green_c *gc, struct bio *bio, extent_t veid)
+{
+    GREEN_ERROR("Trying to pend bio %lld with veid %lld", 
+            bio->bi_sector, veid);
+
+    if (!insert_bio(&gc->migration_list, bio, veid) 
+            && !insert_bio(&gc->migration_queue, bio, veid)) {
+        GREEN_ERROR("Cannot find pending extent %lld", veid);
     }
 }
 
@@ -1480,6 +1521,7 @@ static int green_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	/* map kernel thread id to thread work function */
 
     INIT_WORK(&gc->migration_work, migration_work);
+    INIT_LIST_HEAD(&gc->migration_queue);
     INIT_LIST_HEAD(&gc->migration_list);
 #if 0
     gc->eviction_running = false;
@@ -1541,7 +1583,7 @@ static int green_map(struct dm_target *ti, struct bio *bio,
 
 	/* bio->bi_sector is based on virtual sector specified in argv */
     extent_t eid = 0; 
-	extent_t veid = (bio->bi_sector - ti->begin) >> gc->ext_shift;
+	extent_t veid = get_bio_offset(gc, bio);
 
 #if 0
     bool run_eviction = false;
