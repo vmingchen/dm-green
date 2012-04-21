@@ -1252,13 +1252,10 @@ static void migration_work(struct work_struct *work)
 
     r = migrate_extent(gc, minfo);
 
-    /* 
+    /* no matter migration succeed or not, submit all bios. */
     while (!bio_list_empty(&minfo->pending_bios)) {
         bio = bio_list_pop(&minfo->pending_bios);
-    */
-
-    /* no matter migration succeed or not, submit all bios. */
-    bio_list_for_each(bio, &minfo->pending_bios) { 
+        bio->bi_next = NULL;       /* it is a single bio instead of a bio_list */
         veid = get_bio_offset(gc, bio);
         /*
          * How bio is mapped depends on two factors: 1) the extent it is pending
@@ -1279,7 +1276,7 @@ static void migration_work(struct work_struct *work)
                     r == 0 ? minfo->eid_s : minfo->eid_c);
             map_bio(gc, bio, r == 0 ? minfo->eid_s : minfo->eid_c);
         }
-//        generic_make_request(bio);
+        generic_make_request(bio);
     }
 
     /* delete from migration list */
